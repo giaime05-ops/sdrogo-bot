@@ -13,7 +13,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# Target vittime e relative emoji (username in minuscolo)
+# Mappa vittime e relative emoji (username in minuscolo)
 TARGET_MAP = {
     "manueiii": "🙉",
     "spoleto17": "🤡"
@@ -40,11 +40,9 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user = update.message.from_user
-    chat_id = update.message.chat_id
-    message_id = update.message.message_id
     username = user.username.lower() if user.username else ""
 
-    # STAMPA LOG PER QUALSIASI MESSAGGIO RICEVUTO
+    # Stampiamo nei log ogni messaggio in entrata
     print(f"--> MESSAGGIO DA: {user.first_name} (@{user.username})", flush=True)
 
     if username in TARGET_MAP:
@@ -56,11 +54,8 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await asyncio.sleep(random.uniform(1.0, 2.0))
 
             try:
-                await context.bot.set_message_reaction(
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    reaction=emoji
-                )
+                # Metodo corretto agganciato al messaggio per python-telegram-bot v20+
+                await update.message.set_message_reaction(reaction=emoji)
                 print(f"--> SUCCESS: Reazione {emoji} inviata a @{user.username}", flush=True)
             except Exception as e:
                 print(f"--> ERRORE TELEGRAM: {e}", flush=True)
