@@ -6,7 +6,6 @@ from threading import Thread
 from flask import Flask
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
-from telegram.constants import ReactionEmoji
 
 # --- CONFIGURAZIONE LOGGING ---
 logging.basicConfig(
@@ -14,10 +13,10 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# Mappa vittime e relative emoji (in minuscolo)
+# Mappa vittime ed emoji
 TARGET_MAP = {
-    "manueiii": ReactionEmoji.MONKEY_FACE,  # 🙉
-    "spoleto17": ReactionEmoji.CLOWN_FACE    # 🤡
+    "manueiii": "🙉",
+    "spoleto17": "🤡"
 }
 
 TELEGRAM_TOKEN = "8718996725:AAE18K0GA5_EWT1XKJGpLBjwUyMar3DrxPo"
@@ -41,11 +40,11 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user = update.message.from_user
+    chat_id = update.message.chat_id
+    message_id = update.message.message_id
     username = user.username.lower() if user.username else ""
 
-    # Verifica se l'utente è tra i target
     if username in TARGET_MAP:
-        # Probabilità dell'85%
         if random.random() < 0.85:
             emoji = TARGET_MAP[username]
             
@@ -53,14 +52,17 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await asyncio.sleep(random.uniform(1.0, 2.0))
 
             try:
-                # Usa il metodo nativo dell'oggetto message per piazzare la reazione
-                await update.message.react(emoji)
+                await context.bot.set_message_reaction(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reaction=emoji
+                )
                 print(f"--> Reazione {emoji} inviata a @{user.username}", flush=True)
             except Exception as e:
-                print(f"--> Errore durante l'invio della reazione: {e}", flush=True)
+                print(f"--> Errore invio reazione: {e}", flush=True)
 
 async def main_async():
-    # Avvia il server Flask in background
+    # Avvia il server Flask
     flask_thread = Thread(target=run_flask, daemon=True)
     flask_thread.start()
     print("Server Flask avviato...", flush=True)
