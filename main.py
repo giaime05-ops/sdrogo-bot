@@ -16,7 +16,7 @@ logging.basicConfig(
 # Mappa vittime e relative emoji (username in minuscolo)
 TARGET_MAP = {
     "manueiii": "🙉",
-    "spoleto17": "🤡"
+    "spoleto17": "🤡",
     "artemesio": "💩"
 }
 
