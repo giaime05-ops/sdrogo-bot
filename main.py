@@ -12,8 +12,8 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# Token dalle variabili d'ambiente di Render o backup
-TELEGRAM_TOKEN = "8718996725:AAE18K0GA5_EWT1XKJGpLBjwUyMar3DrxPo"
+# Token preso dalle variabili d'ambiente o backup
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8718996725:AAE18K0GA5_EWT1XKJGpLBjwUyMar3DrxPo")
 
 # --- KEEP ALIVE SERVER (Flask) ---
 app = Flask(__name__)
@@ -24,7 +24,6 @@ def home():
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
-    # Suppress flask default logs to keep Render console clean
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.ERROR)
     app.run(host='0.0.0.0', port=port)
@@ -46,16 +45,12 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message_id=message_id,
             reaction="🤡"
         )
-        print("--> REAZIONE 🤡 INVIATA!", flush=True)
+        print("--> REAZIONE 🤡 INVIATA CON SUCCESSO!", flush=True)
     except Exception as e:
-        print(f"--> ERRORE REAZIONE: {e}", flush=True)
+        print(f"--> ERRORE REAZIONE TELEGRAM: {e}", flush=True)
 
-def main():
-    if not TELEGRAM_TOKEN:
-        print("ERRORE: Manca il TELEGRAM_TOKEN!", flush=True)
-        return
-
-    # Avvia il web server Flask su un thread separato prima di Telegram
+async def main_async():
+    # Avvia Flask in background
     flask_thread = Thread(target=run_flask, daemon=True)
     flask_thread.start()
     print("Server Flask avviato...", flush=True)
@@ -64,10 +59,18 @@ def main():
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     application.add_handler(MessageHandler(filters.ALL, handle_reaction))
 
-    print("Bot in ascolto sui messaggi di Telegram...", flush=True)
-    
-    # Avvia il polling
-    application.run_polling(drop_pending_updates=True)
+    print("Inizio ascolto messaggi con Asyncio...", flush=True)
+
+    # Avvio ed esecuzione del polling compatibile con Python 3.14
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling(drop_pending_updates=True)
+
+    # Mantiene il bot in esecuzione per sempre
+    await asyncio.Event().wait()
 
 if __name__ == '__main__':
-    main()
+    try:
+        asyncio.run(main_async())
+    except (KeyboardInterrupt, SystemExit):
+        pass
