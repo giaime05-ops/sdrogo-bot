@@ -13,7 +13,7 @@ logging.basicConfig(
 )
 
 # Token preso dalle variabili d'ambiente o backup
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8718996725:AAE18K0GA5_EWT1XKJGpLBjwUyMar3DrxPo")
+TELEGRAM_TOKEN = "8718996725:AAE18K0GA5_EWT1XKJGpLBjwUyMar3DrxPo"
 
 # --- KEEP ALIVE SERVER (Flask) ---
 app = Flask(__name__)
