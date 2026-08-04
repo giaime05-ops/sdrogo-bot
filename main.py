@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 from threading import Thread
 from flask import Flask
 from telegram import Update
@@ -11,25 +12,24 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# Token preso dalle variabili d'ambiente di Render (o il tuo di backup)
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8718996725:AAE18K0GA5_EWT1XKJGpLBjwUyMar3DrxPo")
+# Token dalle variabili d'ambiente di Render o backup
+TELEGRAM_TOKEN = "8718996725:AAE18K0GA5_EWT1XKJGpLBjwUyMar3DrxPo"
 
-# --- KEEP ALIVE SERVER (Per Render H24) ---
-app = Flask('')
+# --- KEEP ALIVE SERVER (Flask) ---
+app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "SdrogoBot è Attivo e operativo H24!"
+    return "SdrogoBot è attivo e in ascolto!"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
+    # Suppress flask default logs to keep Render console clean
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
     app.run(host='0.0.0.0', port=port)
 
-def keep_alive():
-    t = Thread(target=run_flask)
-    t.start()
-
-# --- TEST DI PROVA FORZATO ---
+# --- HANDLER MESSAGGI (TEST FORZATO 🤡) ---
 async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.from_user:
         return
@@ -38,35 +38,36 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_id = update.message.message_id
     user = update.message.from_user
 
-    # Scrive nei log di Render chi ha mandato il messaggio
-    logging.info(f"Messaggio ricevuto da: {user.first_name} (@{user.username})")
+    print(f"--> MESSAGGIO RICEVUTO DA: {user.first_name} (@{user.username})", flush=True)
 
-    # Prova a mettere la reazione 🤡 a CHIUNQUE scriva
     try:
         await context.bot.set_message_reaction(
             chat_id=chat_id,
             message_id=message_id,
             reaction="🤡"
         )
-        logging.info("Reazione 🤡 inviata con successo!")
+        print("--> REAZIONE 🤡 INVIATA!", flush=True)
     except Exception as e:
-        # Se c'è un errore di permessi o altro, viene stampato in rosso nei log di Render
-        logging.error(f"ERRORE TELEGRAM: {e}")
+        print(f"--> ERRORE REAZIONE: {e}", flush=True)
 
 def main():
-    keep_alive()
-
     if not TELEGRAM_TOKEN:
-        print("ERRORE: Manca il TELEGRAM_TOKEN!")
+        print("ERRORE: Manca il TELEGRAM_TOKEN!", flush=True)
         return
 
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    # Avvia il web server Flask su un thread separato prima di Telegram
+    flask_thread = Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    print("Server Flask avviato...", flush=True)
 
-    # Ascolta TUTTI i messaggi (testi, foto, sticker, vocali, ecc.)
+    # Inizializza l'applicazione Telegram
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
     application.add_handler(MessageHandler(filters.ALL, handle_reaction))
 
-    print("SdrogoBot avviato in modalità TEST...")
-    application.run_polling()
+    print("Bot in ascolto sui messaggi di Telegram...", flush=True)
+    
+    # Avvia il polling
+    application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()
