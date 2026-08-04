@@ -13,7 +13,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# Mappa vittime ed emoji
+# Target vittime e relative emoji (username in minuscolo)
 TARGET_MAP = {
     "manueiii": "🙉",
     "spoleto17": "🤡"
@@ -44,7 +44,11 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_id = update.message.message_id
     username = user.username.lower() if user.username else ""
 
+    # STAMPA LOG PER QUALSIASI MESSAGGIO RICEVUTO
+    print(f"--> MESSAGGIO DA: {user.first_name} (@{user.username})", flush=True)
+
     if username in TARGET_MAP:
+        # Probabilità dell'85%
         if random.random() < 0.85:
             emoji = TARGET_MAP[username]
             
@@ -57,17 +61,15 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     message_id=message_id,
                     reaction=emoji
                 )
-                print(f"--> Reazione {emoji} inviata a @{user.username}", flush=True)
+                print(f"--> SUCCESS: Reazione {emoji} inviata a @{user.username}", flush=True)
             except Exception as e:
-                print(f"--> Errore invio reazione: {e}", flush=True)
+                print(f"--> ERRORE TELEGRAM: {e}", flush=True)
 
 async def main_async():
-    # Avvia il server Flask
     flask_thread = Thread(target=run_flask, daemon=True)
     flask_thread.start()
     print("Server Flask avviato...", flush=True)
 
-    # Inizializza l'applicazione Telegram
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     application.add_handler(MessageHandler(filters.ALL, handle_reaction))
 
