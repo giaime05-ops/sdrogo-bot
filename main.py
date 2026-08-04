@@ -21,25 +21,22 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# Mappa delle vittime con relative emoji (username in minuscolo)
+# Mappa delle vittime con relative emoji (username in minuscolo senza @)
 TARGET_MAP = {
     "manueiii": "🙉",
     "spoleto17": "🤡",
-    "artemesio": "💩"
+    "artemesio": "💩",
+    "marco_palestra": "🖕",
+    "albe960": "🥱",
+    "alessioaynonnt": "🐳"
 }
 
-# Legge il token in modo sicuro dalle variabili d'ambiente di Render
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-
 IS_TROLLING_ACTIVE = True
 
-# Frase segreta di penitenza per lo sconfitto
 FRASE_PENITENZA = "sono un perdente"
 
-# Memoria sfide attive
 ACTIVE_DUELS = {}
-
-# Memoria penitenze attive: {user_id: conteggio_messaggi_rimasti}
 PENITENZE_ATTIVE = {}
 
 # --- KEEP ALIVE SERVER (Flask) ---
@@ -55,12 +52,27 @@ def run_flask():
     log.setLevel(logging.ERROR)
     app.run(host='0.0.0.0', port=port)
 
-# --- COMANDO TOGGLE (ON / OFF AUTO-TROLL) ---
+# --- COMANDO TOGGLE ---
 async def toggle_troll(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global IS_TROLLING_ACTIVE
     IS_TROLLING_ACTIVE = not IS_TROLLING_ACTIVE
-    stato = "ATTIVATA 🙉🤡💩" if IS_TROLLING_ACTIVE else "DISATTIVATA 🛑"
+    stato = "ATTIVATA 🙉🤡💩🖕🥱🐳" if IS_TROLLING_ACTIVE else "DISATTIVATA 🛑"
     await update.message.reply_text(f"Modalità Auto-Troll: {stato}")
+
+# --- COMANDO DI EMERGENZA PER RESETTARE IL DUELLO ---
+async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    
+    if chat_id in ACTIVE_DUELS:
+        del ACTIVE_DUELS[chat_id]
+
+    PENITENZE_ATTIVE.clear()
+
+    await update.message.reply_text(
+        "🛠️ **RESET EFFETTUATO!**\n"
+        "Tutti i duelli bloccati sono stati cancellati e le penitenze azzerate. Potete tornare a giocare!",
+        parse_mode="Markdown"
+    )
 
 # --- ROULETTE RUSSA 1v1 CON BOTTONI ---
 
@@ -69,7 +81,7 @@ async def avvia_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sfidante = update.message.from_user
 
     if chat_id in ACTIVE_DUELS:
-        await update.message.reply_text("⚠️ C'è già una sfida in corso in questa chat!")
+        await update.message.reply_text("⚠️ C'è già una sfida in corso! Se si è buggata, usate `/resetduello`.")
         return
 
     if not context.args or not context.args[0].startswith("@"):
@@ -121,7 +133,7 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
     user = query.from_user
 
     if chat_id not in ACTIVE_DUELS:
-        await query.answer("⚠️ Questa sfida non è più attiva.", show_alert=True)
+        await query.answer("⚠️ Questa sfida non è più attiva o è stata resettata.", show_alert=True)
         return
 
     duel = ACTIVE_DUELS[chat_id]
@@ -169,8 +181,8 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
         del ACTIVE_DUELS[chat_id]
 
     elif query.data == "roulette_spara":
-        if duel["stato"] != "IN_CORSO":
-            await query.answer("La sfida non è in corso.", show_alert=True)
+        if chat_id not in ACTIVE_DUELS or duel["stato"] != "IN_CORSO":
+            await query.answer("La sfida non è più attiva.", show_alert=True)
             return
 
         if user.id != duel["turno_id"]:
@@ -193,8 +205,10 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
         await query.edit_message_text(f"🔫 **{user.first_name}** preme il grilletto...", parse_mode="Markdown")
         await asyncio.sleep(1.8)
 
+        if chat_id not in ACTIVE_DUELS:
+            return
+
         if is_bullet:
-            # BAM! PROIETTILE ESPLOSO
             try:
                 until_date = datetime.now() + timedelta(seconds=120)
                 await context.bot.restrict_chat_member(
@@ -213,8 +227,8 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
                         user_id=user.id,
                         custom_title="🤡 Giuse 🤡"
                     )
-                except Exception as e:
-                    print(f"--> Impossibile impostare Custom Title: {e}", flush=True)
+                except Exception:
+                    pass
 
                 msg_esito = (
                     f"💥 **BAM!** 💀 **{user_mention} è morto sul colpo!**\n\n"
@@ -230,10 +244,10 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
                 pass
 
             await context.bot.send_message(chat_id=chat_id, text=msg_esito, parse_mode="Markdown")
-            del ACTIVE_DUELS[chat_id]
+            if chat_id in ACTIVE_DUELS:
+                del ACTIVE_DUELS[chat_id]
 
         else:
-            # CLICK! CAMERA VUOTA
             prossimo_id = duel["target_id"] if user.id == duel["sfidante_id"] else duel["sfidante_id"]
             prossimo_nome = duel["target_name"] if user.id == duel["sfidante_id"] else duel["sfidante_name"]
             
@@ -255,6 +269,10 @@ async def handle_reaction_and_penitenza(update: Update, context: ContextTypes.DE
         return
 
     user = update.message.from_user
+    
+    if user.is_bot:
+        return
+
     chat_id = update.message.chat_id
     text = (update.message.text or "").strip().lower()
 
@@ -312,11 +330,12 @@ async def main_async():
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     
     application.add_handler(CommandHandler("toggle", toggle_troll))
+    application.add_handler(CommandHandler("resetduello", reset_duello))
     application.add_handler(CommandHandler("roulette", avvia_roulette))
     application.add_handler(CallbackQueryHandler(gestione_bottoni_roulette, pattern="^roulette_"))
     application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_reaction_and_penitenza))
 
-    print("SdrogoBot protetto e attivo con Token da Environment Variables...", flush=True)
+    print("SdrogoBot attivo e aggiornato con il dito medio per Marco!", flush=True)
 
     await application.initialize()
     await application.start()
