@@ -17,6 +17,7 @@ logging.basicConfig(
 TARGET_MAP = {
     "manueiii": "🙉",
     "spoleto17": "🤡"
+    "artemesio": "💩"
 }
 
 TELEGRAM_TOKEN = "8718996725:AAE18K0GA5_EWT1XKJGpLBjwUyMar3DrxPo"
