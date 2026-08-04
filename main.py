@@ -21,14 +21,16 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# Mappa delle vittime con relative emoji
+# Mappa delle vittime con relative emoji (username in minuscolo)
 TARGET_MAP = {
     "manueiii": "🙉",
     "spoleto17": "🤡",
     "artemesio": "💩"
 }
 
-TELEGRAM_TOKEN = "8718996725:AAE18K0GA5_EWT1XKJGpLBjwUyMar3DrxPo"
+# Legge il token in modo sicuro dalle variabili d'ambiente di Render
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+
 IS_TROLLING_ACTIVE = True
 
 # Frase segreta di penitenza per lo sconfitto
@@ -193,7 +195,6 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
 
         if is_bullet:
             # BAM! PROIETTILE ESPLOSO
-            # 1. Mute Telegram standard (se l'utente non è Admin)
             try:
                 until_date = datetime.now() + timedelta(seconds=120)
                 await context.bot.restrict_chat_member(
@@ -204,10 +205,8 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
                 )
                 msg_esito = f"💥 **BAM!** 💀 **{user_mention} è morto!**\n🔇 Mutato per 2 minuti!"
             except Exception:
-                # 2. Se l'utente è Admin -> TITOLO CUSTOM + FRASE DI PENITENZA
                 PENITENZE_ATTIVE[user.id] = 3
                 
-                # Imposta il titolo custom "🤡 Giuse 🤡"
                 try:
                     await context.bot.set_chat_administrator_custom_title(
                         chat_id=chat_id,
@@ -225,7 +224,6 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
                     f"*(Ogni altro tuo messaggio verrà eliminato all'istante!)*"
                 )
 
-            # Reazione pagliaccio fissa sul messaggio
             try:
                 await context.bot.set_message_reaction(chat_id=chat_id, message_id=query.message.message_id, reaction="🤡")
             except Exception:
@@ -260,7 +258,6 @@ async def handle_reaction_and_penitenza(update: Update, context: ContextTypes.DE
     chat_id = update.message.chat_id
     text = (update.message.text or "").strip().lower()
 
-    # --- CONTROLLO PENITENZA FRASE SEGRETA ---
     if user.id in PENITENZE_ATTIVE and PENITENZE_ATTIVE[user.id] > 0:
         if text != FRASE_PENITENZA:
             try:
@@ -279,7 +276,6 @@ async def handle_reaction_and_penitenza(update: Update, context: ContextTypes.DE
             if PENITENZE_ATTIVE[user.id] == 0:
                 del PENITENZE_ATTIVE[user.id]
                 
-                # Rimuove il titolo Custom "🤡 Giuse 🤡"
                 try:
                     await context.bot.set_chat_administrator_custom_title(chat_id=chat_id, user_id=user.id, custom_title="")
                 except Exception:
@@ -288,7 +284,6 @@ async def handle_reaction_and_penitenza(update: Update, context: ContextTypes.DE
                 await update.message.reply_text(f"✅ Penitenza completata! @{user.username} ha ammesso di essere un perdente ed è stato riabilitato!")
                 return
 
-    # --- AUTO-TROLL EMOJI ---
     if not IS_TROLLING_ACTIVE:
         return
 
@@ -307,18 +302,21 @@ async def handle_reaction_and_penitenza(update: Update, context: ContextTypes.DE
                 print(f"--> ERRORE TELEGRAM: {e}", flush=True)
 
 async def main_async():
+    if not TELEGRAM_TOKEN:
+        logging.error("ERRORE CRITICO: La variabile d'ambiente TELEGRAM_TOKEN non è impostata!")
+        return
+
     flask_thread = Thread(target=run_flask, daemon=True)
     flask_thread.start()
 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     
-    # Registrazione Comandi e Handlers
     application.add_handler(CommandHandler("toggle", toggle_troll))
     application.add_handler(CommandHandler("roulette", avvia_roulette))
     application.add_handler(CallbackQueryHandler(gestione_bottoni_roulette, pattern="^roulette_"))
     application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_reaction_and_penitenza))
 
-    print("SdrogoBot attivo con Roulette Russa, Bottoni, Tag Giuse e Penitenza...", flush=True)
+    print("SdrogoBot protetto e attivo con Token da Environment Variables...", flush=True)
 
     await application.initialize()
     await application.start()
