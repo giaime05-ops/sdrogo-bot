@@ -1,6 +1,4 @@
 import os
-import random
-import asyncio
 import logging
 from threading import Thread
 from flask import Flask
@@ -13,17 +11,8 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# --- CONFIGURAZIONE REAZIONI E BERSAGLI ---
-# Target aggiornati:
-# - @manueiii -> 🙉
-# - @Spoleto17 -> 🤡
-REAZIONI_UTENTI = {
-    "manueiii": "🙉",
-    "spoleto17": "🤡"
-}
-
-# Token preso dalle variabili d'ambiente di Render
-TELEGRAM_TOKEN = "8718996725:AAE18K0GA5_EWT1XKJGpLBjwUyMar3DrxPo"
+# Token preso dalle variabili d'ambiente di Render (o il tuo di backup)
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8718996725:AAE18K0GA5_EWT1XKJGpLBjwUyMar3DrxPo")
 
 # --- KEEP ALIVE SERVER (Per Render H24) ---
 app = Flask('')
@@ -40,34 +29,29 @@ def keep_alive():
     t = Thread(target=run_flask)
     t.start()
 
-# --- GESTIONE REAZIONI AUTOMATICHE ---
+# --- TEST DI PROVA FORZATO ---
 async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.from_user:
         return
 
-    user = update.message.from_user
     chat_id = update.message.chat_id
     message_id = update.message.message_id
+    user = update.message.from_user
 
-    # Controlla se l'utente ha un username ed è presente nel dizionario delle vittime
-    if user.username and user.username.lower() in REAZIONI_UTENTI:
-        username_clean = user.username.lower()
-        emoji = REAZIONI_UTENTI[username_clean]
+    # Scrive nei log di Render chi ha mandato il messaggio
+    logging.info(f"Messaggio ricevuto da: {user.first_name} (@{user.username})")
 
-        # Mette la reazione nell'85% dei casi per simulare naturalezza
-        if random.random() < 0.85:
-            # Attesa di 1-2 secondi per simulare un comportamento umano
-            await asyncio.sleep(random.randint(1, 2))
-
-            try:
-                await context.bot.set_message_reaction(
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    reaction=emoji
-                )
-                logging.info(f"Reazione {emoji} inviata a @{user.username}")
-            except Exception as e:
-                logging.warning(f"Impossibile inviare la reazione: {e}")
+    # Prova a mettere la reazione 🤡 a CHIUNQUE scriva
+    try:
+        await context.bot.set_message_reaction(
+            chat_id=chat_id,
+            message_id=message_id,
+            reaction="🤡"
+        )
+        logging.info("Reazione 🤡 inviata con successo!")
+    except Exception as e:
+        # Se c'è un errore di permessi o altro, viene stampato in rosso nei log di Render
+        logging.error(f"ERRORE TELEGRAM: {e}")
 
 def main():
     keep_alive()
@@ -78,10 +62,10 @@ def main():
 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    # Ascolta TUTTI i tipi di messaggio inviati nella chat
+    # Ascolta TUTTI i messaggi (testi, foto, sticker, vocali, ecc.)
     application.add_handler(MessageHandler(filters.ALL, handle_reaction))
 
-    print("SdrogoBot avviato...")
+    print("SdrogoBot avviato in modalità TEST...")
     application.run_polling()
 
 if __name__ == '__main__':
