@@ -16,7 +16,8 @@ logging.basicConfig(
 # --- CONFIGURAZIONE REAZIONI E BERSAGLI ---
 # Target: @manueIII con l'emoji della scimmia che si tappa le orecchie (🙉)
 REAZIONI_UTENTI = {
-    "manuelll": "🙉"
+    "manueiii": "🙉"
+    "spoleto17": "🤡"
 }
 
 # Token preso dalle variabili d'ambiente di Render
