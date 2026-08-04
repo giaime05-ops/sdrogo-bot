@@ -40,6 +40,8 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user = update.message.from_user
+    chat_id = update.message.chat_id
+    message_id = update.message.message_id
     username = user.username.lower() if user.username else ""
 
     print(f"--> MESSAGGIO DA: {user.first_name} (@{user.username})", flush=True)
@@ -53,8 +55,11 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await asyncio.sleep(random.uniform(1.0, 2.0))
 
             try:
-                # Metodo nativo corretto per la tua versione della libreria
-                await update.message.react(reaction=emoji)
+                await context.bot.set_message_reaction(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reaction=emoji
+                )
                 print(f"--> SUCCESS: Reazione {emoji} inviata a @{user.username}", flush=True)
             except Exception as e:
                 print(f"--> ERRORE TELEGRAM: {e}", flush=True)
