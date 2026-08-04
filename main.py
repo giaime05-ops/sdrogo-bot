@@ -14,9 +14,11 @@ logging.basicConfig(
 )
 
 # --- CONFIGURAZIONE REAZIONI E BERSAGLI ---
-# Target: @manueIII con l'emoji della scimmia che si tappa le orecchie (🙉)
+# Target aggiornati:
+# - @manueiii -> 🙉
+# - @Spoleto17 -> 🤡
 REAZIONI_UTENTI = {
-    "manueiii": "🙉"
+    "manueiii": "🙉",
     "spoleto17": "🤡"
 }
 
@@ -47,12 +49,12 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     message_id = update.message.message_id
 
-    # Controlla se l'utente ha un username ed è @manueIII
+    # Controlla se l'utente ha un username ed è presente nel dizionario delle vittime
     if user.username and user.username.lower() in REAZIONI_UTENTI:
         username_clean = user.username.lower()
         emoji = REAZIONI_UTENTI[username_clean]
 
-        # Mette la reazione quasi sempre (85% dei casi) per evitare spam rigido
+        # Mette la reazione nell'85% dei casi per simulare naturalezza
         if random.random() < 0.85:
             # Attesa di 1-2 secondi per simulare un comportamento umano
             await asyncio.sleep(random.randint(1, 2))
