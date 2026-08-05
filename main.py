@@ -21,7 +21,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# Mappa delle vittime con relative emoji (username in minuscolo senza @)
+# --- MAPPA DELLE VITTIME ---
 TARGET_MAP = {
     "manueiii": "🙉",
     "spoleto17": "🤡",
@@ -31,13 +31,17 @@ TARGET_MAP = {
     "alessioaynonnt": "🐳"
 }
 
+# --- VARIABILI D'AMBIENTE E STATI GLOBALI ---
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-IS_TROLLING_ACTIVE = True
+ADMIN_ID = os.environ.get("ADMIN_ID")            # Tuo ID Telegram personale
+GROUP_CHAT_ID = os.environ.get("GROUP_CHAT_ID")    # ID del Gruppo Principale
 
+IS_TROLLING_ACTIVE = True
 FRASE_PENITENZA = "sono un perdente"
 
 ACTIVE_DUELS = {}
 PENITENZE_ATTIVE = {}
+BLACKJACK_GAMES = {}
 
 # --- KEEP ALIVE SERVER (Flask) ---
 app = Flask(__name__)
@@ -52,36 +56,129 @@ def run_flask():
     log.setLevel(logging.ERROR)
     app.run(host='0.0.0.0', port=port)
 
-# --- COMANDO TOGGLE ---
+# --- HELPER PERMETTI ADMIN ---
+def is_admin(user_id: int) -> bool:
+    if not ADMIN_ID:
+        return False
+    return str(user_id) == str(ADMIN_ID)
+
+# --- TRACCIAMENTO ID NEI LOG ---
+async def track_ids(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.from_user:
+        return
+    user_id = str(update.message.from_user.id)
+    chat_id = str(update.effective_chat.id)
+    chat_type = update.effective_chat.type
+    print(f"--- [SDROGOBOT LOG] User ID: {user_id} | Chat ID: {chat_id} ({chat_type}) ---", flush=True)
+
+# --- COMANDO /SDROGOCOMM ---
+async def show_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await track_ids(update, context)
+    user_id = update.effective_user.id
+    chat_type = update.effective_chat.type
+
+    # Se inviato in privato dall'Admin, mostra la lista comandi estesa
+    if chat_type == "private" and is_admin(user_id):
+        text = (
+            "👑 <b>PANNELLO ADMIN SDROGOBOT (RISERVATO)</b> 🛠️\n\n"
+            "<b>Comandi Amministrativi (funzionano anche qui in privato):</b>\n"
+            "😈 <b>/troll</b> - Attiva/Disattiva la modalità Auto-Troll nel gruppo.\n"
+            "🧹 <b>/pen</b> - Rimuove tutte le penitenze attive nel gruppo.\n\n"
+            "<b>Comandi Pubblici del Gruppo:</b>\n"
+            "🎯 <b>/roulette @username</b> - Sfida un utente alla Roulette Russa 1v1.\n"
+            "🃏 <b>/blackjack</b> - Gioca a Blackjack 21 contro il bot.\n"
+            "🔄 <b>/resetduello</b> - Sblocca duelli o giochi incastrati (mantiene le penitenze).\n"
+            "ℹ️ <b>/sdrogocomm</b> - Mostra questo pannello."
+        )
+    else:
+        text = (
+            "🤖 <b>COMANDI DISPONIBILI - SDROGOBOT</b> 🎮\n\n"
+            "🎯 <b>/roulette @username</b> - Sfida un utente alla Roulette Russa 1v1!\n"
+            "🃏 <b>/blackjack</b> - Avvia una partita a Blackjack 21 contro il bot!\n"
+            "🔄 <b>/resetduello</b> - Ripristina i duelli bloccati da bug/errori.\n"
+            "ℹ️ <b>/sdrogocomm</b> - Mostra questa lista comandi."
+        )
+    
+    await update.message.reply_text(text, parse_mode='HTML')
+
+# --- COMANDO TROLL (EX TOGGLE) ---
 async def toggle_troll(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await track_ids(update, context)
     global IS_TROLLING_ACTIVE
+
+    user_id = update.effective_user.id
+    if update.effective_chat.type == "private" and not is_admin(user_id):
+        await update.message.reply_text("❌ Non hai i permessi per configurare il bot in privato!")
+        return
+
     IS_TROLLING_ACTIVE = not IS_TROLLING_ACTIVE
     stato = "ATTIVATA 🙉🤡💩🖕🥱🐳" if IS_TROLLING_ACTIVE else "DISATTIVATA 🛑"
-    await update.message.reply_text(f"Modalità Auto-Troll: {stato}")
 
-# --- COMANDO DI EMERGENZA PER RESETTARE IL DUELLO ---
+    if update.effective_chat.type == "private":
+        await update.message.reply_text(f"⚙️ Modalità Auto-Troll nel gruppo: <b>{stato}</b>", parse_mode='HTML')
+        if GROUP_CHAT_ID:
+            try:
+                await context.bot.send_message(
+                    chat_id=int(GROUP_CHAT_ID),
+                    text=f"Modalità Auto-Troll: {stato}"
+                )
+            except Exception as e:
+                logging.error(f"Errore notifica gruppo: {e}")
+    else:
+        await update.message.reply_text(f"Modalità Auto-Troll: {stato}")
+
+# --- COMANDO PEN (CANCELLA PENITENZE) ---
+async def clear_penalties(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await track_ids(update, context)
+    user_id = update.effective_user.id
+
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Solo gli admin possono cancellare le penitenze!")
+        return
+
+    had_penalties = len(PENITENZE_ATTIVE) > 0
+    PENITENZE_ATTIVE.clear()
+
+    if update.effective_chat.type == "private":
+        await update.message.reply_text("🧹 Tutte le penitenze attive nel gruppo sono state rimosse!")
+        if GROUP_CHAT_ID and had_penalties:
+            try:
+                await context.bot.send_message(
+                    chat_id=int(GROUP_CHAT_ID),
+                    text="🕊️ <b>L'Admin ha rimosso tutte le penitenze attive!</b>",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                logging.error(f"Errore notifica gruppo: {e}")
+    else:
+        await update.message.reply_text("🧹 Tutte le penitenze attive sono state rimosse!")
+
+# --- RESET DUELLO (NON CANCELLA LE PENITENZE) ---
 async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await track_ids(update, context)
     chat_id = update.message.chat_id
     
     if chat_id in ACTIVE_DUELS:
         del ACTIVE_DUELS[chat_id]
 
-    PENITENZE_ATTIVE.clear()
+    if str(chat_id) in BLACKJACK_GAMES:
+        del BLACKJACK_GAMES[str(chat_id)]
 
     await update.message.reply_text(
-        "🛠️ **RESET EFFETTUATO!**\n"
-        "Tutti i duelli bloccati sono stati cancellati e le penitenze azzerate. Potete tornare a giocare!",
-        parse_mode="Markdown"
+        "🛠️ <b>RESET LOGICA EFFETTUATO!</b>\n"
+        "Tutti i duelli e i minigiochi bloccati sono stati cancellati.\n"
+        "<i>Nota: Le penitenze attive rimangono in vigore (usa /pen se necessario).</i>",
+        parse_mode="HTML"
     )
 
 # --- ROULETTE RUSSA 1v1 CON BOTTONI ---
-
 async def avvia_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await track_ids(update, context)
     chat_id = update.message.chat_id
     sfidante = update.message.from_user
 
     if chat_id in ACTIVE_DUELS:
-        await update.message.reply_text("⚠️ C'è già una sfida in corso! Se si è buggata, usate `/resetduello`.")
+        await update.message.reply_text("⚠️ C'è già una sfida in corso! Se si è buggata, usate `/resetduello`.", parse_mode="Markdown")
         return
 
     if not context.args or not context.args[0].startswith("@"):
@@ -263,13 +360,135 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
                 parse_mode="Markdown"
             )
 
+# --- MINIGIOCO: BLACKJACK EXPRESS 21 ---
+def get_card():
+    cards = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11]
+    return random.choice(cards)
+
+def calculate_score(hand):
+    score = sum(hand)
+    while score > 21 and 11 in hand:
+        hand[hand.index(11)] = 1
+        score = sum(hand)
+    return score
+
+async def start_blackjack(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await track_ids(update, context)
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+
+    if chat_id in BLACKJACK_GAMES:
+        await update.message.reply_text("⚠️ C'è già una partita di Blackjack in corso in questa chat!")
+        return
+
+    player_hand = [get_card(), get_card()]
+    dealer_hand = [get_card()]
+
+    BLACKJACK_GAMES[chat_id] = {
+        "player_id": user.id,
+        "player_name": user.first_name,
+        "player_hand": player_hand,
+        "dealer_hand": dealer_hand
+    }
+
+    keyboard = [
+        [
+            InlineKeyboardButton("🎴 Carta", callback_data="bj_hit"),
+            InlineKeyboardButton("✋ Stai", callback_data="bj_stand")
+        ]
+    ]
+
+    await update.message.reply_text(
+        f"🃏 <b>BLACKJACK 21</b> 🃏\n\n"
+        f"👤 Giocatore: <b>{user.first_name}</b>\n"
+        f"🎎 Carte tue: {player_hand} (Totale: <b>{calculate_score(player_hand)}</b>)\n"
+        f"🤖 Carta Banco: [{dealer_hand[0]}, ?]\n\n"
+        f"Cosa vuoi fare?",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='HTML'
+    )
+
+async def handle_blackjack_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    chat_id = str(query.message.chat.id)
+    user_id = query.from_user.id
+
+    if chat_id not in BLACKJACK_GAMES:
+        await query.edit_message_text("❌ Questa partita è terminata.")
+        return
+
+    game = BLACKJACK_GAMES[chat_id]
+
+    if user_id != game["player_id"]:
+        await query.answer("⚠️ Non è la tua partita!", show_alert=True)
+        return
+
+    if query.data == "bj_hit":
+        game["player_hand"].append(get_card())
+        score = calculate_score(game["player_hand"])
+
+        if score > 21:
+            PENITENZE_ATTIVE[user_id] = 3
+            del BLACKJACK_GAMES[chat_id]
+            await query.edit_message_text(
+                f"💥 <b>SBALLATO!</b>\n\n"
+                f"🎎 Le tue carte: {game['player_hand']} (Totale: <b>{score}</b>)\n"
+                f"❌ <b>{game['player_name']}</b> ha superato 21 ed entra in <b>PENITENZA</b>!\n"
+                f"Devi scrivere `{FRASE_PENITENZA}` 3 volte!",
+                parse_mode='HTML'
+            )
+        else:
+            keyboard = [
+                [
+                    InlineKeyboardButton("🎴 Carta", callback_data="bj_hit"),
+                    InlineKeyboardButton("✋ Stai", callback_data="bj_stand")
+                ]
+            ]
+            await query.edit_message_text(
+                f"🃏 <b>BLACKJACK 21</b> 🃏\n\n"
+                f"👤 Giocatore: <b>{game['player_name']}</b>\n"
+                f"🎎 Carte tue: {game['player_hand']} (Totale: <b>{score}</b>)\n"
+                f"🤖 Carta Banco: [{game['dealer_hand'][0]}, ?]\n\n"
+                f"Cosa vuoi fare?",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='HTML'
+            )
+
+    elif query.data == "bj_stand":
+        player_score = calculate_score(game["player_hand"])
+        dealer_hand = game["dealer_hand"]
+        
+        while calculate_score(dealer_hand) < 17:
+            dealer_hand.append(get_card())
+            
+        dealer_score = calculate_score(dealer_hand)
+        player_name = game["player_name"]
+        del BLACKJACK_GAMES[chat_id]
+
+        text = (
+            f"🏁 <b>RISULTATO FINALE BLACKJACK</b> 🏁\n\n"
+            f"👤 <b>{player_name}</b>: {game['player_hand']} (Punti: <b>{player_score}</b>)\n"
+            f"🤖 <b>Banco</b>: {dealer_hand} (Punti: <b>{dealer_score}</b>)\n\n"
+        )
+
+        if dealer_score > 21 or player_score > dealer_score:
+            text += f"🏆 <b>VITTORIA! {player_name} ha battuto il Banco!</b> 🎉"
+        elif player_score < dealer_score:
+            PENITENZE_ATTIVE[user_id] = 3
+            text += f"❌ <b>SCONFITTA!</b> Il Banco vince. <b>{player_name}</b> va in <b>PENITENZA</b>!\nDevi scrivere `{FRASE_PENITENZA}` 3 volte!"
+        else:
+            text += "⚖️ <b>PAREGGIO!</b> Nessuna penitenza assegnata."
+
+        await query.edit_message_text(text, parse_mode='HTML')
+
 # --- CONTROLLO PENITENZE E AUTO-TROLL ---
 async def handle_reaction_and_penitenza(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.from_user:
         return
 
     user = update.message.from_user
-    
     if user.is_bot:
         return
 
@@ -319,6 +538,7 @@ async def handle_reaction_and_penitenza(update: Update, context: ContextTypes.DE
             except Exception as e:
                 print(f"--> ERRORE TELEGRAM: {e}", flush=True)
 
+# --- MAIN ASYNC ---
 async def main_async():
     if not TELEGRAM_TOKEN:
         logging.error("ERRORE CRITICO: La variabile d'ambiente TELEGRAM_TOKEN non è impostata!")
@@ -329,13 +549,22 @@ async def main_async():
 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     
-    application.add_handler(CommandHandler("toggle", toggle_troll))
+    # Registrazione Comandi
+    application.add_handler(CommandHandler("sdrogocomm", show_commands))
+    application.add_handler(CommandHandler("troll", toggle_troll))
+    application.add_handler(CommandHandler("pen", clear_penalties))
     application.add_handler(CommandHandler("resetduello", reset_duello))
     application.add_handler(CommandHandler("roulette", avvia_roulette))
+    application.add_handler(CommandHandler("blackjack", start_blackjack))
+
+    # Callbacks dei Bottoni
     application.add_handler(CallbackQueryHandler(gestione_bottoni_roulette, pattern="^roulette_"))
+    application.add_handler(CallbackQueryHandler(handle_blackjack_callback, pattern="^bj_"))
+
+    # Handler Messaggi generici (Auto-troll e Penitenze)
     application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_reaction_and_penitenza))
 
-    print("SdrogoBot attivo e aggiornato con il dito medio per Marco!", flush=True)
+    print("SdrogoBot attivo e pronto!", flush=True)
 
     await application.initialize()
     await application.start()
