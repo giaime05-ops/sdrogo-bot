@@ -42,6 +42,7 @@ FRASE_PENITENZA = "sono un perdente"
 ACTIVE_DUELS = {}
 PENITENZE_ATTIVE = {}
 BLACKJACK_GAMES = {}
+HIGHLOW_GAMES = {}
 
 # --- KEEP ALIVE SERVER (Flask) ---
 app = Flask(__name__)
@@ -77,31 +78,34 @@ async def show_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_type = update.effective_chat.type
 
-    # Se inviato in privato dall'Admin, mostra la lista comandi estesa
     if chat_type == "private" and is_admin(user_id):
         text = (
             "👑 <b>PANNELLO ADMIN SDROGOBOT (RISERVATO)</b> 🛠️\n\n"
-            "<b>Comandi Amministrativi (funzionano anche qui in privato):</b>\n"
+            "<b>Comandi Amministrativi (funzionano qui in privato):</b>\n"
             "😈 <b>/troll</b> - Attiva/Disattiva la modalità Auto-Troll nel gruppo.\n"
             "🧹 <b>/pen</b> - Rimuove tutte le penitenze attive nel gruppo.\n\n"
             "<b>Comandi Pubblici del Gruppo:</b>\n"
-            "🎯 <b>/roulette @username</b> - Sfida un utente alla Roulette Russa 1v1.\n"
+            "🎯 <b>/roulette @username</b> - Sfida un utente alla Roulette Russa 1v1 (con penitenza!).\n"
             "🃏 <b>/blackjack</b> - Gioca a Blackjack 21 contro il bot.\n"
-            "🔄 <b>/resetduello</b> - Sblocca duelli o giochi incastrati (mantiene le penitenze).\n"
+            "🎲 <b>/highlow</b> - Gioca al Dado Bugiardo (Più o Meno).\n"
+            "🎰 <b>/slot</b> - Tira la levetta della Slot Machine 777.\n"
+            "🔄 <b>/resetduello</b> - Sblocca duelli o giochi incastrati.\n"
             "ℹ️ <b>/sdrogocomm</b> - Mostra questo pannello."
         )
     else:
         text = (
             "🤖 <b>COMANDI DISPONIBILI - SDROGOBOT</b> 🎮\n\n"
             "🎯 <b>/roulette @username</b> - Sfida un utente alla Roulette Russa 1v1!\n"
-            "🃏 <b>/blackjack</b> - Avvia una partita a Blackjack 21 contro il bot!\n"
+            "🃏 <b>/blackjack</b> - Avvia una partita a Blackjack 21!\n"
+            "🎲 <b>/highlow</b> - Sfida la sorte al Dado Bugiardo!\n"
+            "🎰 <b>/slot</b> - Gioca alla Slot Machine 777!\n"
             "🔄 <b>/resetduello</b> - Ripristina i duelli bloccati da bug/errori.\n"
             "ℹ️ <b>/sdrogocomm</b> - Mostra questa lista comandi."
         )
     
     await update.message.reply_text(text, parse_mode='HTML')
 
-# --- COMANDO TROLL (EX TOGGLE) ---
+# --- COMANDO TROLL ---
 async def toggle_troll(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await track_ids(update, context)
     global IS_TROLLING_ACTIVE
@@ -153,7 +157,7 @@ async def clear_penalties(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("🧹 Tutte le penitenze attive sono state rimosse!")
 
-# --- RESET DUELLO (NON CANCELLA LE PENITENZE) ---
+# --- RESET DUELLO ---
 async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await track_ids(update, context)
     chat_id = update.message.chat_id
@@ -164,14 +168,17 @@ async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if str(chat_id) in BLACKJACK_GAMES:
         del BLACKJACK_GAMES[str(chat_id)]
 
+    if str(chat_id) in HIGHLOW_GAMES:
+        del HIGHLOW_GAMES[str(chat_id)]
+
     await update.message.reply_text(
         "🛠️ <b>RESET LOGICA EFFETTUATO!</b>\n"
         "Tutti i duelli e i minigiochi bloccati sono stati cancellati.\n"
-        "<i>Nota: Le penitenze attive rimangono in vigore (usa /pen se necessario).</i>",
+        "<i>Nota: Le penitenze attive della Roulette rimangono in vigore (usa /pen se necessario).</i>",
         parse_mode="HTML"
     )
 
-# --- ROULETTE RUSSA 1v1 CON BOTTONI ---
+# --- ROULETTE RUSSA 1v1 CON BOTTONI (UNICO GIOCO CON PENITENZA) ---
 async def avvia_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await track_ids(update, context)
     chat_id = update.message.chat_id
@@ -360,7 +367,7 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
                 parse_mode="Markdown"
             )
 
-# --- MINIGIOCO: BLACKJACK EXPRESS 21 ---
+# --- MINIGIOCO: BLACKJACK EXPRESS 21 (SENZA PENITENZA) ---
 def get_card():
     cards = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11]
     return random.choice(cards)
@@ -430,13 +437,11 @@ async def handle_blackjack_callback(update: Update, context: ContextTypes.DEFAUL
         score = calculate_score(game["player_hand"])
 
         if score > 21:
-            PENITENZE_ATTIVE[user_id] = 3
             del BLACKJACK_GAMES[chat_id]
             await query.edit_message_text(
                 f"💥 <b>SBALLATO!</b>\n\n"
                 f"🎎 Le tue carte: {game['player_hand']} (Totale: <b>{score}</b>)\n"
-                f"❌ <b>{game['player_name']}</b> ha superato 21 ed entra in <b>PENITENZA</b>!\n"
-                f"Devi scrivere `{FRASE_PENITENZA}` 3 volte!",
+                f"❌ <b>{game['player_name']}</b> ha superato 21 e ha perso la partita!",
                 parse_mode='HTML'
             )
         else:
@@ -476,12 +481,135 @@ async def handle_blackjack_callback(update: Update, context: ContextTypes.DEFAUL
         if dealer_score > 21 or player_score > dealer_score:
             text += f"🏆 <b>VITTORIA! {player_name} ha battuto il Banco!</b> 🎉"
         elif player_score < dealer_score:
-            PENITENZE_ATTIVE[user_id] = 3
-            text += f"❌ <b>SCONFITTA!</b> Il Banco vince. <b>{player_name}</b> va in <b>PENITENZA</b>!\nDevi scrivere `{FRASE_PENITENZA}` 3 volte!"
+            text += f"❌ <b>SCONFITTA!</b> Il Banco vince. Ritenta la fortuna!"
         else:
-            text += "⚖️ <b>PAREGGIO!</b> Nessuna penitenza assegnata."
+            text += "⚖️ <b>PAREGGIO!</b> Avete fatto lo stesso punteggio."
 
         await query.edit_message_text(text, parse_mode='HTML')
+
+# --- MINIGIOCO: DADO BUGIARDO / HIGHLOW (SENZA PENITENZA) ---
+async def start_highlow(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await track_ids(update, context)
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+
+    if chat_id in HIGHLOW_GAMES:
+        await update.message.reply_text("⚠️ C'è già un gioco di Dado Bugiardo in corso!")
+        return
+
+    current_val = random.randint(2, 11)  # Estrae numero tra 2 e 11 per bilanciare il gioco
+    HIGHLOW_GAMES[chat_id] = {
+        "player_id": user.id,
+        "player_name": user.first_name,
+        "current_val": current_val,
+        "streak": 0
+    }
+
+    keyboard = [
+        [
+            InlineKeyboardButton("📈 PIÙ ALTO", callback_data="hl_high"),
+            InlineKeyboardButton("📉 PIÙ BASSO", callback_data="hl_low")
+        ]
+    ]
+
+    await update.message.reply_text(
+        f"🎲 <b>DADO BUGIARDO (HIGH / LOW)</b> 🎲\n\n"
+        f"👤 Giocatore: <b>{user.first_name}</b>\n"
+        f"🎯 Numero estratto: <b>{current_val}</b> (da 1 a 12)\n\n"
+        f"Il prossimo numero sarà <b>Più Alto</b> o <b>Più Basso</b>?",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='HTML'
+    )
+
+async def handle_highlow_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    chat_id = str(query.message.chat.id)
+    user_id = query.from_user.id
+
+    if chat_id not in HIGHLOW_GAMES:
+        await query.edit_message_text("❌ Partita terminata.")
+        return
+
+    game = HIGHLOW_GAMES[chat_id]
+
+    if user_id != game["player_id"]:
+        await query.answer("⚠️ Non è il tuo gioco!", show_alert=True)
+        return
+
+    old_val = game["current_val"]
+    new_val = random.randint(1, 12)
+    while new_val == old_val:  # Evita parità per un gameplay più fluido
+        new_val = random.randint(1, 12)
+
+    choice = query.data
+    won = (choice == "hl_high" and new_val > old_val) or (choice == "hl_low" and new_val < old_val)
+
+    if won:
+        game["streak"] += 1
+        game["current_val"] = new_val
+
+        keyboard = [
+            [
+                InlineKeyboardButton("📈 PIÙ ALTO", callback_data="hl_high"),
+                InlineKeyboardButton("📉 PIÙ BASSO", callback_data="hl_low")
+            ],
+            [
+                InlineKeyboardButton("💰 INCASSA E RITIRATI", callback_data="hl_cashout")
+            ]
+        ]
+
+        await query.edit_message_text(
+            f"✅ <b>GIUSTO!</b> Era <b>{new_val}</b>!\n"
+            f"🔥 Serie di successi: <b>{game['streak']}</b>\n\n"
+            f"🎯 Nuovo numero: <b>{new_val}</b>\n"
+            f"Cosa fai adesso?",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='HTML'
+        )
+    elif choice == "hl_cashout":
+        streak = game["streak"]
+        del HIGHLOW_GAMES[chat_id]
+        await query.edit_message_text(
+            f"💰 <b>INCASSO EFFETTUATO!</b>\n"
+            f"🏆 <b>{game['player_name']}</b> si ritira da vincitore con una serie di <b>{streak}</b> risposte esatte consecutivi!",
+            parse_mode='HTML'
+        )
+    else:
+        del HIGHLOW_GAMES[chat_id]
+        await query.edit_message_text(
+            f"❌ <b>ERRATO!</b> Era <b>{new_val}</b>!\n"
+            f"💀 <b>{game['player_name']}</b> ha sbagliato e ha perso tutto alla serie {game['streak']}!",
+            parse_mode='HTML'
+        )
+
+# --- MINIGIOCO: SLOT MACHINE 777 (SENZA PENITENZA) ---
+async def play_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await track_ids(update, context)
+    user_name = update.effective_user.first_name
+
+    symbols = ["🍒", "🔔", "🍋", "💎", "🎰", "7️⃣"]
+    
+    msg = await update.message.reply_text(f"🎰 <b>{user_name}</b> tira la levetta della Slot...\n\n[ ❓ | ❓ | ❓ ]", parse_mode='HTML')
+    await asyncio.sleep(1.0)
+
+    # Estrazione casuale simboli
+    r1, r2, r3 = random.choice(symbols), random.choice(symbols), random.choice(symbols)
+
+    text = f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Giocatore: <b>{user_name}</b>\n\n[ {r1} | {r2} | {r3} ]\n\n"
+
+    if r1 == r2 == r3:
+        if r1 == "7️⃣":
+            text += "🔥 <b>JACKPOT SUPREMO 777!</b> 🔥 Hai sbancato tutto!"
+        else:
+            text += "🎉 <b>TRIPLETTA VINCENTE!</b> Grande vittoria!"
+    elif r1 == r2 or r2 == r3 or r1 == r3:
+        text += "✨ <b>DOPPIETTA!</b> Hai sfiorato il jackpot!"
+    else:
+        text += "💸 <b>NESSUNA COMBINAZIONE!</b> Hai perso le tue monete!"
+
+    await msg.edit_text(text, parse_mode='HTML')
 
 # --- CONTROLLO PENITENZE E AUTO-TROLL ---
 async def handle_reaction_and_penitenza(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -556,10 +684,13 @@ async def main_async():
     application.add_handler(CommandHandler("resetduello", reset_duello))
     application.add_handler(CommandHandler("roulette", avvia_roulette))
     application.add_handler(CommandHandler("blackjack", start_blackjack))
+    application.add_handler(CommandHandler("highlow", start_highlow))
+    application.add_handler(CommandHandler("slot", play_slot))
 
     # Callbacks dei Bottoni
     application.add_handler(CallbackQueryHandler(gestione_bottoni_roulette, pattern="^roulette_"))
     application.add_handler(CallbackQueryHandler(handle_blackjack_callback, pattern="^bj_"))
+    application.add_handler(CallbackQueryHandler(handle_highlow_callback, pattern="^hl_"))
 
     # Handler Messaggi generici (Auto-troll e Penitenze)
     application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_reaction_and_penitenza))
