@@ -58,70 +58,70 @@ WORDS = [
 
 # --- DATABASE QUIZ CALCIO (30 CALCIATORI) ---
 QUIZ_CALCIO_DB = [
-    {"target": "MESSI", "indizi": ["🇦🇷 Argentina", "👕 Inter Miami", "🏆 8 Palloni d'Oro"]},
-    {"target": "RONALDO", "indizi": ["🇵🇹 Portogallo", "👕 Al-Nassr", "⚡ SIUUU"]},
-    {"target": "TOTTI", "indizi": ["🇮🇹 Italia", "👕 Roma", "👑 Capitano Storico"]},
-    {"target": "IBRAHIMOVIC", "indizi": ["🇸🇪 Svezia", "👕 AC Milan", "🦁 Zlatan"]},
-    {"target": "HAALAND", "indizi": ["🇳🇴 Norvegia", "👕 Manchester City", "🤖 Cyborg"]},
-    {"target": "MBAPPE", "indizi": ["🇫🇷 Francia", "👕 Real Madrid", "⚡ Tartaruga Ninja"]},
-    {"target": "DEL PIERO", "indizi": ["🇮🇹 Italia", "👕 Juventus", "🎯 Pinturicchio"]},
-    {"target": "LAUTARO", "indizi": ["🇦🇷 Argentina", "👕 Inter", "🐂 Toro"]},
-    {"target": "OSIMHEN", "indizi": ["🇳🇬 Nigeria", "👕 Napoli", "🎭 Maschera"]},
-    {"target": "MODRIC", "indizi": ["🇭🇷 Croazia", "👕 Real Madrid", "🪄 Mago Crotone"]},
-    {"target": "BAGGIO", "indizi": ["🇮🇹 Italia", "👕 Brescia / Juve", "🧘 Divin Codino"]},
-    {"target": "MARADONA", "indizi": ["🇦🇷 Argentina", "👕 Napoli", "🖐️ Mano de Dios"]},
-    {"target": "PELÉ", "indizi": ["🇧🇷 Brasile", "👕 Santos", "👑 O Rei"]},
-    {"target": "ZIDANE", "indizi": ["🇫🇷 Francia", "👕 Real Madrid", "💥 Testata 2006"]},
-    {"target": "PIRLO", "indizi": ["🇮🇹 Italia", "👕 Juventus / Milan", "🎯 No Look / Cucchiai"]},
-    {"target": "BUFFON", "indizi": ["🇮🇹 Italia", "👕 Parma / Juve", "🧤 Numero 1"]},
-    {"target": "MALDINI", "indizi": ["🇮🇹 Italia", "👕 AC Milan", "🛡️ Difensore Eterno"]},
-    {"target": "RONALDINHO", "indizi": ["🇧🇷 Brasile", "👕 Barcellona", "🤙 Joga Bonito"]},
-    {"target": "KAKA", "indizi": ["🇧🇷 Brasile", "👕 AC Milan", "⚡ Pallone d'Oro 2007"]},
-    {"target": "BENZEMA", "indizi": ["🇫🇷 Francia", "👕 Al-Ittihad / Real", "🥊 Karimm"]},
-    {"target": "LEWANDOWSKI", "indizi": ["🇵🇱 Polonia", "👕 Barcellona", "⚽ 5 gol in 9 min"]},
-    {"target": "NEUER", "indizi": ["🇩🇪 Germania", "👕 Bayern Monaco", "🧤 Portiere Libero"]},
-    {"target": "SALAH", "indizi": ["🇪🇬 Egitto", "👕 Liverpool", "👑 Re d'Egitto"]},
-    {"target": "VINICIUS", "indizi": ["🇧🇷 Brasile", "👕 Real Madrid", "⚡ Ballerino"]},
-    {"target": "BELINGHAM", "indizi": ["🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra", "👕 Real Madrid", "🙌 Esultanza Braccia"]},
-    {"target": "DYBALA", "indizi": ["🇦🇷 Argentina", "👕 Roma", "🎭 Dybala Mask"]},
-    {"target": "KVARATSKHELIA", "indizi": ["🇬🇪 Georgia", "👕 Napoli", "🪄 Kvaradona"]},
-    {"target": "Barella", "indizi": ["🇮🇹 Italia", "👕 Inter", "🏃 Polmone Sardo"]},
-    {"target": "CHIESA", "indizi": ["🇮🇹 Italia", "👕 Liverpool / Juve", "⚡ Furia Azzurra"]},
-    {"target": "DONNARUMMA", "indizi": ["🇮🇹 Italia", "👕 PSG", "🧤 Eroe Euro 2020"]}
+    {"target": "MESSI", "indizi": ["Argentina", "Inter Miami", "8 Palloni d'Oro"]},
+    {"target": "RONALDO", "indizi": ["Portogallo", "Al-Nassr", "SIUUU"]},
+    {"target": "TOTTI", "indizi": ["Italia", "Roma", "Capitano Storico"]},
+    {"target": "IBRAHIMOVIC", "indizi": ["Svezia", "AC Milan", "Zlatan"]},
+    {"target": "HAALAND", "indizi": ["Norvegia", "Manchester City", "Cyborg"]},
+    {"target": "MBAPPE", "indizi": ["Francia", "Real Madrid", "Tartaruga Ninja"]},
+    {"target": "DEL PIERO", "indizi": ["Italia", "Juventus", "Pinturicchio"]},
+    {"target": "LAUTARO", "indizi": ["Argentina", "Inter", "Toro"]},
+    {"target": "OSIMHEN", "indizi": ["Nigeria", "Napoli", "Maschera"]},
+    {"target": "MODRIC", "indizi": ["Croazia", "Real Madrid", "Mago Crotone"]},
+    {"target": "BAGGIO", "indizi": ["Italia", "Brescia / Juve", "Divin Codino"]},
+    {"target": "MARADONA", "indizi": ["Argentina", "Napoli", "Mano de Dios"]},
+    {"target": "PELE", "indizi": ["Brasile", "Santos", "O Rei"]},
+    {"target": "ZIDANE", "indizi": ["Francia", "Real Madrid", "Testata 2006"]},
+    {"target": "PIRLO", "indizi": ["Italia", "Juventus / Milan", "No Look / Cucchiai"]},
+    {"target": "BUFFON", "indizi": ["Italia", "Parma / Juve", "Numero 1"]},
+    {"target": "MALDINI", "indizi": ["Italia", "AC Milan", "Difensore Eterno"]},
+    {"target": "RONALDINHO", "indizi": ["Brasile", "Barcellona", "Joga Bonito"]},
+    {"target": "KAKA", "indizi": ["Brasile", "AC Milan", "Pallone d'Oro 2007"]},
+    {"target": "BENZEMA", "indizi": ["Francia", "Al-Ittihad / Real", "Karimm"]},
+    {"target": "LEWANDOWSKI", "indizi": ["Polonia", "Barcellona", "5 gol in 9 min"]},
+    {"target": "NEUER", "indizi": ["Germania", "Bayern Monaco", "Portiere Libero"]},
+    {"target": "SALAH", "indizi": ["Egitto", "Liverpool", "Re d'Egitto"]},
+    {"target": "VINICIUS", "indizi": ["Brasile", "Real Madrid", "Ballerino"]},
+    {"target": "BELLINGHAM", "indizi": ["Inghilterra", "Real Madrid", "Esultanza Braccia"]},
+    {"target": "DYBALA", "indizi": ["Argentina", "Roma", "Dybala Mask"]},
+    {"target": "KVARATSKHELIA", "indizi": ["Georgia", "Napoli", "Kvaradona"]},
+    {"target": "BARELLA", "indizi": ["Italia", "Inter", "Polmone Sardo"]},
+    {"target": "CHIESA", "indizi": ["Italia", "Liverpool / Juve", "Furia Azzurra"]},
+    {"target": "DONNARUMMA", "indizi": ["Italia", "PSG", "Eroe Euro 2020"]}
 ]
 
 # --- DATABASE QUIZ CINEMA (30 FILM) ---
 QUIZ_CINEMA_DB = [
-    {"target": "TITANIC", "indizi": ["🚢 Transatlantico", "🧊 Iceberg", "🏊‍♂️ Naufragio"]},
-    {"target": "INCEPTION", "indizi": ["🌀 Trottole", "😴 Sogni", "🕵️‍♂️ Furto Mente"]},
-    {"target": "AVATAR", "indizi": ["🪐 Pandora", "💙 Popolo Blu", "🏹 Arcieri Alieni"]},
-    {"target": "GLADIATORE", "indizi": ["🏛️ Roma Antica", "⚔️ Arena", "🦁 Massimo Meridio"]},
-    {"target": "MATRIX", "indizi": ["🕶️ Occhiali Neri", "🔴 Pillola Rossa", "💻 Codice Verde"]},
-    {"target": "HARRY POTTER", "indizi": ["🧙‍♂️ Bacchetta", "⚡ Cicatrice", "🏰 Hogwarts"]},
-    {"target": "JOKER", "indizi": ["🤡 Trucco Faccia", "🌆 Gotham", "🕺 Scalinata"]},
-    {"target": "PULP FICTION", "indizi": ["💼 Valigetta", "🕺 Ballo Twist", "🔫 Tarantino"]},
-    {"target": "INTERSTELLAR", "indizi": ["🚀 Spazio", "🕳️ Buco Nero", "⏳ Tempo Relativo"]},
-    {"target": "SHREK", "indizi": ["🟢 Orco Verde", "🫏 Ciuccio Parlante", "🏰 Palude"]},
-    {"target": "SPIDERMAN", "indizi": ["🕷️ Ragnatela", "🔴 Tuta Rossa", "🏙️ New York"]},
-    {"target": "BATMAN", "indizi": ["🦇 Pipistrello", "🏎️ Batmobile", "🌆 Gotham City"]},
-    {"target": "FIGHT CLUB", "indizi": ["🧼 Sapone", "👊 Regola Numero 1", "🧠 Tyler Durden"]},
-    {"target": "FORREST GUMP", "indizi": ["🏃 Corsa Infinita", "🍫 Scatola Cioccolatini", "🪶 Piuma"]},
-    {"target": "PARASITE", "indizi": ["🇰🇷 Corea", "🏠 Seminterrato", "🍕 Scatole Pizza"]},
-    {"target": "OPENHEIMER", "indizi": ["💣 Bomba Atomica", "🧪 Fisica", "💥 Progetto Manhattan"]},
-    {"target": "BARBIE", "indizi": ["🩷 Mondo Rosa", "👠 Tacco Alto", "👱‍♂️ Ken"]},
-    {"target": "SQUALO", "indizi": ["🦈 Pesce Cane", "🌊 Oceano", "🚤 Barca distrutta"]},
-    {"target": "GHOSTBUSTERS", "indizi": ["👻 Fantasmi", "🚫 Logo Divieto", "🔫 Raggio Protonico"]},
-    {"target": "JURASSIC PARK", "indizi": ["🦖 Dinosauri", "🧬 Zanzara Ambra", "🏝️ Isola Nublar"]},
-    {"target": "STAR WARS", "indizi": ["⚔️ Spada Laser", "🌌 Galassia", "🤖 Darth Vader"]},
-    {"target": "PADRINO", "indizi": ["🎩 Mafia", "🇮🇹 Sicilia", "🌹 Don Corleone"]},
-    {"target": "SCARFACE", "indizi": ["🇨🇺 Cuba", "💵 Soldi e Potere", "🔫 Tony Montana"]},
-    {"target": "COCO", "indizi": ["🇲🇽 Messico", "💀 Chitarra", "🌺 Regno dei Morti"]},
-    {"target": "TOY STORY", "indizi": ["🤠 Cowboy Legno", "🚀 Astronauta Plastica", "🧸 Giocattoli"]},
-    {"target": "INSIDE OUT", "indizi": ["🧠 Emozioni", "🟡 Gioia", "🔵 Tristezza"]},
-    {"target": "MAD MAX", "indizi": ["🏜️ Deserto", "🚗 Auto Armate", "🔥 Chitarra Fiamme"]},
-    {"target": "SHINING", "indizi": ["🏨 Hotel Vuoto", "🪓 Ascia", "👯‍♀️ Gemelline"]},
-    {"target": "ALIEN", "indizi": ["👽 Mostro Spazio", "🚀 Astronave", "🥚 Uovo Nero"]},
-    {"target": "ROCKY", "indizi": ["🥊 Pugilato", "🏃 Scalinata Philadelphia", "🔔 Campana"]}
+    {"target": "TITANIC", "indizi": ["Transatlantico", "Iceberg", "Naufragio"]},
+    {"target": "INCEPTION", "indizi": ["Trottole", "Sogni", "Furto Mente"]},
+    {"target": "AVATAR", "indizi": ["Pandora", "Popolo Blu", "Arcieri Alieni"]},
+    {"target": "GLADIATORE", "indizi": ["Roma Antica", "Arena", "Massimo Meridio"]},
+    {"target": "MATRIX", "indizi": ["Occhiali Neri", "Pillola Rossa", "Codice Verde"]},
+    {"target": "HARRY POTTER", "indizi": ["Bacchetta", "Cicatrice", "Hogwarts"]},
+    {"target": "JOKER", "indizi": ["Trucco Faccia", "Gotham", "Scalinata"]},
+    {"target": "PULP FICTION", "indizi": ["Valigetta", "Ballo Twist", "Tarantino"]},
+    {"target": "INTERSTELLAR", "indizi": ["Spazio", "Buco Nero", "Tempo Relativo"]},
+    {"target": "SHREK", "indizi": ["Orco Verde", "Ciuccio Parlante", "Palude"]},
+    {"target": "SPIDERMAN", "indizi": ["Ragnatela", "Tuta Rossa", "New York"]},
+    {"target": "BATMAN", "indizi": ["Pipistrello", "Batmobile", "Gotham City"]},
+    {"target": "FIGHT CLUB", "indizi": ["Sapone", "Regola Numero 1", "Tyler Durden"]},
+    {"target": "FORREST GUMP", "indizi": ["Corsa Infinita", "Scatola Cioccolatini", "Piuma"]},
+    {"target": "PARASITE", "indizi": ["Corea", "Seminterrato", "Scatole Pizza"]},
+    {"target": "OPPENHEIMER", "indizi": ["Bomba Atomica", "Fisica", "Progetto Manhattan"]},
+    {"target": "BARBIE", "indizi": ["Mondo Rosa", "Tacco Alto", "Ken"]},
+    {"target": "SQUALO", "indizi": ["Pesce Cane", "Oceano", "Barca distrutta"]},
+    {"target": "GHOSTBUSTERS", "indizi": ["Fantasmi", "Logo Divieto", "Raggio Protonico"]},
+    {"target": "JURASSIC PARK", "indizi": ["Dinosauri", "Zanzara Ambra", "Isola Nublar"]},
+    {"target": "STAR WARS", "indizi": ["Spada Laser", "Galassia", "Darth Vader"]},
+    {"target": "PADRINO", "indizi": ["Mafia", "Sicilia", "Don Corleone"]},
+    {"target": "SCARFACE", "indizi": ["Cuba", "Soldi e Potere", "Tony Montana"]},
+    {"target": "COCO", "indizi": ["Messico", "Chitarra", "Regno dei Morti"]},
+    {"target": "TOY STORY", "indizi": ["Cowboy Legno", "Astronauta Plastica", "Giocattoli"]},
+    {"target": "INSIDE OUT", "indizi": ["Emozioni", "Gioia", "Tristezza"]},
+    {"target": "MAD MAX", "indizi": ["Deserto", "Auto Armate", "Chitarra Fiamme"]},
+    {"target": "SHINING", "indizi": ["Hotel Vuoto", "Ascia", "Gemelline"]},
+    {"target": "ALIEN", "indizi": ["Mostro Spazio", "Astronave", "Uovo Nero"]},
+    {"target": "ROCKY", "indizi": ["Pugilato", "Scalinata Philadelphia", "Campana"]}
 ]
 
 # --- FLASK KEEP ALIVE ---
@@ -162,7 +162,7 @@ async def backup_to_telegram(context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_document(
                     chat_id=int(BACKUP_CHAT_ID),
                     document=f,
-                    caption=f"💾 Backup DB SdrogoBot - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    caption=f"Backup DB SdrogoBot - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 )
         except Exception as e:
             logging.error(f"Errore backup Telegram: {e}")
@@ -263,7 +263,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🧠 <b>QUIZ SHOW</b> (Costo: 5 $SDG)\n"
             "─────────────────────────────\n\n"
             "⚽ <b>Quiz Calcio</b>\nIndovina il calciatore segreto dai 3 indizi!\n\n"
-            "🎬 <b>Quiz Cinema</b>\nIndovina il film famoso dalle parole chiave/emoji."
+            "🎬 <b>Quiz Cinema</b>\nIndovina il film famoso dalle parole chiave."
         )
         keyboard = [
             [InlineKeyboardButton("⚽ Quiz Calcio (5 $SDG)", callback_data="start_quiz_calcio")],
