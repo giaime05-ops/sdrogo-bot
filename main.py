@@ -54,7 +54,7 @@ TARGET_MAP = {
 IS_TROLLING_ACTIVE = True
 FRASE_PENITENZA = "sono un perdente"
 
-# --- DATABASE WORDLE & DIZIONARIO ITALIANO VALIDO (100 PAROLE DA 5 LETTERE) ---
+# --- DATABASE WORDLE (100 PAROLE DA 5 LETTERE) ---
 WORDS = [
     "ZAINO", "AMORE", "CANTO", "FIORE", "GATTO", "LATTE", "NOTTE", "PALMA", "SEDIA", "TAZZA",
     "VENTO", "BACIO", "CUORE", "DOLCE", "FIUME", "GIOCO", "LIBRO", "MATTO", "NUOTO", "PORTO",
@@ -68,7 +68,7 @@ WORDS = [
     "ANICE", "CONCA", "EREBO", "ILOTE", "LIBRA", "MOINA", "NAFTA", "OPALE", "PLICO", "TURBA"
 ]
 
-# --- DATABASE 100 CALCIATORI INTEGRALE ---
+# --- DATABASE 100 CALCIATORI ---
 QUIZ_CALCIO_DB = [
     {"target": "TOTTI", "indizi": ["Italia", "Roma", "Un pallonetto al re di coppe in una notte di gala."]},
     {"target": "MESSI", "indizi": ["Argentina", "Barcellona, Inter Miami", "Un sinistro invisibile cresciuto a suon di ormoni."]},
@@ -172,7 +172,7 @@ QUIZ_CALCIO_DB = [
     {"target": "SCARONE", "indizi": ["Uruguay", "Nacional", "Campione olimpico negli anni venti soprannominato 'El Mago'."]}
 ]
 
-# --- DATABASE 100 FILM INTEGRALE ---
+# --- DATABASE 100 FILM ---
 QUIZ_CINEMA_DB = [
     {"target": "PULP FICTION", "indizi": ["Crime / Pulp", "Valigetta brillante", "Un ballo a piedi nudi e una siringa d'adrenalina."]},
     {"target": "INCEPTION", "indizi": ["Sci-Fi / Azione", "Trottola", "Costruire architetture dentro l'inconscio altrui."]},
@@ -276,7 +276,7 @@ QUIZ_CINEMA_DB = [
     {"target": "TOP GUN MAVERICK", "indizi": ["Action", "Giacca in pelle", "Addestrare giovani piloti per una missione impossibile nei canyon."]}
 ]
 
-# --- DATABASE 50 SERIE TV INTEGRALE ---
+# --- DATABASE 50 SERIE TV ---
 QUIZ_SERIE_DB = [
     {"target": "BREAKING BAD", "indizi": ["Crime / Drama", "Camper nel deserto", "La chimica usata per lasciare un'eredità economica."]},
     {"target": "STRANGER THINGS", "indizi": ["Sci-Fi / Mystery", "Luci di Natale sul muro", "Scomparse inspiegabili nella provincia anni '80."]},
@@ -330,7 +330,7 @@ QUIZ_SERIE_DB = [
     {"target": "YELLOWSTONE", "indizi": ["Western / Drama", "Cappello da cowboy e marchio", "La difesa ad ogni costo dei confini del proprio ranch."]}
 ]
 
-# --- DATABASE 100 CITTA INTEGRALE ---
+# --- DATABASE 100 CITTA ---
 QUIZ_CITTA_DB = [
     {"target": "ROMA", "indizi": ["Europa", "Italia", "Colosseo"]},
     {"target": "MILANO", "indizi": ["Europa", "Italia", "Duomo"]},
@@ -434,12 +434,12 @@ QUIZ_CITTA_DB = [
     {"target": "NASSAU", "indizi": ["America del Nord", "Bahamas", "Resort di Paradise Island"]}
 ]
 
-# --- DATABASE 100 SPORTIVI INTEGRALE ---
+# --- DATABASE 100 SPORTIVI ---
 QUIZ_SPORTIVI_DB = [
     {"target": "FEDERER", "indizi": ["Tennis", "Svizzera", "Elegante re dell'erba di Londra."]},
     {"target": "NADAL", "indizi": ["Tennis", "Spagna", "Dominatore imbattibile sulla terra rossa."]},
     {"target": "DJOKOVIC", "indizi": ["Tennis", "Serbia", "Risposta imbattibile e record di titoli Slam."]},
-    {"target": "SINNER", "indizi": ["Tennis", "Italia", "Colpi potenti da fondo per conquistare la cima del ranking."]},
+    {"target": "SINNER", "indizi": ["Tennis", "Italia", "Colpi potenti da fondo per conquistar la cima del ranking."]},
     {"target": "SERENA WILLIAMS", "indizi": ["Tennis", "Stati Uniti", "Potenza devastante con 23 Slam vinti."]},
     {"target": "ALCARAZ", "indizi": ["Tennis", "Spagna", "Prodigio capace di vincere Slam su ogni superficie da giovanissimo."]},
     {"target": "BERRETTINI", "indizi": ["Tennis", "Italia", "Servizio e dritto che lo hanno portato in finale sul manto erboso inglese."]},
@@ -517,7 +517,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "SdrogoBot v4.4 Attivo H24!"
+    return "SdrogoBot v4.5 Attivo H24!"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
@@ -1011,7 +1011,6 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     add_user_coins(chat_id, user.id, -10)
     
-    # 1. Animazione Rulli
     await query.edit_message_text(
         f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n"
         f"[ 🔄 | 🔄 | 🔄 ]\n\n<i>Giro in corso...</i>",
@@ -1020,7 +1019,6 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     await asyncio.sleep(1.2)
 
-    # 2. Risultato
     symbols = ["🍒", "🍋", "🔔", "💎", "7️⃣"]
     r1, r2, r3 = random.choice(symbols), random.choice(symbols), random.choice(symbols)
 
@@ -1172,7 +1170,7 @@ async def handle_highlow_callback(update: Update, context: ContextTypes.DEFAULT_
             )
             del HIGHLOW_DUELS[chat_id]
 
-# --- GAME: QUIZ MULTIPLAYER ---
+# --- GAME: QUIZ MULTIPLAYER CON RILASCIO AUTOMATICO DEGLI INDIZI (TIMER 25s) ---
 async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
@@ -1184,24 +1182,43 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
     db_choice = random.choice([QUIZ_CALCIO_DB, QUIZ_CINEMA_DB, QUIZ_SERIE_DB, QUIZ_CITTA_DB, QUIZ_SPORTIVI_DB])
     item = random.choice(db_choice)
 
-    QUIZ_GAMES[chat_id] = {
-        "multi": True, "target": item["target"],
-        "indizi": item["indizi"], "step": 1,
-        "created_at": datetime.now()
-    }
-
-    keyboard = [
-        [InlineKeyboardButton("💡 Chiedi altro indizio", callback_data="quiz_multi_hint")],
-        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
-    ]
-
-    await query.edit_message_text(
+    msg = await query.edit_message_text(
         f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n─────────────────────────────\n\n"
         f"Il primo che risponde in chat vince +💳 15 $SDG!\n\n"
         f"<b>1° Indizio:</b> {item['indizi'][0]}",
-        reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="HTML"
     )
+
+    QUIZ_GAMES[chat_id] = {
+        "multi": True, "target": item["target"],
+        "indizi": item["indizi"], "step": 1,
+        "created_at": datetime.now(),
+        "msg_id": msg.message_id
+    }
+
+    # Programma i timer per i prossimi 2 indizi
+    if context.job_queue:
+        context.job_queue.run_once(auto_quiz_hint_job, when=25, data={"chat_id": chat_id, "step": 2})
+        context.job_queue.run_once(auto_quiz_hint_job, when=50, data={"chat_id": chat_id, "step": 3})
+
+async def auto_quiz_hint_job(context: ContextTypes.DEFAULT_TYPE):
+    job_data = context.job.data
+    chat_id = job_data["chat_id"]
+    target_step = job_data["step"]
+
+    if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi"):
+        q = QUIZ_GAMES[chat_id]
+        if q["step"] < target_step:
+            q["step"] = target_step
+            hints_text = "\n".join([f"• <b>Indizio {i+1}:</b> {q['indizi'][i]}" for i in range(target_step)])
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=int(chat_id),
+                    message_id=q["msg_id"],
+                    text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n─────────────────────────────\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
+                    parse_mode="HTML"
+                )
+            except Exception: pass
 
 # --- TIMEOUT QUIZ ---
 async def quiz_timeout_check(context: ContextTypes.DEFAULT_TYPE):
@@ -1585,7 +1602,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 
     text_upper = text.upper()
 
-    # Handling Mastermind Express (5 Tentativi)
+    # Handling Mastermind Express
     mm_key = f"{chat_id}_{user.id}"
     if mm_key in MASTERMIND_GAMES:
         mm = MASTERMIND_GAMES[mm_key]
@@ -1657,7 +1674,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return
 
-    # Handling Wordle (Con filtro dizionario italiano valido)
+    # Handling Wordle (Con filtro dizionario italiano)
     game_key = f"{chat_id}_{user.id}"
     if game_key in WORDLE_GAMES:
         game = WORDLE_GAMES[game_key]
@@ -1820,7 +1837,7 @@ async def main_async():
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
 
-    print("SdrogoBot v4.4 Definitivo pronto all'uso!", flush=True)
+    print("SdrogoBot v4.5 Integrale pronto all'uso!", flush=True)
 
     await application.initialize()
     await application.start()
