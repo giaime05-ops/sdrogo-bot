@@ -36,13 +36,15 @@ ACTIVE_DUELS = {}
 HIGHLOW_DUELS = {}
 BLACKJACK_GAMES = {}
 WORDLE_GAMES = {}
+MASTERMIND_GAMES = {}
 QUIZ_GAMES = {}
+HEIST_GAMES = {}
 PENITENZE_ATTIVE = {}
 
 # SHOP & PERSECUZIONI
-ACTIVE_TITLES = {}      # {chat_id_userid: {"title": "🤡 Pagliaccio", "expire": datetime}}
-ACTIVE_PERSECUTE = {}   # {chat_id_username: {"count": 10, "phrase": "...e sono frocio"}}
-USER_INVENTORY = {}    # {chat_id_userid: ["vip_slot"]}
+ACTIVE_TITLES = {}      # {chat_id_userid: {"title": "🏳️‍🌈GAY🏳️‍🌈", "expire": datetime}}
+ACTIVE_PERSECUTE = {}   # {chat_id_username: {"count": 15, "phrase": "frocio hah"}}
+USER_INVENTORIES = {}  # {chat_id_userid: {"titles": 0, "persecutes": 0, "stars": 0}}
 
 TARGET_MAP = {
     "manueiii": "🙉", "spoleto17": "🤡", "artemesio": "💩",
@@ -274,12 +276,248 @@ QUIZ_CINEMA_DB = [
     {"target": "TOP GUN MAVERICK", "indizi": ["Action", "Giacca in pelle", "Addestrare giovani piloti per una missione impossibile nei canyon."]}
 ]
 
+# --- DATABASE 50 SERIE TV ---
+QUIZ_SERIE_DB = [
+    {"target": "BREAKING BAD", "indizi": ["Crime / Drama", "Camper nel deserto", "La chimica usata per lasciare un'eredità economica."]},
+    {"target": "STRANGER THINGS", "indizi": ["Sci-Fi / Mystery", "Luci di Natale sul muro", "Scomparse inspiegabili nella provincia anni '80."]},
+    {"target": "IL TRONO DI SPADE", "indizi": ["Fantasy / Politico", "Trono di spade fuse", "Grandi famiglie in lotta mentre il gelo si avvicina."]},
+    {"target": "FRIENDS", "indizi": ["Sitcom", "Divano arancione", "L'età adulta affrontata condividendo lo stesso locale."]},
+    {"target": "LA CASA DI CARTA", "indizi": ["Thriller / Action", "Maschera di Dalí", "Un colpo milionario pianificato senza spargere sangue."]},
+    {"target": "SQUID GAME", "indizi": ["Thriller / Distopico", "Tuta da ginnastica verde", "Sfide dell'infanzia trasformate in trappole per indebitati."]},
+    {"target": "PEAKY BLINDERS", "indizi": ["Crime / Storico", "Cappello con lama", "L'ascesa di una famiglia nella Birmingham industriale."]},
+    {"target": "THE OFFICE", "indizi": ["Sitcom / Mockumentary", "Tazza Best Boss", "La routine di una noiosa azienda di carta."]},
+    {"target": "DARK", "indizi": ["Sci-Fi / Mistero", "Impermeabile giallo", "I segreti di una cittadina legati al fluire del tempo."]},
+    {"target": "THE WALKING DEAD", "indizi": ["Horror / Survival", "Cappello da sceriffo", "La lotta per restare umani quando il mondo crolla."]},
+    {"target": "GOMORRA", "indizi": ["Crime", "Anello con sigillo", "L'ambizione di potere tra le piazze di spaccio."]},
+    {"target": "LOST", "indizi": ["Mistero / Survival", "Sequenza di 6 numeri", "Sopravvissuti a un volo in un luogo privo di mappe."]},
+    {"target": "BLACK MIRROR", "indizi": ["Antologico / Distopico", "Schermo nero", "Il lato oscuro del nostro rapporto con la tecnologia."]},
+    {"target": "SHERLOCK", "indizi": ["Giallo", "Violino e cappello", "Un intelletto fuori dal comune al servizio della polizia di Londra."]},
+    {"target": "THE MANDALORIAN", "indizi": ["Sci-Fi / Space Western", "Elmo in metallo", "Un mercenario solitario che sceglie di proteggere il suo bersaglio."]},
+    {"target": "HOW I MET YOUR MOTHER", "indizi": ["Sitcom", "Ombrello giallo", "Un lungo racconto ai figli ripercorrendo anni di gioventù."]},
+    {"target": "PRISON BREAK", "indizi": ["Action / Thriller", "Tatuaggio sul torso", "Un piano geniale per salvare un parente ingiustamente condannato."]},
+    {"target": "THE BIG BANG THEORY", "indizi": ["Sitcom", "Maglietta di Flash", "Mentibrillanti della fisica alle prese con la vita sociale."]},
+    {"target": "VIKINGS", "indizi": ["Storico / Avventura", "Asse di legno e drakkar", "Esploratori del nord alla conquista di nuove sponde."]},
+    {"target": "CHERNOBYL", "indizi": ["Storico / Drammatico", "Contatore Geiger", "Le menzogne e il prezzo umano di una catastrofe nucleare."]},
+    {"target": "BETTER CALL SAUL", "indizi": ["Legale / Crime", "Abiti sgargianti e targa LWYRUP", "La trasformazione morale di un avvocato alle prime armi."]},
+    {"target": "I SOPRANO", "indizi": ["Crime / Drama", "Lettino da terapia", "La doppia vita di un boss tra affari di famiglia e attacchi d'ansia."]},
+    {"target": "THE CROWN", "indizi": ["Storico / Drammatico", "Diadema reale", "Un regno decennale sospeso tra dovere pubblico e sacrifici privati."]},
+    {"target": "DEXTER", "indizi": ["Crime / Thriller", "Vetrino da laboratorio", "Un codice morale per incanalare impulsi oscuri."]},
+    {"target": "SONS OF ANARCHY", "indizi": ["Crime / Drama", "Giacca di pelle con logo", "Fratellanza, motori e traffici ai margini della legge."]},
+    {"target": "THE BOYS", "indizi": ["Action / Satirico", "Mantello con la bandiera", "Eroi acclamati dal pubblico che nascondono un volto corrotto."]},
+    {"target": "EUPHORIA", "indizi": ["Teen / Drama", "Trucco glitterato", "La ricerca di identità e gli eccessi della gioventù contemporanea."]},
+    {"target": "SEX EDUCATION", "indizi": ["Commedia", "Bagno abbandonato della scuola", "Consigli clandestini per aiutare i compagni di liceo."]},
+    {"target": "BRIDGERTON", "indizi": ["Romantico / In costume", "Foglio di pettegolezzi", "Caccia al miglior partito nei balli dell'alta società."]},
+    {"target": "MERCOLEDI", "indizi": ["Mystery / Fantasy", "Trecce e uniforme nera", "Una studentessa cinica indagatrice tra i segreti del collegio."]},
+    {"target": "DOCTOR WHO", "indizi": ["Sci-Fi", "Cabina blu", "Un viaggiatore che muta forma attraverso lo spazio e il tempo."]},
+    {"target": "NARCOS", "indizi": ["Crime / Biografico", "Baffi e mazzette di banconote", "La caccia delle forze dell'ordine ai re del narcotraffico."]},
+    {"target": "THE LAST OF US", "indizi": ["Sci-Fi / Drama", "Infezione da funghi", "Un viaggio di protezione in un mondo in rovina."]},
+    {"target": "SUITS", "indizi": ["Legale", "Abito tre pezzi e cravatta", "Un talento prodigioso operativo senza mai aver preso la laurea."]},
+    {"target": "MR ROBOT", "indizi": ["Cyberpunk / Thriller", "Felpa nera", "Un programmatore che vuole smantellare il sistema finanziario."]},
+    {"target": "FARGO", "indizi": ["Crime / Black Comedy", "Neve e parka", "Scelte sbagliate che scatenano scie di delitti in provincia."]},
+    {"target": "TRUE DETECTIVE", "indizi": ["Crime / Noir", "Lattine di birra piegate", "Un'ossessione investigativa che dura per decenni."]},
+    {"target": "THE BEAR", "indizi": ["Drama / Commedia", "Grembiule blu", "La frenesia di una cucina da rimettere in piedi."]},
+    {"target": "TED LASSO", "indizi": ["Commedia / Sportivo", "Baffi e cartello sopra la porta", "L'ottimismo di un tecnico americano trapiantato nel calcio inglese."]},
+    {"target": "HOUSE OF CARDS", "indizi": ["Politico / Drama", "Anello battuto sul legno", "Trama nell'ombra per scalare le vette del potere."]},
+    {"target": "SCRUBS", "indizi": ["Sitcom / Medico", "Camice azzurro", "Tra sogni a occhi aperti e corsie d'ospedale."]},
+    {"target": "DR HOUSE", "indizi": ["Medico", "Bastone da passeggio", "Diagnosi impossibili risolte da una mente geniale e cinica."]},
+    {"target": "MARE FUORI", "indizi": ["Drama", "Vista sul mare dietro le sbarre", "Riscatto e scelte sbagliate per giovani in un carcere minorile."]},
+    {"target": "SUBURRA", "indizi": ["Crime", "Terreni sulla costa", "L'intreccio tra criminalità, Chiesa e politica nella capitale."]},
+    {"target": "GOSSIP GIRL", "indizi": ["Teen / Drama", "Cerchietto per capelli", "Un blog misterioso che svela i segreti dei ragazzi ricchi."]},
+    {"target": "MODERN FAMILY", "indizi": ["Sitcom", "Interviste sul divano", "Tre diversi nuclei familiari legati da un unico albero genealogico."]},
+    {"target": "BOJACK HORSEMAN", "indizi": ["Animazione per adulti", "Giacca da stella del cinema", "La parabola malinconica di una ex star in cerca di riscatto."]},
+    {"target": "SKINS", "indizi": ["Teen / Drama", "Feste sregolate", "L'adolescenza senza filtri vista da un gruppo di ragazzi inglesi."]},
+    {"target": "GLEE", "indizi": ["Musical / Teen", "Microfono e spartiti", "La rivalsa degli emarginati della scuola attraverso il canto."]},
+    {"target": "YELLOWSTONE", "indizi": ["Western / Drama", "Cappello da cowboy e marchio", "La difesa ad ogni costo dei confini del proprio ranch."]}
+]
+
+# --- DATABASE 100 CITTA ---
+QUIZ_CITTA_DB = [
+    {"target": "ROMA", "indizi": ["Europa", "Italia", "Colosseo"]},
+    {"target": "MILANO", "indizi": ["Europa", "Italia", "Duomo"]},
+    {"target": "VENEZIA", "indizi": ["Europa", "Italia", "Piazza San Marco e Canal Grande"]},
+    {"target": "FIRENZE", "indizi": ["Europa", "Italia", "Cupola del Brunelleschi e Ponte Vecchio"]},
+    {"target": "NAPOLI", "indizi": ["Europa", "Italia", "Vesuvio e Spaccanapoli"]},
+    {"target": "PISA", "indizi": ["Europa", "Italia", "Torre Pendente"]},
+    {"target": "TORINO", "indizi": ["Europa", "Italia", "Mole Antonelliana"]},
+    {"target": "VERONA", "indizi": ["Europa", "Italia", "Arena e Balcone di Giulietta"]},
+    {"target": "PALERMO", "indizi": ["Europa", "Italia", "Cattedrale e Teatro Massimo"]},
+    {"target": "BOLOGNA", "indizi": ["Europa", "Italia", "Le Due Torri (Asinelli e Garisenda)"]},
+    {"target": "PARIGI", "indizi": ["Europa", "Francia", "Torre Eiffel"]},
+    {"target": "NIZZA", "indizi": ["Europa", "Francia", "Promenade des Anglais"]},
+    {"target": "LIONE", "indizi": ["Europa", "Francia", "Basilica di Notre-Dame de Fourvière"]},
+    {"target": "LONDRA", "indizi": ["Europa", "Regno Unito", "Big Ben e Tower Bridge"]},
+    {"target": "EDIMBURGO", "indizi": ["Europa", "Regno Unito", "Castello sulla roccia"]},
+    {"target": "BARCELLONA", "indizi": ["Europa", "Spagna", "Sagrada Família"]},
+    {"target": "MADRID", "indizi": ["Europa", "Spagna", "Museo del Prado e Puerta del Sol"]},
+    {"target": "SIVIGLIA", "indizi": ["Europa", "Spagna", "Plaza de España e Giralda"]},
+    {"target": "VALENCIA", "indizi": ["Europa", "Spagna", "Città delle Arti e delle Scienze"]},
+    {"target": "BERLINO", "indizi": ["Europa", "Germania", "Porta di Brandeburgo"]},
+    {"target": "MONACO DI BAVIERA", "indizi": ["Europa", "Germania", "Marienplatz"]},
+    {"target": "FRANCOFORTE", "indizi": ["Europa", "Germania", "Grattacieli del quartiere finanziario"]},
+    {"target": "AMSTERDAM", "indizi": ["Europa", "Paesi Bassi", "Canali e Museo di Van Gogh"]},
+    {"target": "ROTTERDAM", "indizi": ["Europa", "Paesi Bassi", "Case Cubiche di Piet Blom"]},
+    {"target": "BRUXELLES", "indizi": ["Europa", "Belgio", "Atomium e Grand Place"]},
+    {"target": "VIENNA", "indizi": ["Europa", "Austria", "Castello di Schönbrunn"]},
+    {"target": "SALISBURGO", "indizi": ["Europa", "Austria", "Casa natale di Mozart"]},
+    {"target": "PRAGA", "indizi": ["Europa", "Repubblica Ceca", "Ponte Carlo e Orologio Astronomico"]},
+    {"target": "BUDAPEST", "indizi": ["Europa", "Ungheria", "Parlamento sul Danubio"]},
+    {"target": "ATENE", "indizi": ["Europa", "Grecia", "Partenone sull'Acropoli"]},
+    {"target": "SANTORINI", "indizi": ["Europa", "Grecia", "Casette bianche con cupole blu"]},
+    {"target": "LISBONA", "indizi": ["Europa", "Portogallo", "Torre di Belém e Tram 28"]},
+    {"target": "PORTO", "indizi": ["Europa", "Portogallo", "Ponte Dom Luís I"]},
+    {"target": "DUBLINO", "indizi": ["Europa", "Irlanda", "Temple Bar e Fabbrica Guinness"]},
+    {"target": "COPENAGHEN", "indizi": ["Europa", "Danimarca", "Statua della Sirenetta e Nyhavn"]},
+    {"target": "STOCCOLMA", "indizi": ["Europa", "Svezia", "Gamla Stan (Città vecchia)"]},
+    {"target": "OSLO", "indizi": ["Europa", "Norvegia", "Parco delle sculture di Vigeland"]},
+    {"target": "ZURIGO", "indizi": ["Europa", "Svizzera", "Lago e Chiesa di Grossmünster"]},
+    {"target": "GINEVRA", "indizi": ["Europa", "Svizzera", "Jet d'Eau sul lago"]},
+    {"target": "VARSAVIA", "indizi": ["Europa", "Polonia", "Palazzo della Cultura e della Scienza"]},
+    {"target": "CRACOVIA", "indizi": ["Europa", "Polonia", "Piazza del Mercato"]},
+    {"target": "BUCAREST", "indizi": ["Europa", "Romania", "Palazzo del Parlamento"]},
+    {"target": "MOSCA", "indizi": ["Europa", "Russia", "Piazza Rossa e Cattedrale di San Basilio"]},
+    {"target": "SAN PIETROBURGO", "indizi": ["Europa", "Russia", "Museo Hermitage"]},
+    {"target": "ISTANBUL", "indizi": ["Europa/Asia", "Turchia", "Basilica di Santa Sofia e Cisterne"]},
+    {"target": "NEW YORK", "indizi": ["America del Nord", "Stati Uniti", "Statua della Libertà e Times Square"]},
+    {"target": "LOS ANGELES", "indizi": ["America del Nord", "Stati Uniti", "Scritta Hollywood e Walk of Fame"]},
+    {"target": "SAN FRANCISCO", "indizi": ["America del Nord", "Stati Uniti", "Golden Gate Bridge"]},
+    {"target": "LAS VEGAS", "indizi": ["America del Nord", "Stati Uniti", "Casinò della Strip"]},
+    {"target": "MIAMI", "indizi": ["America del Nord", "Stati Uniti", "Ocean Drive e Art Déco"]},
+    {"target": "CHICAGO", "indizi": ["America del Nord", "Stati Uniti", "La scultura The Bean"]},
+    {"target": "WASHINGTON", "indizi": ["America del Nord", "Stati Uniti", "Casa Bianca e Capitol Hill"]},
+    {"target": "ORLANDO", "indizi": ["America del Nord", "Stati Uniti", "Parchi tematici Disney e Universal"]},
+    {"target": "TORONTO", "indizi": ["America del Nord", "Canada", "CN Tower"]},
+    {"target": "MONTREAL", "indizi": ["America del Nord", "Canada", "Basilica di Notre-Dame"]},
+    {"target": "VANCOUVER", "indizi": ["America del Nord", "Canada", "Stanley Park"]},
+    {"target": "CITTA DEL MESSICO", "indizi": ["America del Nord", "Messico", "Zócalo e Cattedrale"]},
+    {"target": "CANCUN", "indizi": ["America del Nord", "Messico", "Spiagge e vicini templi Maya"]},
+    {"target": "RIO DE JANEIRO", "indizi": ["America del Sud", "Brasile", "Cristo Redentore sul Corcovado"]},
+    {"target": "SAN PAOLO", "indizi": ["America del Sud", "Brasile", "Avenida Paulista"]},
+    {"target": "BUENOS AIRES", "indizi": ["America del Sud", "Argentina", "Obelisco e quartiere La Boca"]},
+    {"target": "SANTIAGO DEL CILE", "indizi": ["America del Sud", "Cile", "Cerro San Cristóbal e le Ande"]},
+    {"target": "LIMA", "indizi": ["America del Sud", "Perù", "Plaza Mayor"]},
+    {"target": "BOGOTA", "indizi": ["America del Sud", "Colombia", "Cerro de Monserrate"]},
+    {"target": "L'AVANA", "indizi": ["America del Nord", "Cuba", "Malecón e auto d'epoca"]},
+    {"target": "TOKYO", "indizi": ["Asia", "Giappone", "Incrocio di Shibuya e Torre di Tokyo"]},
+    {"target": "KYOTO", "indizi": ["Asia", "Giappone", "Torii rossi del Fushimi Inari"]},
+    {"target": "OSAKA", "indizi": ["Asia", "Giappone", "Castello ed insegne di Dotonbori"]},
+    {"target": "PECHINO", "indizi": ["Asia", "Cina", "Città Proibita e Grande Muraglia"]},
+    {"target": "SHANGHAI", "indizi": ["Asia", "Cina", "Torre della Perla Orientale e The Bund"]},
+    {"target": "HONG KONG", "indizi": ["Asia", "Cina", "Skyline del Victoria Harbour"]},
+    {"target": "SEUL", "indizi": ["Asia", "Corea del Sud", "Palazzo Gyeongbokgung"]},
+    {"target": "BANGKOK", "indizi": ["Asia", "Thailandia", "Tempio del Buddha Sdraiatore"]},
+    {"target": "SINGAPORE", "indizi": ["Asia", "Singapore", "Marina Bay Sands e Supertrees"]},
+    {"target": "KUALA LUMPUR", "indizi": ["Asia", "Malesia", "Torri Petronas"]},
+    {"target": "GIACARTA", "indizi": ["Asia", "Indonesia", "Monumento Nazionale (Monas)"]},
+    {"target": "NUOVA DELHI", "indizi": ["Asia", "India", "Porta dell'India"]},
+    {"target": "AGRA", "indizi": ["Asia", "India", "Taj Mahal"]},
+    {"target": "MUMBAI", "indizi": ["Asia", "India", "Porta dell'India (Porto)"]},
+    {"target": "DUBAI", "indizi": ["Asia", "Emirati Arabi Uniti", "Burj Khalifa"]},
+    {"target": "ABU DHABI", "indizi": ["Asia", "Emirati Arabi Uniti", "Grande Moschea dello Sceicco Zayed"]},
+    {"target": "DOHA", "indizi": ["Asia", "Qatar", "Museo d'Arte Islamica e Souq Waqif"]},
+    {"target": "RIAD", "indizi": ["Asia", "Arabia Saudita", "Grattacielo Kingdom Centre"]},
+    {"target": "GERUSALEMME", "indizi": ["Asia", "Israele", "Muro del Pianto e Cupola della Roccia"]},
+    {"target": "TEL AVIV", "indizi": ["Asia", "Israele", "Lungomare e spiagge della città vecchia"]},
+    {"target": "IL CAIRO", "indizi": ["Africa", "Egitto", "Piramidi di Giza e Sfinge"]},
+    {"target": "LUXOR", "indizi": ["Africa", "Egitto", "Valle dei Re e Tempio di Karnak"]},
+    {"target": "MARRAKECH", "indizi": ["Africa", "Marocco", "Piazza Jemaa el-Fna"]},
+    {"target": "CASABLANCA", "indizi": ["Africa", "Marocco", "Moschea di Hassan II"]},
+    {"target": "CITTA DEL CAPO", "indizi": ["Africa", "Sudafrica", "Table Mountain e Capo di Buona Speranza"]},
+    {"target": "JOHANNESBURG", "indizi": ["Africa", "Sudafrica", "Quartiere Soweto"]},
+    {"target": "NAIROBI", "indizi": ["Africa", "Kenya", "Parco Nazionale con fauna selvatica"]},
+    {"target": "TUNISI", "indizi": ["Africa", "Tunisia", "Rovine di Cartaginese e Medina"]},
+    {"target": "SYDNEY", "indizi": ["Oceania", "Australia", "Opera House e Harbour Bridge"]},
+    {"target": "MELBOURNE", "indizi": ["Oceania", "Australia", "Flinders Street Station"]},
+    {"target": "PERTH", "indizi": ["Oceania", "Australia", "Kings Park sul fiume Swan"]},
+    {"target": "AUCKLAND", "indizi": ["Oceania", "Nuova Zelanda", "Sky Tower"]},
+    {"target": "HONOLULU", "indizi": ["Oceania", "Stati Uniti", "Spiaggia di Waikiki"]},
+    {"target": "MALE", "indizi": ["Asia", "Maldive", "Isola capitale e atolli turistici"]},
+    {"target": "NASSAU", "indizi": ["America del Nord", "Bahamas", "Resort di Paradise Island"]}
+]
+
+# --- DATABASE 100 SPORTIVI ---
+QUIZ_SPORTIVI_DB = [
+    {"target": "FEDERER", "indizi": ["Tennis", "Svizzera", "Elegante re dell'erba di Londra."]},
+    {"target": "NADAL", "indizi": ["Tennis", "Spagna", "Dominatore imbattibile sulla terra rossa."]},
+    {"target": "DJOKOVIC", "indizi": ["Tennis", "Serbia", "Risposta imbattibile e record di titoli Slam."]},
+    {"target": "SINNER", "indizi": ["Tennis", "Italia", "Colpi potenti da fondo per conquistare la cima del ranking."]},
+    {"target": "SERENA WILLIAMS", "indizi": ["Tennis", "Stati Uniti", "Potenza devastante con 23 Slam vinti."]},
+    {"target": "ALCARAZ", "indizi": ["Tennis", "Spagna", "Prodigio capace di vincere Slam su ogni superficie da giovanissimo."]},
+    {"target": "BERRETTINI", "indizi": ["Tennis", "Italia", "Servizio e dritto che lo hanno portato in finale sul manto erboso inglese."]},
+    {"target": "PANATTA", "indizi": ["Tennis", "Italia", "Icona degli anni '70 vincitore a Parigi e in Coppa Davis."]},
+    {"target": "PIETRANGELI", "indizi": ["Tennis", "Italia", "Leggenda azzurra del passato sulla terra battuta."]},
+    {"target": "AGASSI", "indizi": ["Tennis", "Stati Uniti", "Trasformato da ribelle a campione di tutti e quattro gli Slam."]},
+    {"target": "SAMPRAS", "indizi": ["Tennis", "Stati Uniti", "Servizio e volée d'acciaio prima dell'era dei Big Three."]},
+    {"target": "BORG", "indizi": ["Tennis", "Svezia", "L'Uomo di Ghiaccio che dominava negli anni settanta."]},
+    {"target": "MCENROE", "indizi": ["Tennis", "Stati Uniti", "Mancino geniale celebre per i continui litigi con gli arbitri."]},
+    {"target": "SHARAPOVA", "indizi": ["Tennis", "Russia", "Urlo inconfondibile durante il colpo e trionfo a Wimbledon da teenager."]},
+    {"target": "GRAF", "indizi": ["Tennis", "Germania", "L'unica capace di completare il Golden Slam nello stesso anno."]},
+    {"target": "SCHUMACHER", "indizi": ["Formula 1", "Germania / Ferrari", "L'era rossa dei cinque titoli mondiali consecutivi."]},
+    {"target": "HAMILTON", "indizi": ["Formula 1", "Regno Unito / Mercedes", "Sette titoli mondiali sulla monoposto numero 44."]},
+    {"target": "SENNA", "indizi": ["Formula 1", "Brasile / McLaren", "Talento puro e maestro assoluto della guida sotto la pioggia."]},
+    {"target": "VERSTAPPEN", "indizi": ["Formula 1", "Olanda / Red Bull", "Olandese volante dominatore della F1 moderna."]},
+    {"target": "LECLERC", "indizi": ["Formula 1", "Monaco / Ferrari", "Il Predestinato beniamino del pubblico di Maranello."]},
+    {"target": "LAUDA", "indizi": ["Formula 1", "Austria / Ferrari", "Il ritorno miracoloso in pista dopo il rogo del Nürburgring."]},
+    {"target": "PROST", "indizi": ["Formula 1", "Francia / McLaren", "Detto Il Professore per la sua guida tattica e calcolata."]},
+    {"target": "ALONSO", "indizi": ["Formula 1", "Spagna / Renault", "Due volte campione capace di duellare in F1 in tre decenni diversi."]},
+    {"target": "RAIKKONEN", "indizi": ["Formula 1", "Finlandia / Ferrari", "Iceman, l'ultimo pilota a vincere il titolo con la Rossa."]},
+    {"target": "VILLENEUVE", "indizi": ["Formula 1", "Canada / Ferrari", "Guida generosa e spericolata entrata nel cuore dei tifosi."]},
+    {"target": "VALENTINO ROSSI", "indizi": ["MotoGP", "Italia / Yamaha e Honda", "Il numero 46 giallo con nove titoli mondiali."]},
+    {"target": "AGOSTINI", "indizi": ["Motociclismo", "Italia / MV Agusta", "Il pilota più titolato della storia con 15 mondiali."]},
+    {"target": "MARQUEZ", "indizi": ["MotoGP", "Spagna / Honda", "Piegate estreme salvando le cadute con il gomito a terra."]},
+    {"target": "BAGNAIA", "indizi": ["MotoGP", "Italia / Ducati", "Campione del mondo riportando la moto italiana in cima."]},
+    {"target": "SIMONCELLI", "indizi": ["MotoGP", "Italia / Honda", "Il numero 58 dal grande cuore e la chioma inconfondibile."]},
+    {"target": "STONER", "indizi": ["MotoGP", "Australia / Ducati", "L'unico capace di domare la Desmosedici nei primi anni 2000."]},
+    {"target": "BIAGGI", "indizi": ["Motociclismo", "Italia / Aprilia", "Il Corsaro, quattro volte iridato nella classe 250."]},
+    {"target": "LORENZO", "indizi": ["MotoGP", "Spagna / Yamaha", "Martello dallo stile di guida pulitissimo e preciso."]},
+    {"target": "DOVIZIOSO", "indizi": ["MotoGP", "Italia / Ducati", "I duelli fino all'ultima staccata contro il numero 93."]},
+    {"target": "JORDAN", "indizi": ["Basket", "Stati Uniti / Chicago Bulls", "Il numero 23 per eccellenza e la capacità di volare a canestro."]},
+    {"target": "KOBE BRYANT", "indizi": ["Basket", "Stati Uniti / Los Angeles Lakers", "Black Mamba e gli 81 punti segnati in una sola partita."]},
+    {"target": "LEBRON JAMES", "indizi": ["Basket", "Stati Uniti / Lakers", "Il miglior marcatore della storia della lega americana."]},
+    {"target": "STEPHEN CURRY", "indizi": ["Basket", "Stati Uniti / Golden State", "Ha cambiato la pallacanestro segnando continuamente da tre punti."]},
+    {"target": "SHAQUILLE O'NEAL", "indizi": ["Basket", "Stati Uniti / Los Angeles Lakers", "Il centro più fisicamente dominante vicino al tabellone."]},
+    {"target": "MAGIC JOHNSON", "indizi": ["Basket", "Stati Uniti / Los Angeles Lakers", "I passaggi no-look che hanno inventato lo Showtime."]},
+    {"target": "LARRY BIRD", "indizi": ["Basket", "Stati Uniti / Boston Celtics", "Tiro mortifero e leggendaria rivalità con i Lakers anni '80."]},
+    {"target": "ANTETOKOUNMPO", "indizi": ["Basket", "Grecia / Milwaukee Bucks", "Greek Freak dalle falcate infinite da un canestro all'altro."]},
+    {"target": "DONCIC", "indizi": ["Basket", "Slovenia / Dallas Mavericks", "Il talento europeo capace di dominare in America senza sforzo apparente."]},
+    {"target": "BELINELLI", "indizi": ["Basket", "Italia / San Antonio Spurs", "Primo ed unico italiano ad aver vinto un titolo NBA."]},
+    {"target": "GALLINARI", "indizi": ["Basket", "Italia", "Lungo percorso d'élite oltreoceano con la maglia azzurra nel cuore."]},
+    {"target": "POZZECCO", "indizi": ["Basket", "Italia / Varese e Milano", "Mossa del Mosca, playmaker estroso diventato allenatore."]},
+    {"target": "MENEGHIN", "indizi": ["Basket", "Italia / Varese e Milano", "Il gigante pilastro della pallacanestro italiana del passato."]},
+    {"target": "JOKIC", "indizi": ["Basket", "Serbia / Denver Nuggets", "Il centro serbo che sforna assist e triple doppie a ripetizione."]},
+    {"target": "TOMBA", "indizi": ["Sci Alpino", "Italia", "Tomba la Bomba, l'uomo che fermava l'Italia per lo slalom."]},
+    {"target": "GOGGIA", "indizi": ["Sci Alpino", "Italia", "Discesista grintosa e senza paura sulle piste più ripide."]},
+    {"target": "BRIGNONE", "indizi": ["Sci Alpino", "Italia", "Prima azzurra a conquistare la Coppa del Mondo generale."]},
+    {"target": "PELLEGRINI", "indizi": ["Nuoto", "Italia", "La Divina regina dei 200 metri stile libero per oltre 15 anni."]},
+    {"target": "PHELPS", "indizi": ["Nuoto", "Stati Uniti", "Lo squalo di Baltimora con 28 medaglie olimpiche sul collo."]},
+    {"target": "PALTRINIERI", "indizi": ["Nuoto", "Italia", "Re della resistenza nei 1500 metri in vasca e nelle acque libere."]},
+    {"target": "CECCON", "indizi": ["Nuoto", "Italia", "Dorsista veneto e recordman mondiale nei 100 metri."]},
+    {"target": "LEDECKY", "indizi": ["Nuoto", "Stati Uniti", "Imbattibile nelle lunghe distanze dello stile libero femminile."]},
+    {"target": "BOLT", "indizi": ["Atletica Leggera", "Giamaica", "L'uomo più veloce di sempre e l'esultanza a forma di fulmine."]},
+    {"target": "JACOBS", "indizi": ["Atletica Leggera", "Italia", "Il lampo azzurro che ha conquistato l'oro nei 100 metri a Tokyo."]},
+    {"target": "TAMBERI", "indizi": ["Atletica Leggera", "Italia", "Spettacolo nel salto in alto con la barba tagliata a metà."]},
+    {"target": "MENNEA", "indizi": ["Atletica Leggera", "Italia", "La Freccia del Sud recordman nei 200 metri per ben 17 anni."]},
+    {"target": "CARL LEWIS", "indizi": ["Atletica Leggera", "Stati Uniti", "Il Figlio del Vento oro nella corsa e nel salto in lungo."]},
+    {"target": "SIMEONI", "indizi": ["Atletica Leggera", "Italia", "Icona del salto in alto e medaglia d'oro a Mosca 1980."]},
+    {"target": "DUPLANTIS", "indizi": ["Atletica Leggera", "Svezia", "Supera regolarmente il proprio record del mondo nel salto con l'asta."]},
+    {"target": "FIONA MAY", "indizi": ["Atletica Leggera", "Italia", "Saltatrice in lungo vincitrice di due titoli mondiali."]},
+    {"target": "ZAYTSEV", "indizi": ["Pallavolo", "Italia", "Il Loong, battute al fulmine ed iconico opposto della Nazionale."]},
+    {"target": "GIANNELLI", "indizi": ["Pallavolo", "Italia", "Regista e capitano trascinatore dell'Italia campione del mondo."]},
+    {"target": "EGONU", "indizi": ["Pallavolo", "Italia", "Schiacciate ad altezze siderali e potenza d'attacco devastante."]},
+    {"target": "GIANI", "indizi": ["Pallavolo", "Italia", "Pilastro della Generazione di Fenomeni degli anni '90."]},
+    {"target": "BERNARDI", "indizi": ["Pallavolo", "Italia", "Eletto Miglior giocatore del secolo dalla Federazione."]},
+    {"target": "PANTANI", "indizi": ["Ciclismo", "Italia", "Il Pirata dallo scatto secco sulle grandi salite del Giro e del Tour."]},
+    {"target": "NIBALI", "indizi": ["Ciclismo", "Italia", "Lo Squalo dello Stretto vincitore di tutti e tre i Grandi Giri."]},
+    {"target": "POGACAR", "indizi": ["Ciclismo", "Slovenia", "Il giovane fenomeno dominatore delle corse a tappe e delle classiche."]},
+    {"target": "BARTALI", "indizi": ["Ciclismo", "Italia", "Il grande rivale di Coppi, famoso anche per aver salvato molte vite."]},
+    {"target": "COPPI", "indizi": ["Ciclismo", "Italia", "Il Campionissimo e il celebre passaggio di borraccia con il rivale."]}
+]
+
 # --- FLASK KEEP ALIVE ---
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "SdrogoBot v3.5 Attivo H24!"
+    return "SdrogoBot v4.2 Attivo H24!"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
@@ -348,13 +586,21 @@ async def verify_user_lock(query, owner_id: int) -> bool:
 
 def get_formatted_name(chat_id: int, user_id: int, default_name: str) -> str:
     key = f"{chat_id}_{user_id}"
+    stars_str = ""
+    
+    if key in USER_INVENTORIES:
+        stars = USER_INVENTORIES[key].get("stars", 0)
+        if stars > 0:
+            stars_str = " " + ("⭐" * min(stars, 5))
+
     if key in ACTIVE_TITLES:
         title_data = ACTIVE_TITLES[key]
         if datetime.now() < title_data["expire"]:
-            return f"{title_data['title']} {default_name}"
+            return f"{title_data['title']} {default_name}{stars_str}"
         else:
             del ACTIVE_TITLES[key]
-    return default_name
+            
+    return f"{default_name}{stars_str}"
 
 # --- SDROGOBOT HUB (/sdrogocomm) ---
 async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -407,12 +653,14 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (
             "🕹️ <b>GIOCHI SINGLE PLAYER</b>\n"
             "─────────────────────────────\n\n"
-            "🃏 <b>Blackjack 21</b> (Costo: 10 $SDG)\nSfida il Banco a carte e fai 21!\n\n"
-            "🔠 <b>Wordle Express</b> (Costo: 10 $SDG)\nIndovina la parola di 5 lettere in 5 tentativi."
+            "🃏 <b>Blackjack 21</b> (10 $SDG)\n"
+            "🎰 <b>Slot Machine 777</b> (10 $SDG)\n"
+            "🔠 <b>Wordle Express</b> (10 $SDG)\n"
+            "🔐 <b>Mastermind Express</b> (10 $SDG)"
         )
         keyboard = [
-            [InlineKeyboardButton("🃏 Blackjack (10 $SDG)", callback_data=f"start_bj_{user_id}")],
-            [InlineKeyboardButton("🔠 Wordle (10 $SDG)", callback_data=f"start_wordle_{user_id}")],
+            [InlineKeyboardButton("🃏 Blackjack (10 $SDG)", callback_data=f"start_bj_{user_id}"), InlineKeyboardButton("🎰 Slot 777 (10 $SDG)", callback_data=f"start_slot_{user_id}")],
+            [InlineKeyboardButton("🔠 Wordle (10 $SDG)", callback_data=f"start_wordle_{user_id}"), InlineKeyboardButton("🔐 Mastermind (10 $SDG)", callback_data=f"start_mm_{user_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -421,9 +669,9 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (
             "⚔️ <b>GIOCHI MULTIPLAYER</b>\n"
             "─────────────────────────────\n\n"
-            "🎯 <b>Roulette Russa 1v1</b>\nSfida un utente a duello russa!\n\n"
-            "🎲 <b>High / Low 1v1 (Dado della Morte)</b>\nSfida a turni sul dado! Chi sbaglia subisce la penitenza.\n\n"
-            "🌐 <b>Quiz Multiplayer</b>\nLancia un quiz aperto a tutto il gruppo!"
+            "🎯 <b>Roulette Russa 1v1</b>\n"
+            "🎲 <b>High / Low 1v1 (Dado della Morte)</b>\n"
+            "🌐 <b>Quiz Multiplayer</b> (Aperto a tutto il gruppo!)"
         )
         keyboard = [
             [InlineKeyboardButton("🎯 Roulette 1v1", callback_data=f"start_roulette_{user_id}")],
@@ -436,27 +684,33 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "quiz":
         text = (
             "🧠 <b>QUIZ SHOW SINGLE PLAYER</b> (Costo: 5 $SDG)\n"
-            "─────────────────────────────\n\n"
-            "⚽ <b>Quiz Calcio</b>\nIndovina il calciatore segreto dai 3 indizi!\n\n"
-            "🎬 <b>Quiz Cinema</b>\nIndovina il film famoso dalle parole chiave."
+            "─────────────────────────────\n"
+            "Scegli la tua categoria preferita:"
         )
         keyboard = [
-            [InlineKeyboardButton("⚽ Quiz Calcio (5 $SDG)", callback_data=f"start_qcalcio_{user_id}")],
-            [InlineKeyboardButton("🎬 Quiz Cinema (5 $SDG)", callback_data=f"start_qcinema_{user_id}")],
+            [InlineKeyboardButton("⚽ Calcio", callback_data=f"start_qcalcio_{user_id}"), InlineKeyboardButton("🎬 Cinema", callback_data=f"start_qcinema_{user_id}")],
+            [InlineKeyboardButton("📺 Serie TV", callback_data=f"start_qserie_{user_id}"), InlineKeyboardButton("🌍 Città", callback_data=f"start_qcitta_{user_id}")],
+            [InlineKeyboardButton("🏆 Sportivi", callback_data=f"start_qsport_{user_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
     elif action == "shop":
+        inv_key = f"{chat_id}_{user_id}"
+        inv = USER_INVENTORIES.get(inv_key, {"titles": 0, "persecutes": 0})
+        
         text = (
             "🛒 <b>SDROGOSHOP - MERCATO VIRTUALI</b>\n"
             "─────────────────────────────\n\n"
-            "🏷️ <b>1. Titolo Umiliante (100 $SDG)</b>\nAssegna '🤡 Pagliaccio' a un utente per 1 ora.\n\n"
-            "🗣️ <b>2. Tag Persecutore (120 $SDG)</b>\nIl bot risponderà '...e sono frocio' ai prossimi 10 messaggi di una vittima!"
+            f"📦 <b>Tuo Inventario:</b> {inv.get('titles', 0)} Titoli | {inv.get('persecutes', 0)} Persecuzioni\n\n"
+            "🏷️ <b>1. Titolo Umiliante (100 $SDG)</b>\nAssegna '🏳️‍🌈GAY🏳️‍🌈' a una vittima per 24 ORE REALI!\n\n"
+            "🗣️ <b>2. Tag Persecutore (120 $SDG)</b>\nIl bot risponde 'frocio hah' ai prossimi 15 messaggi di una vittima!\n\n"
+            "🏢 <b>3. Pass SDROGO HEIST (350 $SDG)</b>\nRapina a 5 livelli in PRIVATO col bot per vincere Jackpot + Stelle!"
         )
         keyboard = [
             [InlineKeyboardButton("🏷️ Compra Titolo (100 $SDG)", callback_data=f"buy_title_{user_id}")],
             [InlineKeyboardButton("🗣️ Compra Tag Persecutore (120 $SDG)", callback_data=f"buy_persecute_{user_id}")],
+            [InlineKeyboardButton("🏢 Avvia SDROGO HEIST (350 $SDG)", callback_data=f"buy_heist_{user_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -491,16 +745,21 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     user_id = query.from_user.id
     coins = get_user_coins(chat_id, user_id)
+    inv_key = f"{chat_id}_{user_id}"
+
+    if inv_key not in USER_INVENTORIES:
+        USER_INVENTORIES[inv_key] = {"titles": 0, "persecutes": 0, "stars": 0}
 
     if item_type == "title":
         if coins < 100:
             await query.answer("❌ Servono 100 $SDG per comprare il Titolo Umiliante!", show_alert=True)
             return
         add_user_coins(chat_id, user_id, -100)
+        USER_INVENTORIES[inv_key]["titles"] += 1
         await query.edit_message_text(
             "✅ <b>TITOLO UMILIANTE ACQUISTATO!</b>\n\n"
-            "Per assegnarlo alla tua vittima per 1 ora, scrivi in chat:\n"
-            "👉 <code>/titolo @username</code>",
+            "Per assegnarlo per 24 ORE a una vittima, scrivi in chat:\n"
+            "👉 <code>titolo @username</code> (oppure rispondi al suo messaggio con <code>titolo</code>)",
             parse_mode="HTML"
         )
 
@@ -509,22 +768,194 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("❌ Servono 120 $SDG per comprare il Tag Persecutore!", show_alert=True)
             return
         add_user_coins(chat_id, user_id, -120)
+        USER_INVENTORIES[inv_key]["persecutes"] += 1
         await query.edit_message_text(
             "✅ <b>TAG PERSECUTORE ACQUISTATO!</b>\n\n"
-            "Per perseguitare una vittima per 10 messaggi con la frase '...e sono frocio', scrivi:\n"
-            "👉 <code>/perseguita @username</code>",
+            "Per perseguitare una vittima per 15 messaggi, scrivi in chat:\n"
+            "👉 <code>perseguita @username</code>",
             parse_mode="HTML"
         )
 
-# --- COMANDI PER APPLICARE POTERI SHOP ---
-async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
+    elif item_type == "heist":
+        if coins < 350:
+            await query.answer("❌ Servono 350 $SDG per tentare la Rapina Heist!", show_alert=True)
+            return
+        add_user_coins(chat_id, user_id, -350)
+        
+        HEIST_GAMES[user_id] = {"level": 1, "chat_id": chat_id}
+        
+        try:
+            keyboard = [[InlineKeyboardButton("🔓 Disattiva Allarme (Livello 1)", callback_data=f"heist_lvl1_{user_id}")]]
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="🏢 <b>SDROGO HEIST - LA RAPINA AL CAVEAU</b> 🕵️‍♂️\n─────────────────────────────\n\nBenvenuto al Livello 1! Devi disattivare l'allarme per entrare.",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+            await query.edit_message_text("🏢 <b>LA RAPINA È INIZIATA!</b> Controlla la tua chat PRIVATA con SdrogoBot per giocare!", parse_mode="HTML")
+        except Exception:
+            add_user_coins(chat_id, user_id, 350)
+            await query.edit_message_text("❌ Devi prima avviare il bot in chat PRIVATA per giocare a Sdrogo Heist!", parse_mode="HTML")
 
-    if not context.args or not context.args[0].startswith("@"):
-        await update.message.reply_text("❌ Uso corretto: <code>/titolo @username</code>", parse_mode="HTML")
+# --- GAME: SDROGO HEIST (5 LIVELLI IN CHAT PRIVATA) ---
+async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    parts = query.data.split("_")
+    stage = parts[1]
+    owner_id = int(parts[2])
+
+    if query.from_user.id != owner_id:
         return
 
-    target_username = context.args[0].replace("@", "").lower()
+    await query.answer()
+    user_id = query.from_user.id
+    
+    if user_id not in HEIST_GAMES:
+        await query.edit_message_text("❌ Sessione Rapina terminata.")
+        return
+
+    game = HEIST_GAMES[user_id]
+    chat_id = game["chat_id"]
+
+    if stage == "lvl1":
+        keyboard = [
+            [InlineKeyboardButton("🔴 Cavo Rosso", callback_data=f"heist_lvl1res_fail_{user_id}")],
+            [InlineKeyboardButton("🔵 Cavo Blu (Corretto)", callback_data=f"heist_lvl1res_win_{user_id}")],
+            [InlineKeyboardButton("🟡 Cavo Giallo", callback_data=f"heist_lvl1res_fail_{user_id}")]
+        ]
+        random.shuffle(keyboard)
+        await query.edit_message_text("🔓 <b>LIVELLO 1: DISATTIVAZIONE ALLARME</b>\n\nQuale cavo tagli per disattivare l'allarme?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    elif stage == "lvl1res":
+        outcome = parts[2]
+        if outcome == "fail":
+            del HEIST_GAMES[user_id]
+            await query.edit_message_text("💥 <b>ALLARME SCATTATO!</b> Le guardie ti hanno preso. Fuga fallita!")
+        else:
+            game["level"] = 2
+            keyboard = [
+                [InlineKeyboardButton("💰 CASHOUT (Prendi 50 $SDG ed esci)", callback_data=f"heist_cashout_50_{user_id}")],
+                [InlineKeyboardButton("🔥 RISCHIA IL LIVELLO 2 (Guardia)", callback_data=f"heist_lvl2_{user_id}")]
+            ]
+            await query.edit_message_text("✅ <b>LIVELLO 1 SUPERATO!</b>\nPremio accumulato: +50 $SDG.\n\nCosa vuoi fare?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    elif stage == "lvl2":
+        p_hand = random.randint(15, 21)
+        g_hand = random.randint(14, 21)
+        
+        if p_hand >= g_hand:
+            game["level"] = 3
+            keyboard = [
+                [InlineKeyboardButton("💰 CASHOUT (Prendi 100 $SDG ed esci)", callback_data=f"heist_cashout_100_{user_id}")],
+                [InlineKeyboardButton("🔥 RISCHIA IL LIVELLO 3 (Laser)", callback_data=f"heist_lvl3_{user_id}")]
+            ]
+            await query.edit_message_text(f"👮 <b>LIVELLO 2 SUPERATO!</b>\nHai messo KO la guardia ({p_hand} vs {g_hand})!\nPremio accumulato: +100 $SDG.", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        else:
+            del HEIST_GAMES[user_id]
+            await query.edit_message_text(f"👮 <b>LA GUARDIA TI HA VISTO!</b> ({g_hand} vs {p_hand})\nSei stato arrestato! Fuga fallita.")
+
+    elif stage == "lvl3":
+        keyboard = [
+            [InlineKeyboardButton("🚪 Porta A", callback_data=f"heist_lvl3res_fail_{user_id}")],
+            [InlineKeyboardButton("🚪 Porta B", callback_data=f"heist_lvl3res_win_{user_id}")],
+            [InlineKeyboardButton("🚪 Porta C", callback_data=f"heist_lvl3res_fail_{user_id}")]
+        ]
+        random.shuffle(keyboard)
+        await query.edit_message_text("⚡ <b>LIVELLO 3: CAMPO LASER</b>\n\nTre porte davanti a te. Solo una non ha i laser attivi!", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    elif stage == "lvl3res":
+        outcome = parts[2]
+        if outcome == "fail":
+            del HEIST_GAMES[user_id]
+            await query.edit_message_text("⚡ <b>COLPITO DAL LASER!</b> L'allarme è scattato. Fuga fallita!")
+        else:
+            game["level"] = 4
+            keyboard = [
+                [InlineKeyboardButton("💰 CASHOUT (Prendi 180 $SDG ed esci)", callback_data=f"heist_cashout_180_{user_id}")],
+                [InlineKeyboardButton("🔥 RISCHIA IL LIVELLO 4 (Cassaforte)", callback_data=f"heist_lvl4_{user_id}")]
+            ]
+            await query.edit_message_text("⚡ <b>LIVELLO 3 SUPERATO!</b>\nPremio accumulato: +180 $SDG.\n\nCosa vuoi fare?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    elif stage == "lvl4":
+        keyboard = [
+            [InlineKeyboardButton("🔐 Codice 4-8-1 (Sbagliato)", callback_data=f"heist_lvl4res_fail_{user_id}")],
+            [InlineKeyboardButton("🔐 Codice 7-7-7 (Sbagliato)", callback_data=f"heist_lvl4res_fail_{user_id}")],
+            [InlineKeyboardButton("🔐 Codice 1-2-3 (Corretto)", callback_data=f"heist_lvl4res_win_{user_id}")]
+        ]
+        random.shuffle(keyboard)
+        await query.edit_message_text("🔐 <b>LIVELLO 4: LA CASSAFORTE</b>\n\nTrova la combinazione corretta prima che scada il tempo!", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    elif stage == "lvl4res":
+        outcome = parts[2]
+        if outcome == "fail":
+            del HEIST_GAMES[user_id]
+            await query.edit_message_text("💥 <b>COMBINAZIONE ERRATA!</b> La cassaforte si è bloccata. Fuga fallita!")
+        else:
+            game["level"] = 5
+            keyboard = [
+                [InlineKeyboardButton("💰 CASHOUT (Prendi 300 $SDG ed esci)", callback_data=f"heist_cashout_300_{user_id}")],
+                [InlineKeyboardButton("🔥 SFIDA IL LIVELLO 5 FINALE!", callback_data=f"heist_lvl5_{user_id}")]
+            ]
+            await query.edit_message_text("🔐 <b>LIVELLO 4 SUPERATO!</b>\nPremio accumulato: +300 $SDG.\n\nSei ad un passo dalla gloria!", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    elif stage == "lvl5":
+        keyboard = [
+            [InlineKeyboardButton("🚁 Elicottero sul Tetto", callback_data=f"heist_lvl5res_win_{user_id}")],
+            [InlineKeyboardButton("🚗 Fuga in Tunnel", callback_data=f"heist_lvl5res_fail_{user_id}")]
+        ]
+        await query.edit_message_text("🚁 <b>LIVELLO 5: LA FUGA FINALE</b>\n\nCome scappi col bottino?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    elif stage == "lvl5res":
+        outcome = parts[2]
+        if outcome == "fail":
+            del HEIST_GAMES[user_id]
+            await query.edit_message_text("🚔 <b>LA POLIZIA TI HA CIRCONDATO IN TUNNEL!</b> Fuga fallita all'ultimo secondo!")
+        else:
+            del HEIST_GAMES[user_id]
+            add_user_coins(chat_id, user_id, 600)
+            
+            inv_key = f"{chat_id}_{user_id}"
+            if inv_key not in USER_INVENTORIES: USER_INVENTORIES[inv_key] = {"titles": 0, "persecutes": 0, "stars": 0}
+            USER_INVENTORIES[inv_key]["stars"] = USER_INVENTORIES[inv_key].get("stars", 0) + 1
+            USER_INVENTORIES[inv_key]["titles"] += 1
+            USER_INVENTORIES[inv_key]["persecutes"] += 1
+            
+            await query.edit_message_text("🏆 <b>RAPINA PERFETTA COMPLETATA!</b>\nHai vinto +600 $SDG, 1 Titolo e 1 Persecuzione Gratis + 1 STELLA ⭐!")
+            
+            try:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"👑 <b>COLPO DEL SECOLO!</b> 🏢\n\n<b>{query.from_user.first_name}</b> ha svaligiato il Caveau di Sdrogo Heist arrivando al 5° Livello!\nGuadagna <b>600 $SDG</b> e 1 STELLA ⭐ di prestigio in classifica!",
+                    parse_mode="HTML"
+                )
+            except Exception: pass
+
+    elif stage == "cashout":
+        amount = int(parts[2])
+        del HEIST_GAMES[user_id]
+        add_user_coins(chat_id, user_id, amount)
+        await query.edit_message_text(f"💰 <b>CASHOUT EFFETTUATO!</b> Ti ritiri dalla rapina incassando <b>+{amount} $SDG</b>!")
+
+# --- COMANDI SHOP ---
+async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user = update.effective_user
+    inv_key = f"{chat_id}_{user.id}"
+
+    if inv_key not in USER_INVENTORIES or USER_INVENTORIES[inv_key].get("titles", 0) <= 0:
+        await update.message.reply_text("❌ Non possiedi alcun Titolo Umiliante nel tuo inventario dello /shop!")
+        return
+
+    target_username = None
+    if context.args and context.args[0].startswith("@"):
+        target_username = context.args[0].replace("@", "").lower()
+    elif update.message.reply_to_message and update.message.reply_to_message.from_user:
+        target_username = update.message.reply_to_message.from_user.username.lower() if update.message.reply_to_message.from_user.username else None
+
+    if not target_username:
+        await update.message.reply_text("❌ Uso: <code>titolo @username</code> oppure rispondi al suo messaggio con <code>titolo</code>!", parse_mode="HTML")
+        return
+
     target_id = None
     prefix = f"{chat_id}_"
     for k in USER_DATA.keys():
@@ -541,22 +972,103 @@ async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("❌ Utente non trovato nel registro della chat!")
         return
 
-    expire_time = datetime.now() + timedelta(hours=1)
-    ACTIVE_TITLES[f"{chat_id}_{target_id}"] = {"title": "🤡 Pagliaccio", "expire": expire_time}
-    await update.message.reply_text(f"🔥 **TITOLO ASSEGNATO!** Per 1 ora @{target_username} sarà chiamato '🤡 Pagliaccio' dal bot!", parse_mode="Markdown")
+    USER_INVENTORIES[inv_key]["titles"] -= 1
+    expire_time = datetime.now() + timedelta(hours=24)
+    ACTIVE_TITLES[f"{chat_id}_{target_id}"] = {"title": "🏳️‍🌈GAY🏳️‍🌈", "expire": expire_time}
+    await update.message.reply_text(f"🔥 <b>TITOLO ASSEGNATO!</b> Per 24 ORE @{target_username} sarà chiamato '🏳️‍🌈GAY🏳️‍🌈' dal bot!", parse_mode="HTML")
 
 async def apply_persecute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
+    user = update.effective_user
+    inv_key = f"{chat_id}_{user.id}"
 
-    if not context.args or not context.args[0].startswith("@"):
-        await update.message.reply_text("❌ Uso corretto: <code>/perseguita @username</code>", parse_mode="HTML")
+    if inv_key not in USER_INVENTORIES or USER_INVENTORIES[inv_key].get("persecutes", 0) <= 0:
+        await update.message.reply_text("❌ Non possiedi alcun Tag Persecutore nel tuo inventario dello /shop!")
         return
 
-    target_username = context.args[0].replace("@", "").lower()
-    ACTIVE_PERSECUTE[f"{chat_id}_{target_username}"] = {"count": 10, "phrase": "...e sono frocio"}
-    await update.message.reply_text(f"😈 **PERSECUZIONE ATTIVATA!** I prossimi 10 messaggi di @{target_username} saranno sberleffati dal bot!", parse_mode="Markdown")
+    if not context.args or not context.args[0].startswith("@"):
+        await update.message.reply_text("❌ Uso corretto: <code>perseguita @username</code>", parse_mode="HTML")
+        return
 
-# --- GAME: HIGHLOW 1v1 MULTIPLAYER ---
+    USER_INVENTORIES[inv_key]["persecutes"] -= 1
+    target_username = context.args[0].replace("@", "").lower()
+    ACTIVE_PERSECUTE[f"{chat_id}_{target_username}"] = {"count": 15, "phrase": "frocio hah"}
+    await update.message.reply_text(f"😈 <b>PERSECUZIONE ATTIVATA!</b> I prossimi 15 messaggi di @{target_username} riceveranno risposta 'frocio hah' dal bot!", parse_mode="HTML")
+
+# --- GAME: SLOT MACHINE 777 ---
+async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    parts = query.data.split("_")
+    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
+
+    if not await verify_user_lock(query, owner_id): return
+    user = query.from_user
+    chat_id = query.message.chat_id
+
+    if get_user_coins(chat_id, user.id) < 10:
+        await query.answer("❌ Servono 10 $SDG per girare la Slot!", show_alert=True)
+        return
+
+    add_user_coins(chat_id, user.id, -10)
+    symbols = ["🍒", "🍋", "🔔", "💎", "7️⃣"]
+    r1, r2, r3 = random.choice(symbols), random.choice(symbols), random.choice(symbols)
+
+    text = f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n[ {r1} | {r2} | {r3} ]\n\n"
+
+    end_keyboard = [
+        [InlineKeyboardButton("🔂 Rigioca (10 $SDG)", callback_data=f"start_slot_{user.id}")],
+        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user.id}")]
+    ]
+
+    if r1 == r2 == r3:
+        if r1 == "7️⃣":
+            add_user_coins(chat_id, user.id, 150)
+            text += "🔥 <b>JACKPOT SUPREMO 777!</b> 🔥 Hai vinto <b>+150 $SDG</b>!"
+        else:
+            add_user_coins(chat_id, user.id, 30)
+            text += "🎉 <b>TRIPLETTA VINCENTE!</b> Hai vinto <b>+30 $SDG</b>!"
+    elif r1 == r2 or r2 == r3 or r1 == r3:
+        add_user_coins(chat_id, user.id, 10)
+        text += "✨ <b>DOPPIETTA!</b> Recuperi i tuoi 10 $SDG!"
+    else:
+        text += "💸 <b>NESSUNA COMBINAZIONE!</b> Hai perso 10 $SDG."
+
+    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
+
+# --- GAME: MASTERMIND EXPRESS ---
+async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    parts = query.data.split("_")
+    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
+
+    if not await verify_user_lock(query, owner_id): return
+    user = query.from_user
+    chat_id = query.message.chat_id
+    game_key = f"{chat_id}_{user.id}"
+
+    if get_user_coins(chat_id, user.id) < 10:
+        await query.answer("❌ Servono 10 $SDG per giocare a Mastermind!", show_alert=True)
+        return
+
+    add_user_coins(chat_id, user.id, -10)
+    digits = list("0123456789")
+    random.shuffle(digits)
+    secret_code = "".join(digits[:3])
+
+    MASTERMIND_GAMES[game_key] = {
+        "player_id": user.id, "secret": secret_code,
+        "attempts": 0, "history": []
+    }
+
+    await query.edit_message_text(
+        "🔐 <b>MASTERMIND EXPRESS</b> (Puntata: 10 $SDG)\n"
+        "─────────────────────────────\n\n"
+        "Ho scelto un codice segreto di <b>3 cifre uniche</b>!\n"
+        "Scrivilo direttamente in chat per tentare (4 tentativi).",
+        parse_mode="HTML"
+    )
+
+# --- GAME: HIGHLOW 1v1 ---
 async def start_highlow_prep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
@@ -649,7 +1161,7 @@ async def handle_highlow_callback(update: Update, context: ContextTypes.DEFAULT_
             )
             del HIGHLOW_DUELS[chat_id]
 
-# --- GAME: QUIZ MULTIPLAYER (APERTO A TUTTI) ---
+# --- GAME: QUIZ MULTIPLAYER ---
 async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
@@ -658,13 +1170,12 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
     if not await verify_user_lock(query, owner_id): return
     chat_id = str(query.message.chat_id)
 
-    db_choice = random.choice([QUIZ_CALCIO_DB, QUIZ_CINEMA_DB])
+    db_choice = random.choice([QUIZ_CALCIO_DB, QUIZ_CINEMA_DB, QUIZ_SERIE_DB, QUIZ_CITTA_DB, QUIZ_SPORTIVI_DB])
     item = random.choice(db_choice)
-    q_type = "CALCIO" if db_choice == QUIZ_CALCIO_DB else "CINEMA"
 
     QUIZ_GAMES[chat_id] = {
-        "multi": True, "type": q_type,
-        "target": item["target"], "indizi": item["indizi"], "step": 1,
+        "multi": True, "target": item["target"],
+        "indizi": item["indizi"], "step": 1,
         "created_at": datetime.now()
     }
 
@@ -673,26 +1184,19 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
         [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
     ]
 
-    title = "⚽ <b>QUIZ CALCIO MULTIPLAYER</b>" if q_type == "CALCIO" else "🎬 <b>QUIZ CINEMA MULTIPLAYER</b>"
-
     await query.edit_message_text(
-        f"{title} 🌐\n─────────────────────────────\n\n"
-        f"<b>SFIDA APERTA A TUTTI!</b> Il primo che risponde in chat vince +15 $SDG!\n\n"
+        f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n─────────────────────────────\n\n"
+        f"Il primo che risponde in chat vince +15 $SDG!\n\n"
         f"<b>1° Indizio:</b> {item['indizi'][0]}",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="HTML"
     )
 
-# --- TIMEOUT AUTOMATICO QUIZ SOSPESI ---
+# --- TIMEOUT QUIZ ---
 async def quiz_timeout_check(context: ContextTypes.DEFAULT_TYPE):
     now = datetime.now()
-    to_delete = []
-    for k, q in QUIZ_GAMES.items():
-        created = q.get("created_at")
-        if created and (now - created).total_seconds() > 180: # 3 Minuti
-            to_delete.append(k)
-    for k in to_delete:
-        del QUIZ_GAMES[k]
+    to_delete = [k for k, q in QUIZ_GAMES.items() if q.get("created_at") and (now - q["created_at"]).total_seconds() > 180]
+    for k in to_delete: del QUIZ_GAMES[k]
 
 # --- CLASSIFICA RICCONI ---
 async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, owner_id: int = None):
@@ -880,7 +1384,7 @@ async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TY
     )
 
 # --- GAME: QUIZ SHOW SINGLE PLAYER ---
-async def start_quiz_calcio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, db_source, title_name: str):
     query = update.callback_query
     parts = query.data.split("_")
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
@@ -890,14 +1394,14 @@ async def start_quiz_calcio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
 
     if get_user_coins(chat_id, user_id) < 5:
-        await query.answer("❌ Servono 5 $SDG per avviare il Quiz Calcio!", show_alert=True)
+        await query.answer("❌ Servono 5 $SDG per avviare il Quiz!", show_alert=True)
         return
 
     add_user_coins(chat_id, user_id, -5)
-    item = random.choice(QUIZ_CALCIO_DB)
+    item = random.choice(db_source)
     
     QUIZ_GAMES[f"{chat_id}_{user_id}"] = {
-        "player_id": user_id, "type": "CALCIO",
+        "player_id": user_id, "type": title_name,
         "target": item["target"], "indizi": item["indizi"], "step": 1,
         "created_at": datetime.now()
     }
@@ -908,47 +1412,10 @@ async def start_quiz_calcio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     await query.edit_message_text(
-        "⚽ <b>QUIZ CALCIO</b> (Costo: 5 $SDG)\n"
+        f"🧠 <b>QUIZ {title_name}</b> (Costo: 5 $SDG)\n"
         "─────────────────────────────\n\n"
         f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
-        "Indovina il calciatore scrivendo il cognome in chat!\n\n"
-        f"<b>1° Indizio:</b> {item['indizi'][0]}",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode="HTML"
-    )
-
-async def start_quiz_cinema(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    parts = query.data.split("_")
-    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
-
-    if not await verify_user_lock(query, owner_id): return
-    chat_id = query.message.chat_id
-    user_id = query.from_user.id
-
-    if get_user_coins(chat_id, user_id) < 5:
-        await query.answer("❌ Servono 5 $SDG per avviare il Quiz Cinema!", show_alert=True)
-        return
-
-    add_user_coins(chat_id, user_id, -5)
-    item = random.choice(QUIZ_CINEMA_DB)
-
-    QUIZ_GAMES[f"{chat_id}_{user_id}"] = {
-        "player_id": user_id, "type": "CINEMA",
-        "target": item["target"], "indizi": item["indizi"], "step": 1,
-        "created_at": datetime.now()
-    }
-
-    keyboard = [
-        [InlineKeyboardButton("💡 Chiedi altro indizio (-$SDG)", callback_data=f"quiz_hint_{user_id}")],
-        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user_id}")]
-    ]
-
-    await query.edit_message_text(
-        "🎬 <b>QUIZ CINEMA</b> (Costo: 5 $SDG)\n"
-        "─────────────────────────────\n\n"
-        f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
-        "Indovina il film famoso scrivendolo in chat!\n\n"
+        "Indovina la risposta scrivendola in chat!\n\n"
         f"<b>1° Indizio:</b> {item['indizi'][0]}",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="HTML"
@@ -977,10 +1444,8 @@ async def quiz_more_hint(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append([InlineKeyboardButton("💡 Chiedi altro indizio (-$SDG)", callback_data=f"quiz_hint_{owner_id}")])
         keyboard.append([InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")])
 
-        title = "⚽ <b>QUIZ CALCIO</b>" if q["type"] == "CALCIO" else "🎬 <b>QUIZ CINEMA</b>"
-
         await query.edit_message_text(
-            f"{title}\n─────────────────────────────\n\nScrivi la risposta in chat!\n\n{hints_text}",
+            f"🧠 <b>QUIZ {q['type']}</b>\n─────────────────────────────\n\nScrivi la risposta in chat!\n\n{hints_text}",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
@@ -1018,7 +1483,9 @@ async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
     HIGHLOW_DUELS.clear()
     BLACKJACK_GAMES.clear()
     WORDLE_GAMES.clear()
+    MASTERMIND_GAMES.clear()
     QUIZ_GAMES.clear()
+    HEIST_GAMES.clear()
     await update.message.reply_text("🛠️ Tutti i giochi bloccati sono stati resettati.")
 
 # --- HANDLER MESSAGGI GENERICI ---
@@ -1044,7 +1511,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text(f"✅ {user.first_name} riabilitato!")
             return
 
-    # Handling Tag Persecutore dallo Shop ("...e sono frocio")
+    # Handling Tag Persecutore dallo Shop ("frocio hah")
     persecute_key = f"{chat_id}_{username_lower}"
     if persecute_key in ACTIVE_PERSECUTE:
         p_data = ACTIVE_PERSECUTE[persecute_key]
@@ -1053,6 +1520,14 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text(p_data["phrase"])
             if p_data["count"] == 0:
                 del ACTIVE_PERSECUTE[persecute_key]
+
+    # Handling Comandi Titolo e Perseguita via messaggio generico
+    if text.lower().startswith("titolo"):
+        await apply_title_command(update, context)
+        return
+    elif text.lower().startswith("perseguita"):
+        await apply_persecute_command(update, context)
+        return
 
     # Handling Sfida Roulette Russa ("sfido @username")
     if text.lower().startswith("sfido @"):
@@ -1099,7 +1574,39 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 
     text_upper = text.upper()
 
-    # Handling Quiz Multiplayer (Aperto a tutti)
+    # Handling Mastermind Express
+    mm_key = f"{chat_id}_{user.id}"
+    if mm_key in MASTERMIND_GAMES:
+        mm = MASTERMIND_GAMES[mm_key]
+        if len(text) == 3 and text.isdigit():
+            mm["attempts"] += 1
+            secret = mm["secret"]
+            
+            c_hits = sum(1 for i in range(3) if text[i] == secret[i])
+            p_hits = sum(1 for i in range(3) if text[i] != secret[i] and text[i] in secret)
+            
+            res_str = f"🎯 {c_hits} Centrati | 🔄 {p_hits} Presenti | ❌ {3 - (c_hits + p_hits)} Assenti"
+            mm["history"].append(f"<code>{text}</code> -> {res_str}")
+            res_text = "\n".join(mm["history"])
+
+            end_keyboard = [
+                [InlineKeyboardButton("🔂 Rigioca (10 $SDG)", callback_data=f"start_mm_{user.id}")],
+                [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user.id}")]
+            ]
+
+            if c_hits == 3:
+                del MASTERMIND_GAMES[mm_key]
+                reward = 30 if mm["attempts"] <= 2 else 15
+                add_user_coins(chat_id_int, user.id, reward)
+                await update.message.reply_text(f"🎉 <b>ESATTO!</b> Codice segreto: <b>{secret}</b>!\nVinti <b>+{reward} $SDG</b>!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
+            elif mm["attempts"] >= 4:
+                del MASTERMIND_GAMES[mm_key]
+                await update.message.reply_text(f"💥 <b>GAME OVER!</b> Il codice era <b>{secret}</b>.\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
+            else:
+                await update.message.reply_text(f"🔐 <b>MASTERMIND ({mm['attempts']}/4)</b>\n\n{res_text}", parse_mode="HTML")
+            return
+
+    # Handling Quiz Multiplayer
     if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi"):
         q = QUIZ_GAMES[chat_id]
         if text_upper == q["target"]:
@@ -1118,7 +1625,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return
 
-    # Handling Quiz Single Player (Riservato unicamente al proprietario)
+    # Handling Quiz Single Player
     quiz_key = f"{chat_id}_{user.id}"
     if quiz_key in QUIZ_GAMES:
         q = QUIZ_GAMES[quiz_key]
@@ -1258,31 +1765,37 @@ async def main_async():
 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    # Job di Pulizia Quiz Inattivi
     if application.job_queue:
         application.job_queue.run_repeating(quiz_timeout_check, interval=60)
 
     # Registrazione Comandi
     application.add_handler(CommandHandler("sdrogocomm", show_hub))
     application.add_handler(CommandHandler("topricconi", show_leaderboard))
-    application.add_handler(CommandHandler("titolo", apply_title_command))
-    application.add_handler(CommandHandler("perseguita", apply_persecute_command))
     application.add_handler(CommandHandler("troll", toggle_troll))
     application.add_handler(CommandHandler("pen", clear_penalties))
     application.add_handler(CommandHandler("resetduello", reset_duello))
 
-    for cmd in ["roulette", "blackjack", "slot", "highlow", "wordle", "quiz", "shop"]:
+    for cmd in ["roulette", "blackjack", "slot", "highlow", "wordle", "quiz", "shop", "heist", "titolo", "perseguita"]:
         application.add_handler(CommandHandler(cmd, block_direct_command))
 
-    # Callbacks HUB, Shop & Quiz
+    # Callbacks HUB, Shop & Games
     application.add_handler(CallbackQueryHandler(hub_callback, pattern="^hub_"))
     application.add_handler(CallbackQueryHandler(shop_buy_callback, pattern="^buy_"))
+    application.add_handler(CallbackQueryHandler(handle_heist_callback, pattern="^heist_"))
     application.add_handler(CallbackQueryHandler(claim_daily_callback, pattern="^claim_daily_"))
     application.add_handler(CallbackQueryHandler(start_bj_from_hub, pattern="^start_bj_"))
     application.add_handler(CallbackQueryHandler(handle_bj_callback, pattern="^bj_"))
+    application.add_handler(CallbackQueryHandler(start_slot_from_hub, pattern="^start_slot_"))
     application.add_handler(CallbackQueryHandler(start_wordle_from_hub, pattern="^start_wordle_"))
-    application.add_handler(CallbackQueryHandler(start_quiz_calcio, pattern="^start_qcalcio_"))
-    application.add_handler(CallbackQueryHandler(start_quiz_cinema, pattern="^start_qcinema_"))
+    application.add_handler(CallbackQueryHandler(start_mastermind_from_hub, pattern="^start_mm_"))
+    
+    # Category Quizzes
+    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_CALCIO_DB, "CALCIO"), pattern="^start_qcalcio_"))
+    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_CINEMA_DB, "CINEMA"), pattern="^start_qcinema_"))
+    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_SERIE_DB, "SERIE TV"), pattern="^start_qserie_"))
+    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_CITTA_DB, "CITTA"), pattern="^start_qcitta_"))
+    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_SPORTIVI_DB, "SPORTIVI"), pattern="^start_qsport_"))
+    
     application.add_handler(CallbackQueryHandler(start_quiz_multiplayer, pattern="^start_qmulti_"))
     application.add_handler(CallbackQueryHandler(quiz_more_hint, pattern="^quiz_hint_"))
     application.add_handler(CallbackQueryHandler(start_roulette_prep, pattern="^start_roulette_"))
@@ -1292,7 +1805,7 @@ async def main_async():
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
 
-    print("SdrogoBot v3.5 pronto all'uso con Database Estesi!", flush=True)
+    print("SdrogoBot v4.2 Integrale pronto all'uso!", flush=True)
 
     await application.initialize()
     await application.start()
