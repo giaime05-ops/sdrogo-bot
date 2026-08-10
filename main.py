@@ -54,7 +54,7 @@ TARGET_MAP = {
 IS_TROLLING_ACTIVE = True
 FRASE_PENITENZA = "sono un perdente"
 
-# --- DATABASE 100 PAROLE WORDLE (5 LETTERE) ---
+# --- DATABASE WORDLE & DIZIONARIO ITALIANO VALIDO (100 PAROLE DA 5 LETTERE) ---
 WORDS = [
     "ZAINO", "AMORE", "CANTO", "FIORE", "GATTO", "LATTE", "NOTTE", "PALMA", "SEDIA", "TAZZA",
     "VENTO", "BACIO", "CUORE", "DOLCE", "FIUME", "GIOCO", "LIBRO", "MATTO", "NUOTO", "PORTO",
@@ -68,7 +68,7 @@ WORDS = [
     "ANICE", "CONCA", "EREBO", "ILOTE", "LIBRA", "MOINA", "NAFTA", "OPALE", "PLICO", "TURBA"
 ]
 
-# --- DATABASE 100 CALCIATORI ---
+# --- DATABASE 100 CALCIATORI INTEGRALE ---
 QUIZ_CALCIO_DB = [
     {"target": "TOTTI", "indizi": ["Italia", "Roma", "Un pallonetto al re di coppe in una notte di gala."]},
     {"target": "MESSI", "indizi": ["Argentina", "Barcellona, Inter Miami", "Un sinistro invisibile cresciuto a suon di ormoni."]},
@@ -172,7 +172,7 @@ QUIZ_CALCIO_DB = [
     {"target": "SCARONE", "indizi": ["Uruguay", "Nacional", "Campione olimpico negli anni venti soprannominato 'El Mago'."]}
 ]
 
-# --- DATABASE 100 FILM ---
+# --- DATABASE 100 FILM INTEGRALE ---
 QUIZ_CINEMA_DB = [
     {"target": "PULP FICTION", "indizi": ["Crime / Pulp", "Valigetta brillante", "Un ballo a piedi nudi e una siringa d'adrenalina."]},
     {"target": "INCEPTION", "indizi": ["Sci-Fi / Azione", "Trottola", "Costruire architetture dentro l'inconscio altrui."]},
@@ -276,7 +276,7 @@ QUIZ_CINEMA_DB = [
     {"target": "TOP GUN MAVERICK", "indizi": ["Action", "Giacca in pelle", "Addestrare giovani piloti per una missione impossibile nei canyon."]}
 ]
 
-# --- DATABASE 50 SERIE TV ---
+# --- DATABASE 50 SERIE TV INTEGRALE ---
 QUIZ_SERIE_DB = [
     {"target": "BREAKING BAD", "indizi": ["Crime / Drama", "Camper nel deserto", "La chimica usata per lasciare un'eredità economica."]},
     {"target": "STRANGER THINGS", "indizi": ["Sci-Fi / Mystery", "Luci di Natale sul muro", "Scomparse inspiegabili nella provincia anni '80."]},
@@ -330,7 +330,7 @@ QUIZ_SERIE_DB = [
     {"target": "YELLOWSTONE", "indizi": ["Western / Drama", "Cappello da cowboy e marchio", "La difesa ad ogni costo dei confini del proprio ranch."]}
 ]
 
-# --- DATABASE 100 CITTA ---
+# --- DATABASE 100 CITTA INTEGRALE ---
 QUIZ_CITTA_DB = [
     {"target": "ROMA", "indizi": ["Europa", "Italia", "Colosseo"]},
     {"target": "MILANO", "indizi": ["Europa", "Italia", "Duomo"]},
@@ -434,7 +434,7 @@ QUIZ_CITTA_DB = [
     {"target": "NASSAU", "indizi": ["America del Nord", "Bahamas", "Resort di Paradise Island"]}
 ]
 
-# --- DATABASE 100 SPORTIVI ---
+# --- DATABASE 100 SPORTIVI INTEGRALE ---
 QUIZ_SPORTIVI_DB = [
     {"target": "FEDERER", "indizi": ["Tennis", "Svizzera", "Elegante re dell'erba di Londra."]},
     {"target": "NADAL", "indizi": ["Tennis", "Spagna", "Dominatore imbattibile sulla terra rossa."]},
@@ -486,7 +486,7 @@ QUIZ_SPORTIVI_DB = [
     {"target": "JOKIC", "indizi": ["Basket", "Serbia / Denver Nuggets", "Il centro serbo che sforna assist e triple doppie a ripetizione."]},
     {"target": "TOMBA", "indizi": ["Sci Alpino", "Italia", "Tomba la Bomba, l'uomo che fermava l'Italia per lo slalom."]},
     {"target": "GOGGIA", "indizi": ["Sci Alpino", "Italia", "Discesista grintosa e senza paura sulle piste più ripide."]},
-    {"target": "BRIGNONE", "indizi": ["Sci Alpino", "Italia", "Prima azzurra a conquistare la Coppa del Mondo generale."]},
+    {"target": "BRIGNONE", "indizi": ["Sci Alpino", "Italia", "Prima azzurra a conquistar la Coppa del Mondo generale."]},
     {"target": "PELLEGRINI", "indizi": ["Nuoto", "Italia", "La Divina regina dei 200 metri stile libero per oltre 15 anni."]},
     {"target": "PHELPS", "indizi": ["Nuoto", "Stati Uniti", "Lo squalo di Baltimora con 28 medaglie olimpiche sul collo."]},
     {"target": "PALTRINIERI", "indizi": ["Nuoto", "Italia", "Re della resistenza nei 1500 metri in vasca e nelle acque libere."]},
@@ -517,7 +517,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "SdrogoBot v4.2 Attivo H24!"
+    return "SdrogoBot v4.4 Attivo H24!"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
@@ -614,7 +614,7 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "       <b>SDROGOBOT ARCADE HUB</b> 🎮\n"
         "🎰 <b>━━━━━━━━━━━━━━━━━━</b> 🎰\n\n"
         f"👤 <b>Giocatore:</b> {display_name}\n"
-        f"💰 <b>Saldo Chat:</b> <code>{coins} $SDG</code>\n\n"
+        f"💰 <b>Saldo Chat:</b> <code>💳 {coins} $SDG</code>\n\n"
         "⚡ <i>Scegli una categoria dal menu per giocare:</i>"
     )
     
@@ -720,7 +720,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💳 <b>PORTAFOGLIO & ECONOMIA</b>\n"
             "─────────────────────────────\n\n"
             f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
-            f"💰 Saldo attuale: <code>{coins} $SDG</code>\n\n"
+            f"💰 Saldo attuale: <code>💳 {coins} $SDG</code>\n\n"
             "🎁 <b>Bonus Daily:</b> Riscuoti 50 $SDG ogni 24 ore."
         )
         keyboard = [
@@ -834,10 +834,10 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
         else:
             game["level"] = 2
             keyboard = [
-                [InlineKeyboardButton("💰 CASHOUT (Prendi 50 $SDG ed esci)", callback_data=f"heist_cashout_50_{user_id}")],
+                [InlineKeyboardButton("💰 CASHOUT (Prendi 💳 50 $SDG ed esci)", callback_data=f"heist_cashout_50_{user_id}")],
                 [InlineKeyboardButton("🔥 RISCHIA IL LIVELLO 2 (Guardia)", callback_data=f"heist_lvl2_{user_id}")]
             ]
-            await query.edit_message_text("✅ <b>LIVELLO 1 SUPERATO!</b>\nPremio accumulato: +50 $SDG.\n\nCosa vuoi fare?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            await query.edit_message_text("✅ <b>LIVELLO 1 SUPERATO!</b>\nPremio accumulato: <code>💳 50 $SDG</code>.\n\nCosa vuoi fare?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
     elif stage == "lvl2":
         p_hand = random.randint(15, 21)
@@ -846,10 +846,10 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
         if p_hand >= g_hand:
             game["level"] = 3
             keyboard = [
-                [InlineKeyboardButton("💰 CASHOUT (Prendi 100 $SDG ed esci)", callback_data=f"heist_cashout_100_{user_id}")],
+                [InlineKeyboardButton("💰 CASHOUT (Prendi 💳 100 $SDG ed esci)", callback_data=f"heist_cashout_100_{user_id}")],
                 [InlineKeyboardButton("🔥 RISCHIA IL LIVELLO 3 (Laser)", callback_data=f"heist_lvl3_{user_id}")]
             ]
-            await query.edit_message_text(f"👮 <b>LIVELLO 2 SUPERATO!</b>\nHai messo KO la guardia ({p_hand} vs {g_hand})!\nPremio accumulato: +100 $SDG.", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            await query.edit_message_text(f"👮 <b>LIVELLO 2 SUPERATO!</b>\nHai messo KO la guardia ({p_hand} vs {g_hand})!\nPremio accumulato: <code>💳 100 $SDG</code>.", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         else:
             del HEIST_GAMES[user_id]
             await query.edit_message_text(f"👮 <b>LA GUARDIA TI HA VISTO!</b> ({g_hand} vs {p_hand})\nSei stato arrestato! Fuga fallita.")
@@ -871,10 +871,10 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
         else:
             game["level"] = 4
             keyboard = [
-                [InlineKeyboardButton("💰 CASHOUT (Prendi 180 $SDG ed esci)", callback_data=f"heist_cashout_180_{user_id}")],
+                [InlineKeyboardButton("💰 CASHOUT (Prendi 💳 180 $SDG ed esci)", callback_data=f"heist_cashout_180_{user_id}")],
                 [InlineKeyboardButton("🔥 RISCHIA IL LIVELLO 4 (Cassaforte)", callback_data=f"heist_lvl4_{user_id}")]
             ]
-            await query.edit_message_text("⚡ <b>LIVELLO 3 SUPERATO!</b>\nPremio accumulato: +180 $SDG.\n\nCosa vuoi fare?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            await query.edit_message_text("⚡ <b>LIVELLO 3 SUPERATO!</b>\nPremio accumulato: <code>💳 180 $SDG</code>.\n\nCosa vuoi fare?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
     elif stage == "lvl4":
         keyboard = [
@@ -893,10 +893,10 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
         else:
             game["level"] = 5
             keyboard = [
-                [InlineKeyboardButton("💰 CASHOUT (Prendi 300 $SDG ed esci)", callback_data=f"heist_cashout_300_{user_id}")],
+                [InlineKeyboardButton("💰 CASHOUT (Prendi 💳 300 $SDG ed esci)", callback_data=f"heist_cashout_300_{user_id}")],
                 [InlineKeyboardButton("🔥 SFIDA IL LIVELLO 5 FINALE!", callback_data=f"heist_lvl5_{user_id}")]
             ]
-            await query.edit_message_text("🔐 <b>LIVELLO 4 SUPERATO!</b>\nPremio accumulato: +300 $SDG.\n\nSei ad un passo dalla gloria!", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            await query.edit_message_text("🔐 <b>LIVELLO 4 SUPERATO!</b>\nPremio accumulato: <code>💳 300 $SDG</code>.\n\nSei ad un passo dalla gloria!", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
     elif stage == "lvl5":
         keyboard = [
@@ -925,7 +925,7 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
             try:
                 await context.bot.send_message(
                     chat_id=chat_id,
-                    text=f"👑 <b>COLPO DEL SECOLO!</b> 🏢\n\n<b>{query.from_user.first_name}</b> ha svaligiato il Caveau di Sdrogo Heist arrivando al 5° Livello!\nGuadagna <b>600 $SDG</b> e 1 STELLA ⭐ di prestigio in classifica!",
+                    text=f"👑 <b>COLPO DEL SECOLO!</b> 🏢\n\n<b>{query.from_user.first_name}</b> ha svaligiato il Caveau di Sdrogo Heist arrivando al 5° Livello!\nGuadagna <b>💳 600 $SDG</b> e 1 STELLA ⭐ di prestigio in classifica!",
                     parse_mode="HTML"
                 )
             except Exception: pass
@@ -934,7 +934,7 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
         amount = int(parts[2])
         del HEIST_GAMES[user_id]
         add_user_coins(chat_id, user_id, amount)
-        await query.edit_message_text(f"💰 <b>CASHOUT EFFETTUATO!</b> Ti ritiri dalla rapina incassando <b>+{amount} $SDG</b>!")
+        await query.edit_message_text(f"💰 <b>CASHOUT EFFETTUATO!</b> Ti ritiri dalla rapina incassando <b>+💳 {amount} $SDG</b>!")
 
 # --- COMANDI SHOP ---
 async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -995,7 +995,7 @@ async def apply_persecute_command(update: Update, context: ContextTypes.DEFAULT_
     ACTIVE_PERSECUTE[f"{chat_id}_{target_username}"] = {"count": 15, "phrase": "frocio hah"}
     await update.message.reply_text(f"😈 <b>PERSECUZIONE ATTIVATA!</b> I prossimi 15 messaggi di @{target_username} riceveranno risposta 'frocio hah' dal bot!", parse_mode="HTML")
 
-# --- GAME: SLOT MACHINE 777 ---
+# --- GAME: SLOT MACHINE 777 CON ANIMAZIONE RULLI ---
 async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
@@ -1010,6 +1010,17 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     add_user_coins(chat_id, user.id, -10)
+    
+    # 1. Animazione Rulli
+    await query.edit_message_text(
+        f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n"
+        f"[ 🔄 | 🔄 | 🔄 ]\n\n<i>Giro in corso...</i>",
+        parse_mode="HTML"
+    )
+    
+    await asyncio.sleep(1.2)
+
+    # 2. Risultato
     symbols = ["🍒", "🍋", "🔔", "💎", "7️⃣"]
     r1, r2, r3 = random.choice(symbols), random.choice(symbols), random.choice(symbols)
 
@@ -1023,10 +1034,10 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
     if r1 == r2 == r3:
         if r1 == "7️⃣":
             add_user_coins(chat_id, user.id, 150)
-            text += "🔥 <b>JACKPOT SUPREMO 777!</b> 🔥 Hai vinto <b>+150 $SDG</b>!"
+            text += "🔥 <b>JACKPOT SUPREMO 777!</b> 🔥 Hai vinto <b>+💳 150 $SDG</b>!"
         else:
             add_user_coins(chat_id, user.id, 30)
-            text += "🎉 <b>TRIPLETTA VINCENTE!</b> Hai vinto <b>+30 $SDG</b>!"
+            text += "🎉 <b>TRIPLETTA VINCENTE!</b> Hai vinto <b>+💳 30 $SDG</b>!"
     elif r1 == r2 or r2 == r3 or r1 == r3:
         add_user_coins(chat_id, user.id, 10)
         text += "✨ <b>DOPPIETTA!</b> Recuperi i tuoi 10 $SDG!"
@@ -1035,7 +1046,7 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
 
-# --- GAME: MASTERMIND EXPRESS ---
+# --- GAME: MASTERMIND EXPRESS (5 TENTATIVI) ---
 async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
@@ -1064,7 +1075,7 @@ async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAUL
         "🔐 <b>MASTERMIND EXPRESS</b> (Puntata: 10 $SDG)\n"
         "─────────────────────────────\n\n"
         "Ho scelto un codice segreto di <b>3 cifre uniche</b>!\n"
-        "Scrivilo direttamente in chat per tentare (4 tentativi).",
+        "Scrivilo direttamente in chat per tentare (5 tentativi).",
         parse_mode="HTML"
     )
 
@@ -1186,7 +1197,7 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
 
     await query.edit_message_text(
         f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n─────────────────────────────\n\n"
-        f"Il primo che risponde in chat vince +15 $SDG!\n\n"
+        f"Il primo che risponde in chat vince +💳 15 $SDG!\n\n"
         f"<b>1° Indizio:</b> {item['indizi'][0]}",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="HTML"
@@ -1228,7 +1239,7 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
         except Exception:
             name = f"Giocatore {uid[-4:]}"
 
-        text += f"{rank_icon} <b>{name}</b> — <code>{coins} $SDG</code>\n"
+        text += f"{rank_icon} <b>{name}</b> — <code>💳 {coins} $SDG</code>\n"
 
     keyboard = [[InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{current_user_id}")]]
 
@@ -1257,7 +1268,7 @@ async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     else:
         USER_DATA[key]["last_daily"] = today
         add_user_coins(chat_id, user_id, 50)
-        await query.answer("🎉 Hai riscosso +50 $SDG!", show_alert=True)
+        await query.answer("🎉 Hai riscosso +💳 50 $SDG!", show_alert=True)
         await backup_to_telegram(context)
         await hub_callback(update, context)
 
@@ -1345,7 +1356,7 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         if dealer_score > 21 or player_score > dealer_score:
             add_user_coins(chat_id, user_id, 15)
-            await query.edit_message_text(f"🏆 <b>VITTORIA!</b> Tu: {player_score} | Banco: {dealer_score}\nHai vinto <b>+15 $SDG</b>!", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML')
+            await query.edit_message_text(f"🏆 <b>VITTORIA!</b> Tu: {player_score} | Banco: {dealer_score}\nHai vinto <b>+💳 15 $SDG</b>!", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML')
         elif player_score < dealer_score:
             await query.edit_message_text(f"❌ <b>SCONFITTA!</b> Tu: {player_score} | Banco: {dealer_score}\nHai perso la puntata.", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML')
         else:
@@ -1574,7 +1585,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 
     text_upper = text.upper()
 
-    # Handling Mastermind Express
+    # Handling Mastermind Express (5 Tentativi)
     mm_key = f"{chat_id}_{user.id}"
     if mm_key in MASTERMIND_GAMES:
         mm = MASTERMIND_GAMES[mm_key]
@@ -1596,14 +1607,14 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 
             if c_hits == 3:
                 del MASTERMIND_GAMES[mm_key]
-                reward = 30 if mm["attempts"] <= 2 else 15
+                reward = 30 if mm["attempts"] <= 3 else 15
                 add_user_coins(chat_id_int, user.id, reward)
-                await update.message.reply_text(f"🎉 <b>ESATTO!</b> Codice segreto: <b>{secret}</b>!\nVinti <b>+{reward} $SDG</b>!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
-            elif mm["attempts"] >= 4:
+                await update.message.reply_text(f"🎉 <b>ESATTO!</b> Codice segreto: <b>{secret}</b>!\nVinti <b>+💳 {reward} $SDG</b>!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
+            elif mm["attempts"] >= 5:
                 del MASTERMIND_GAMES[mm_key]
                 await update.message.reply_text(f"💥 <b>GAME OVER!</b> Il codice era <b>{secret}</b>.\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
             else:
-                await update.message.reply_text(f"🔐 <b>MASTERMIND ({mm['attempts']}/4)</b>\n\n{res_text}", parse_mode="HTML")
+                await update.message.reply_text(f"🔐 <b>MASTERMIND ({mm['attempts']}/5)</b>\n\n{res_text}", parse_mode="HTML")
             return
 
     # Handling Quiz Multiplayer
@@ -1619,7 +1630,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text(
                 f"🎉 <b>QUIZ MULTIPLAYER RISOLTO!</b>\n\n"
                 f"🏆 <b>{user.first_name}</b> è stato il più veloce ed ha indovinato <b>{q['target']}</b>!\n"
-                f"Guadagni <b>+15 $SDG</b>!",
+                f"Guadagni <b>+💳 15 $SDG</b>!",
                 reply_markup=InlineKeyboardMarkup(end_keyboard),
                 parse_mode="HTML"
             )
@@ -1640,17 +1651,21 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
                 [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user.id}")]
             ]
             await update.message.reply_text(
-                f"🎉 <b>CORRETTO!</b> <b>{user.first_name}</b> ha indovinato <b>{q['target']}</b>!\nGuadagni <b>+{reward} $SDG</b>!",
+                f"🎉 <b>CORRETTO!</b> <b>{user.first_name}</b> ha indovinato <b>{q['target']}</b>!\nGuadagni <b>+💳 {reward} $SDG</b>!",
                 reply_markup=InlineKeyboardMarkup(end_keyboard),
                 parse_mode="HTML"
             )
             return
 
-    # Handling Wordle
+    # Handling Wordle (Con filtro dizionario italiano valido)
     game_key = f"{chat_id}_{user.id}"
     if game_key in WORDLE_GAMES:
         game = WORDLE_GAMES[game_key]
         if len(text_upper) == 5:
+            if text_upper not in WORDS:
+                await update.message.reply_text("🚫 <b>Parola non valida o non presente nel dizionario italiano!</b>\nRiprova con una parola reale.", parse_mode="HTML")
+                return
+
             game["attempts"] += 1
             secret = game["secret"]
             
@@ -1681,7 +1696,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             if text_upper == secret:
                 del WORDLE_GAMES[game_key]
                 add_user_coins(chat_id_int, user.id, 20)
-                await update.message.reply_text(f"🎉 <b>ESATTO!</b> Parola: <b>{secret}</b>!\nVinti <b>+20 $SDG</b>!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
+                await update.message.reply_text(f"🎉 <b>ESATTO!</b> Parola: <b>{secret}</b>!\nVinti <b>+💳 20 $SDG</b>!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
             elif game["attempts"] >= 5:
                 del WORDLE_GAMES[game_key]
                 await update.message.reply_text(f"💥 <b>GAME OVER!</b> La parola era <b>{secret}</b>.\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
@@ -1805,7 +1820,7 @@ async def main_async():
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
 
-    print("SdrogoBot v4.2 Integrale pronto all'uso!", flush=True)
+    print("SdrogoBot v4.4 Definitivo pronto all'uso!", flush=True)
 
     await application.initialize()
     await application.start()
