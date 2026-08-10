@@ -54,7 +54,7 @@ TARGET_MAP = {
 IS_TROLLING_ACTIVE = True
 FRASE_PENITENZA = "sono un perdente"
 
-# --- DATABASE WORDLE (100 PAROLE DA 5 LETTERE) ---
+# --- DATABASE 100 PAROLE WORDLE (5 LETTERE) ---
 WORDS = [
     "ZAINO", "AMORE", "CANTO", "FIORE", "GATTO", "LATTE", "NOTTE", "PALMA", "SEDIA", "TAZZA",
     "VENTO", "BACIO", "CUORE", "DOLCE", "FIUME", "GIOCO", "LIBRO", "MATTO", "NUOTO", "PORTO",
@@ -517,7 +517,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "SdrogoBot v4.5 Attivo H24!"
+    return "SdrogoBot v4.6 Attivo H24!"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
@@ -652,7 +652,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "single":
         text = (
             "🕹️ <b>GIOCHI SINGLE PLAYER</b>\n"
-            "─────────────────────────────\n\n"
+            "▫️ ────────────────────── ▫️\n\n"
             "🃏 <b>Blackjack 21</b> (10 $SDG)\n"
             "🎰 <b>Slot Machine 777</b> (10 $SDG)\n"
             "🔠 <b>Wordle Express</b> (10 $SDG)\n"
@@ -668,7 +668,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "multi":
         text = (
             "⚔️ <b>GIOCHI MULTIPLAYER</b>\n"
-            "─────────────────────────────\n\n"
+            "▫️ ────────────────────── ▫️\n\n"
             "🎯 <b>Roulette Russa 1v1</b>\n"
             "🎲 <b>High / Low 1v1 (Dado della Morte)</b>\n"
             "🌐 <b>Quiz Multiplayer</b> (Aperto a tutto il gruppo!)"
@@ -684,7 +684,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "quiz":
         text = (
             "🧠 <b>QUIZ SHOW SINGLE PLAYER</b> (Costo: 5 $SDG)\n"
-            "─────────────────────────────\n"
+            "▫️ ────────────────────── ▫️\n"
             "Scegli la tua categoria preferita:"
         )
         keyboard = [
@@ -701,7 +701,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         text = (
             "🛒 <b>SDROGOSHOP - MERCATO VIRTUALI</b>\n"
-            "─────────────────────────────\n\n"
+            "▫️ ────────────────────── ▫️\n\n"
             f"📦 <b>Tuo Inventario:</b> {inv.get('titles', 0)} Titoli | {inv.get('persecutes', 0)} Persecuzioni\n\n"
             "🏷️ <b>1. Titolo Umiliante (100 $SDG)</b>\nAssegna '🏳️‍🌈GAY🏳️‍🌈' a una vittima per 24 ORE REALI!\n\n"
             "🗣️ <b>2. Tag Persecutore (120 $SDG)</b>\nIl bot risponde 'frocio hah' ai prossimi 15 messaggi di una vittima!\n\n"
@@ -718,7 +718,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "wallet":
         text = (
             "💳 <b>PORTAFOGLIO & ECONOMIA</b>\n"
-            "─────────────────────────────\n\n"
+            "▫️ ────────────────────── ▫️\n\n"
             f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
             f"💰 Saldo attuale: <code>💳 {coins} $SDG</code>\n\n"
             "🎁 <b>Bonus Daily:</b> Riscuoti 50 $SDG ogni 24 ore."
@@ -788,7 +788,7 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = [[InlineKeyboardButton("🔓 Disattiva Allarme (Livello 1)", callback_data=f"heist_lvl1_{user_id}")]]
             await context.bot.send_message(
                 chat_id=user_id,
-                text="🏢 <b>SDROGO HEIST - LA RAPINA AL CAVEAU</b> 🕵️‍♂️\n─────────────────────────────\n\nBenvenuto al Livello 1! Devi disattivare l'allarme per entrare.",
+                text="🏢 <b>SDROGO HEIST - LA RAPINA AL CAVEAU</b> 🕵️‍♂️\n▫️ ────────────────────── ▫️\n\nBenvenuto al Livello 1! Devi disattivare l'allarme per entrare.",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="HTML"
             )
@@ -1071,7 +1071,7 @@ async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAUL
 
     await query.edit_message_text(
         "🔐 <b>MASTERMIND EXPRESS</b> (Puntata: 10 $SDG)\n"
-        "─────────────────────────────\n\n"
+        "▫️ ────────────────────── ▫️\n\n"
         "Ho scelto un codice segreto di <b>3 cifre uniche</b>!\n"
         "Scrivilo direttamente in chat per tentare (5 tentativi).",
         parse_mode="HTML"
@@ -1087,7 +1087,7 @@ async def start_highlow_prep(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await query.edit_message_text(
         "🎲 <b>HIGH / LOW 1v1 (DADO DELLA MORTE)</b>\n"
-        "─────────────────────────────\n\n"
+        "▫️ ────────────────────── ▫️\n\n"
         "Scrivi in chat il nome della tua vittima per sfidarla sul dado:\n\n"
         "👉 <code>sfido highlow @username</code>",
         parse_mode="HTML"
@@ -1170,7 +1170,7 @@ async def handle_highlow_callback(update: Update, context: ContextTypes.DEFAULT_
             )
             del HIGHLOW_DUELS[chat_id]
 
-# --- GAME: QUIZ MULTIPLAYER CON RILASCIO AUTOMATICO DEGLI INDIZI (TIMER 25s) ---
+# --- GAME: QUIZ MULTIPLAYER CON TIMER NATIVO ASYNCIO (25s) ---
 async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
@@ -1183,7 +1183,7 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
     item = random.choice(db_choice)
 
     msg = await query.edit_message_text(
-        f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n─────────────────────────────\n\n"
+        f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n▫️ ────────────────────── ▫️\n\n"
         f"Il primo che risponde in chat vince +💳 15 $SDG!\n\n"
         f"<b>1° Indizio:</b> {item['indizi'][0]}",
         parse_mode="HTML"
@@ -1196,29 +1196,37 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
         "msg_id": msg.message_id
     }
 
-    # Programma i timer per i prossimi 2 indizi
-    if context.job_queue:
-        context.job_queue.run_once(auto_quiz_hint_job, when=25, data={"chat_id": chat_id, "step": 2})
-        context.job_queue.run_once(auto_quiz_hint_job, when=50, data={"chat_id": chat_id, "step": 3})
+    # Task asincrono in background per la gestione automatica degli indizi
+    asyncio.create_task(run_quiz_multi_timer(context.bot, chat_id, msg.message_id, item["indizi"]))
 
-async def auto_quiz_hint_job(context: ContextTypes.DEFAULT_TYPE):
-    job_data = context.job.data
-    chat_id = job_data["chat_id"]
-    target_step = job_data["step"]
+async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list):
+    # 2° Indizio dopo 25s
+    await asyncio.sleep(25)
+    if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and QUIZ_GAMES[chat_id].get("msg_id") == msg_id:
+        QUIZ_GAMES[chat_id]["step"] = 2
+        hints_text = f"• <b>Indizio 1:</b> {indizi[0]}\n• <b>Indizio 2:</b> {indizi[1]}"
+        try:
+            await bot.edit_message_text(
+                chat_id=int(chat_id),
+                message_id=msg_id,
+                text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n▫️ ────────────────────── ▫️\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
+                parse_mode="HTML"
+            )
+        except Exception: pass
 
-    if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi"):
-        q = QUIZ_GAMES[chat_id]
-        if q["step"] < target_step:
-            q["step"] = target_step
-            hints_text = "\n".join([f"• <b>Indizio {i+1}:</b> {q['indizi'][i]}" for i in range(target_step)])
-            try:
-                await context.bot.edit_message_text(
-                    chat_id=int(chat_id),
-                    message_id=q["msg_id"],
-                    text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n─────────────────────────────\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
-                    parse_mode="HTML"
-                )
-            except Exception: pass
+    # 3° Indizio dopo altri 25s
+    await asyncio.sleep(25)
+    if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and QUIZ_GAMES[chat_id].get("msg_id") == msg_id:
+        QUIZ_GAMES[chat_id]["step"] = 3
+        hints_text = f"• <b>Indizio 1:</b> {indizi[0]}\n• <b>Indizio 2:</b> {indizi[1]}\n• <b>Indizio 3:</b> {indizi[2]}"
+        try:
+            await bot.edit_message_text(
+                chat_id=int(chat_id),
+                message_id=msg_id,
+                text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n▫️ ────────────────────── ▫️\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
+                parse_mode="HTML"
+            )
+        except Exception: pass
 
 # --- TIMEOUT QUIZ ---
 async def quiz_timeout_check(context: ContextTypes.DEFAULT_TYPE):
@@ -1244,7 +1252,7 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
             chat_users.append((uid, coins))
 
     chat_users.sort(key=lambda x: x[1], reverse=True)
-    text = "🏆 <b>CLASSIFICA RICCONI $SDG</b> 💰\n─────────────────────────────\n\n"
+    text = "🏆 <b>CLASSIFICA RICCONI $SDG</b> 💰\n▫️ ────────────────────── ▫️\n\n"
     medals = ["🥇", "🥈", "🥉"]
 
     for idx, (uid, coins) in enumerate(chat_users[:10], start=1):
@@ -1322,7 +1330,7 @@ async def start_bj_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.edit_message_text(
         f"🃏 <b>BLACKJACK 21</b> (Puntata: 10 $SDG)\n"
-        f"─────────────────────────────\n\n"
+        f"▫️ ────────────────────── ▫️\n\n"
         f"👤 Giocatore: <b>{user.first_name}</b>\n"
         f"🎎 Carte: {player_hand} (Totale: <b>{sum(player_hand)}</b>)\n"
         f"🤖 Banco: [{dealer_hand[0]}, ?]\n\nCosa fai?",
@@ -1405,7 +1413,7 @@ async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TY
 
     await query.edit_message_text(
         "🔠 <b>WORDLE EXPRESS</b> (Puntata: 10 $SDG)\n"
-        "─────────────────────────────\n\n"
+        "▫️ ────────────────────── ▫️\n\n"
         "Ho scelto una parola di <b>5 lettere</b>!\n"
         "Scrivila direttamente in chat per tentare (5 tentativi).",
         parse_mode="HTML"
@@ -1441,7 +1449,7 @@ async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
     await query.edit_message_text(
         f"🧠 <b>QUIZ {title_name}</b> (Costo: 5 $SDG)\n"
-        "─────────────────────────────\n\n"
+        "▫️ ────────────────────── ▫️\n\n"
         f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
         "Indovina la risposta scrivendola in chat!\n\n"
         f"<b>1° Indizio:</b> {item['indizi'][0]}",
@@ -1473,7 +1481,7 @@ async def quiz_more_hint(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")])
 
         await query.edit_message_text(
-            f"🧠 <b>QUIZ {q['type']}</b>\n─────────────────────────────\n\nScrivi la risposta in chat!\n\n{hints_text}",
+            f"🧠 <b>QUIZ {q['type']}</b>\n▫️ ────────────────────── ▫️\n\nScrivi la risposta in chat!\n\n{hints_text}",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
@@ -1488,7 +1496,7 @@ async def start_roulette_prep(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await query.edit_message_text(
         "🎯 <b>ROULETTE RUSSA 1v1</b>\n"
-        "─────────────────────────────\n\n"
+        "▫️ ────────────────────── ▫️\n\n"
         "Scrivi in chat il nome della tua vittima:\n\n"
         "👉 <code>sfido @username</code>",
         parse_mode="HTML"
@@ -1674,7 +1682,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return
 
-    # Handling Wordle (Con filtro dizionario italiano)
+    # Handling Wordle
     game_key = f"{chat_id}_{user.id}"
     if game_key in WORDLE_GAMES:
         game = WORDLE_GAMES[game_key]
@@ -1837,7 +1845,7 @@ async def main_async():
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
 
-    print("SdrogoBot v4.5 Integrale pronto all'uso!", flush=True)
+    print("SdrogoBot v4.6 Definitivo pronto all'uso!", flush=True)
 
     await application.initialize()
     await application.start()
