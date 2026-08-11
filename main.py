@@ -517,7 +517,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "SdrogoBot v4.6 Attivo H24!"
+    return "SdrogoBot v4.8 Attivo H24!"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
@@ -610,18 +610,16 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     display_name = get_formatted_name(chat_id, user.id, user.first_name)
     
     text = (
-        "🎰 <b>━━━━━━━━━━━━━━━━━━</b> 🎰\n"
-        "       <b>SDROGOBOT ARCADE HUB</b> 🎮\n"
-        "🎰 <b>━━━━━━━━━━━━━━━━━━</b> 🎰\n\n"
-        f"👤 <b>Giocatore:</b> {display_name}\n"
-        f"💰 <b>Saldo Chat:</b> <code>💳 {coins} $SDG</code>\n\n"
-        "⚡ <i>Scegli una categoria dal menu per giocare:</i>"
+        "🎰 <b>SDROGOBOT ARCADE HUB</b> 🎮\n\n"
+        f"👤 <b>Player:</b> {display_name}\n"
+        f"💰 <b>Saldo:</b> <code>💳 {coins} $SDG</code>\n\n"
+        "<i>Seleziona una categoria per iniziare:</i>"
     )
     
     keyboard = [
         [InlineKeyboardButton("🕹️ Single Player", callback_data=f"hub_single_{user.id}"), InlineKeyboardButton("⚔️ Multiplayer", callback_data=f"hub_multi_{user.id}")],
         [InlineKeyboardButton("🧠 Quiz Show", callback_data=f"hub_quiz_{user.id}"), InlineKeyboardButton("🛒 SdrogoShop", callback_data=f"hub_shop_{user.id}")],
-        [InlineKeyboardButton("💳 Portafoglio / Daily", callback_data=f"hub_wallet_{user.id}"), InlineKeyboardButton("🏆 Classifica", callback_data=f"hub_lead_{user.id}")]
+        [InlineKeyboardButton("💳 Portafoglio", callback_data=f"hub_wallet_{user.id}"), InlineKeyboardButton("🏆 Classifica", callback_data=f"hub_lead_{user.id}")]
     ]
     
     if update.message:
@@ -651,41 +649,38 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "single":
         text = (
-            "🕹️ <b>GIOCHI SINGLE PLAYER</b>\n"
-            "▫️ ────────────────────── ▫️\n\n"
-            "🃏 <b>Blackjack 21</b> (10 $SDG)\n"
-            "🎰 <b>Slot Machine 777</b> (10 $SDG)\n"
-            "🔠 <b>Wordle Express</b> (10 $SDG)\n"
-            "🔐 <b>Mastermind Express</b> (10 $SDG)"
+            "🕹️ <b>GIOCHI SINGLE PLAYER</b>\n\n"
+            "🃏 <b>Blackjack 21</b> — <i>10 $SDG</i>\n"
+            "🎰 <b>Slot Machine 777</b> — <i>10 $SDG</i>\n"
+            "🔠 <b>Wordle Express</b> — <i>10 $SDG</i>\n"
+            "🔐 <b>Mastermind Express</b> — <i>10 $SDG</i>"
         )
         keyboard = [
-            [InlineKeyboardButton("🃏 Blackjack (10 $SDG)", callback_data=f"start_bj_{user_id}"), InlineKeyboardButton("🎰 Slot 777 (10 $SDG)", callback_data=f"start_slot_{user_id}")],
-            [InlineKeyboardButton("🔠 Wordle (10 $SDG)", callback_data=f"start_wordle_{user_id}"), InlineKeyboardButton("🔐 Mastermind (10 $SDG)", callback_data=f"start_mm_{user_id}")],
+            [InlineKeyboardButton("🃏 Blackjack", callback_data=f"start_bj_{user_id}"), InlineKeyboardButton("🎰 Slot 777", callback_data=f"start_slot_{user_id}")],
+            [InlineKeyboardButton("🔠 Wordle", callback_data=f"start_wordle_{user_id}"), InlineKeyboardButton("🔐 Mastermind", callback_data=f"start_mm_{user_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
     elif action == "multi":
         text = (
-            "⚔️ <b>GIOCHI MULTIPLAYER</b>\n"
-            "▫️ ────────────────────── ▫️\n\n"
+            "⚔️ <b>GIOCHI MULTIPLAYER</b>\n\n"
             "🎯 <b>Roulette Russa 1v1</b>\n"
             "🎲 <b>High / Low 1v1 (Dado della Morte)</b>\n"
-            "🌐 <b>Quiz Multiplayer</b> (Aperto a tutto il gruppo!)"
+            "🌐 <b>Quiz Multiplayer</b> (Sfida aperta a tutti!)"
         )
         keyboard = [
             [InlineKeyboardButton("🎯 Roulette 1v1", callback_data=f"start_roulette_{user_id}")],
             [InlineKeyboardButton("🎲 High / Low 1v1", callback_data=f"start_highlow_{user_id}")],
-            [InlineKeyboardButton("🌐 Quiz Multiplayer (Gratis)", callback_data=f"start_qmulti_{user_id}")],
+            [InlineKeyboardButton("🌐 Quiz Multi", callback_data=f"start_qmulti_{user_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
     elif action == "quiz":
         text = (
-            "🧠 <b>QUIZ SHOW SINGLE PLAYER</b> (Costo: 5 $SDG)\n"
-            "▫️ ────────────────────── ▫️\n"
-            "Scegli la tua categoria preferita:"
+            "🧠 <b>QUIZ SHOW SINGLE PLAYER</b> (5 $SDG)\n\n"
+            "Scegli una categoria:"
         )
         keyboard = [
             [InlineKeyboardButton("⚽ Calcio", callback_data=f"start_qcalcio_{user_id}"), InlineKeyboardButton("🎬 Cinema", callback_data=f"start_qcinema_{user_id}")],
@@ -700,12 +695,11 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         inv = USER_INVENTORIES.get(inv_key, {"titles": 0, "persecutes": 0})
         
         text = (
-            "🛒 <b>SDROGOSHOP - MERCATO VIRTUALI</b>\n"
-            "▫️ ────────────────────── ▫️\n\n"
-            f"📦 <b>Tuo Inventario:</b> {inv.get('titles', 0)} Titoli | {inv.get('persecutes', 0)} Persecuzioni\n\n"
-            "🏷️ <b>1. Titolo Umiliante (100 $SDG)</b>\nAssegna '🏳️‍🌈GAY🏳️‍🌈' a una vittima per 24 ORE REALI!\n\n"
-            "🗣️ <b>2. Tag Persecutore (120 $SDG)</b>\nIl bot risponde 'frocio hah' ai prossimi 15 messaggi di una vittima!\n\n"
-            "🏢 <b>3. Pass SDROGO HEIST (350 $SDG)</b>\nRapina a 5 livelli in PRIVATO col bot per vincere Jackpot + Stelle!"
+            "🛒 <b>SDROGOSHOP</b>\n\n"
+            f"📦 <b>Inventario:</b> {inv.get('titles', 0)} Titoli | {inv.get('persecutes', 0)} Persecuzioni\n\n"
+            "🏷️ <b>1. Titolo Umiliante (100 $SDG)</b>\nAssegna '🏳️‍🌈GAY🏳️‍🌈' a una vittima per 24 ore!\n\n"
+            "🗣️ <b>2. Tag Persecutore (120 $SDG)</b>\nIl bot risponde 'frocio hah' ai prossimi 15 messaggi!\n\n"
+            "🏢 <b>3. Pass SDROGO HEIST (350 $SDG)</b>\nRapina a 5 livelli in PRIVATO col bot per Jackpot + Stelle!"
         )
         keyboard = [
             [InlineKeyboardButton("🏷️ Compra Titolo (100 $SDG)", callback_data=f"buy_title_{user_id}")],
@@ -717,8 +711,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "wallet":
         text = (
-            "💳 <b>PORTAFOGLIO & ECONOMIA</b>\n"
-            "▫️ ────────────────────── ▫️\n\n"
+            "💳 <b>PORTAFOGLIO</b>\n\n"
             f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
             f"💰 Saldo attuale: <code>💳 {coins} $SDG</code>\n\n"
             "🎁 <b>Bonus Daily:</b> Riscuoti 50 $SDG ogni 24 ore."
@@ -788,7 +781,7 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = [[InlineKeyboardButton("🔓 Disattiva Allarme (Livello 1)", callback_data=f"heist_lvl1_{user_id}")]]
             await context.bot.send_message(
                 chat_id=user_id,
-                text="🏢 <b>SDROGO HEIST - LA RAPINA AL CAVEAU</b> 🕵️‍♂️\n▫️ ────────────────────── ▫️\n\nBenvenuto al Livello 1! Devi disattivare l'allarme per entrare.",
+                text="🏢 <b>SDROGO HEIST - LA RAPINA AL CAVEAU</b> 🕵️‍♂️\n\nBenvenuto al Livello 1! Devi disattivare l'allarme per entrare.",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="HTML"
             )
@@ -995,7 +988,7 @@ async def apply_persecute_command(update: Update, context: ContextTypes.DEFAULT_
     ACTIVE_PERSECUTE[f"{chat_id}_{target_username}"] = {"count": 15, "phrase": "frocio hah"}
     await update.message.reply_text(f"😈 <b>PERSECUZIONE ATTIVATA!</b> I prossimi 15 messaggi di @{target_username} riceveranno risposta 'frocio hah' dal bot!", parse_mode="HTML")
 
-# --- GAME: SLOT MACHINE 777 CON ANIMAZIONE RULLI ---
+# --- GAME: SLOT MACHINE 777 CON ANIMAZIONE PROGRESSIVA A 3 STEP ---
 async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
@@ -1010,18 +1003,26 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     add_user_coins(chat_id, user.id, -10)
-    
-    await query.edit_message_text(
-        f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n"
-        f"[ 🔄 | 🔄 | 🔄 ]\n\n<i>Giro in corso...</i>",
-        parse_mode="HTML"
-    )
-    
-    await asyncio.sleep(1.2)
-
     symbols = ["🍒", "🍋", "🔔", "💎", "7️⃣"]
     r1, r2, r3 = random.choice(symbols), random.choice(symbols), random.choice(symbols)
 
+    # Step 1: Primo Rullo
+    await query.edit_message_text(
+        f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n"
+        f"[ {r1} | 🔄 | ❓ ]\n\n<i>Giro rulli in corso...</i>",
+        parse_mode="HTML"
+    )
+    await asyncio.sleep(0.6)
+
+    # Step 2: Secondo Rullo
+    await query.edit_message_text(
+        f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n"
+        f"[ {r1} | {r2} | 🔄 ]\n\n<i>Giro rulli in corso...</i>",
+        parse_mode="HTML"
+    )
+    await asyncio.sleep(0.6)
+
+    # Step 3: Risultato Finale
     text = f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n[ {r1} | {r2} | {r3} ]\n\n"
 
     end_keyboard = [
@@ -1070,8 +1071,7 @@ async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAUL
     }
 
     await query.edit_message_text(
-        "🔐 <b>MASTERMIND EXPRESS</b> (Puntata: 10 $SDG)\n"
-        "▫️ ────────────────────── ▫️\n\n"
+        "🔐 <b>MASTERMIND EXPRESS</b> (Puntata: 10 $SDG)\n\n"
         "Ho scelto un codice segreto di <b>3 cifre uniche</b>!\n"
         "Scrivilo direttamente in chat per tentare (5 tentativi).",
         parse_mode="HTML"
@@ -1086,8 +1086,7 @@ async def start_highlow_prep(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not await verify_user_lock(query, owner_id): return
 
     await query.edit_message_text(
-        "🎲 <b>HIGH / LOW 1v1 (DADO DELLA MORTE)</b>\n"
-        "▫️ ────────────────────── ▫️\n\n"
+        "🎲 <b>HIGH / LOW 1v1 (DADO DELLA MORTE)</b>\n\n"
         "Scrivi in chat il nome della tua vittima per sfidarla sul dado:\n\n"
         "👉 <code>sfido highlow @username</code>",
         parse_mode="HTML"
@@ -1183,7 +1182,7 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
     item = random.choice(db_choice)
 
     msg = await query.edit_message_text(
-        f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n▫️ ────────────────────── ▫️\n\n"
+        f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n\n"
         f"Il primo che risponde in chat vince +💳 15 $SDG!\n\n"
         f"<b>1° Indizio:</b> {item['indizi'][0]}",
         parse_mode="HTML"
@@ -1196,7 +1195,6 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
         "msg_id": msg.message_id
     }
 
-    # Task asincrono in background per la gestione automatica degli indizi
     asyncio.create_task(run_quiz_multi_timer(context.bot, chat_id, msg.message_id, item["indizi"]))
 
 async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list):
@@ -1209,7 +1207,7 @@ async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list):
             await bot.edit_message_text(
                 chat_id=int(chat_id),
                 message_id=msg_id,
-                text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n▫️ ────────────────────── ▫️\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
+                text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
                 parse_mode="HTML"
             )
         except Exception: pass
@@ -1223,7 +1221,7 @@ async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list):
             await bot.edit_message_text(
                 chat_id=int(chat_id),
                 message_id=msg_id,
-                text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n▫️ ────────────────────── ▫️\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
+                text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
                 parse_mode="HTML"
             )
         except Exception: pass
@@ -1252,7 +1250,7 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
             chat_users.append((uid, coins))
 
     chat_users.sort(key=lambda x: x[1], reverse=True)
-    text = "🏆 <b>CLASSIFICA RICCONI $SDG</b> 💰\n▫️ ────────────────────── ▫️\n\n"
+    text = "🏆 <b>CLASSIFICA RICCONI $SDG</b> 💰\n\n"
     medals = ["🥇", "🥈", "🥉"]
 
     for idx, (uid, coins) in enumerate(chat_users[:10], start=1):
@@ -1329,8 +1327,7 @@ async def start_bj_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]]
 
     await query.edit_message_text(
-        f"🃏 <b>BLACKJACK 21</b> (Puntata: 10 $SDG)\n"
-        f"▫️ ────────────────────── ▫️\n\n"
+        f"🃏 <b>BLACKJACK 21</b> (Puntata: 10 $SDG)\n\n"
         f"👤 Giocatore: <b>{user.first_name}</b>\n"
         f"🎎 Carte: {player_hand} (Totale: <b>{sum(player_hand)}</b>)\n"
         f"🤖 Banco: [{dealer_hand[0]}, ?]\n\nCosa fai?",
@@ -1412,8 +1409,7 @@ async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TY
     }
 
     await query.edit_message_text(
-        "🔠 <b>WORDLE EXPRESS</b> (Puntata: 10 $SDG)\n"
-        "▫️ ────────────────────── ▫️\n\n"
+        "🔠 <b>WORDLE EXPRESS</b> (Puntata: 10 $SDG)\n\n"
         "Ho scelto una parola di <b>5 lettere</b>!\n"
         "Scrivila direttamente in chat per tentare (5 tentativi).",
         parse_mode="HTML"
@@ -1448,8 +1444,7 @@ async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE,
     ]
 
     await query.edit_message_text(
-        f"🧠 <b>QUIZ {title_name}</b> (Costo: 5 $SDG)\n"
-        "▫️ ────────────────────── ▫️\n\n"
+        f"🧠 <b>QUIZ {title_name}</b> (Costo: 5 $SDG)\n\n"
         f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
         "Indovina la risposta scrivendola in chat!\n\n"
         f"<b>1° Indizio:</b> {item['indizi'][0]}",
@@ -1481,7 +1476,7 @@ async def quiz_more_hint(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")])
 
         await query.edit_message_text(
-            f"🧠 <b>QUIZ {q['type']}</b>\n▫️ ────────────────────── ▫️\n\nScrivi la risposta in chat!\n\n{hints_text}",
+            f"🧠 <b>QUIZ {q['type']}</b>\n\nScrivi la risposta in chat!\n\n{hints_text}",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
@@ -1495,8 +1490,7 @@ async def start_roulette_prep(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not await verify_user_lock(query, owner_id): return
 
     await query.edit_message_text(
-        "🎯 <b>ROULETTE RUSSA 1v1</b>\n"
-        "▫️ ────────────────────── ▫️\n\n"
+        "🎯 <b>ROULETTE RUSSA 1v1</b>\n\n"
         "Scrivi in chat il nome della tua vittima:\n\n"
         "👉 <code>sfido @username</code>",
         parse_mode="HTML"
@@ -1687,10 +1681,6 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
     if game_key in WORDLE_GAMES:
         game = WORDLE_GAMES[game_key]
         if len(text_upper) == 5:
-            if text_upper not in WORDS:
-                await update.message.reply_text("🚫 <b>Parola non valida o non presente nel dizionario italiano!</b>\nRiprova con una parola reale.", parse_mode="HTML")
-                return
-
             game["attempts"] += 1
             secret = game["secret"]
             
@@ -1845,7 +1835,7 @@ async def main_async():
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
 
-    print("SdrogoBot v4.6 Definitivo pronto all'uso!", flush=True)
+    print("SdrogoBot v4.8 Definitivo pronto all'uso!", flush=True)
 
     await application.initialize()
     await application.start()
