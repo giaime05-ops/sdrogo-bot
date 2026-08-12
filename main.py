@@ -733,18 +733,25 @@ def run_flask():
     log.setLevel(logging.ERROR)
     app.run(host='0.0.0.0', port=port)
 
-# --- AUTO-RESTORE DATABASE DA TELEGRAM ---
+# --- AUTO-RESTORE DA MESSAGGIO FISSATO IN CHAT DI BACKUP ---
 async def auto_restore_from_telegram(bot):
     global USER_DATA
     if not BACKUP_CHAT_ID: return
     try:
         chat_id = int(BACKUP_CHAT_ID)
-        # Tenta di scaricare l'ultimo documento inviato nella chat di backup
-        # Nota: Viene letta la memoria se il file locale 'database.json' non esiste
+        # Se il database locale non esiste su Render, cerca il messaggio fissato
         if not os.path.exists(DB_FILE):
-            print("📦 Ripristino automatico database da Telegram in corso...", flush=True)
+            print("📦 Ricerca messaggio fissato per il ripristino...", flush=True)
+            chat = await bot.get_chat(chat_id)
+            if chat.pinned_message and chat.pinned_message.document:
+                file_info = await bot.get_file(chat.pinned_message.document.file_id)
+                await file_info.download_to_drive(DB_FILE)
+                print("✅ Database ripristinato con successo dal messaggio fissato!", flush=True)
+                load_db()
+            else:
+                print("⚠️ Nessun messaggio fissato con documento trovato nella chat di backup.", flush=True)
     except Exception as e:
-        logging.error(f"Errore Auto-Restore Telegram: {e}")
+        logging.error(f"Errore Auto-Restore da messaggio fissato: {e}")
 
 def load_db():
     global USER_DATA
