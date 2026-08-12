@@ -38,6 +38,8 @@ BLACKJACK_GAMES = {}
 WORDLE_GAMES = {}
 MASTERMIND_GAMES = {}
 QUIZ_GAMES = {}
+QUIZ_DUELS_1V1 = {}
+GHIGLIOTTINA_DUELS = {}
 HEIST_GAMES = {}
 PENITENZE_ATTIVE = {}
 
@@ -66,6 +68,40 @@ WORDS = [
     "BLUSA", "CRASI", "EGIDA", "FATUO", "ILICE", "LAICO", "MIGMA", "NENIA", "ONICE", "PRODA",
     "REUMA", "ZURRO", "ALATO", "BIZZA", "DOTTO", "ETERE", "FALCE", "IRIDE", "LESTO", "AUREO",
     "ANICE", "CONCA", "EREBO", "ILOTE", "LIBRA", "MOINA", "NAFTA", "OPALE", "PLICO", "TURBA"
+]
+
+# --- DATABASE 30 GHIGLIOTTINE (PAROLE LEGAME) ---
+GHIGLIOTTINA_DB = [
+    {"target": "PORTA", "indizi": ["CASA", "CALCIO", "MARE", "SOLE", "APERTO"]},
+    {"target": "LUNA", "indizi": ["PIENA", "PARCO", "MIELE", "MORTA", "STORTA"]},
+    {"target": "PANE", "indizi": ["CASERECCIO", "FRESCO", "CESTO", "BURRO", "QUOTIDIANO"]},
+    {"target": "FILM", "indizi": ["CINEMA", "CAMPIONE", "ORROR", "PREMIO", "MUTI"]},
+    {"target": "SOLE", "indizi": ["RAGGIO", "SCALDATO", "OCCHIALI", "ESTATE", "COLPO"]},
+    {"target": "CAFFE", "indizi": ["MOKA", "ESPRESSO", "PAUSA", "TORTA", "MACCHIATO"]},
+    {"target": "CARTA", "indizi": ["BANCARIA", "MUSICA", "STRACCIA", "REGALO", "FORMATO"]},
+    {"target": "PESCE", "indizi": ["FRESCO", "GATTO", "SPADA", "ROSSO", "MERCATO"]},
+    {"target": "GATTO", "indizi": ["NERO", "TOPO", "STIVALI", "MIAO", "SIAMESE"]},
+    {"target": "FIORE", "indizi": ["ALL'OCCHIELLO", "CAMPO", "FRESCO", "VASO", "SPOSA"]},
+    {"target": "LIBRO", "indizi": ["CUORE", "APERTO", "TESTO", "GIALLO", "PAGINA"]},
+    {"target": "STRELLA", "indizi": ["CADENTE", "POLARE", "MARINA", "NOTTE", "CINEMA"]},
+    {"target": "ACQUA", "indizi": ["SANTA", "MINERALE", "RUBINETTO", "VITA", "CORRENTE"]},
+    {"target": "TERRA", "indizi": ["PROMESSA", "PADRE", "CONFINE", "FIRMA", "PIANETA"]},
+    {"target": "FUOCO", "indizi": ["CAMINO", "ARTIFICIO", "AMICO", "LENTO", "AMORE"]},
+    {"target": "MANO", "indizi": ["AMICA", "SINISTRA", "LIBERA", "PRESA", "FATTA"]},
+    {"target": "OCCHIO", "indizi": ["RIGUARDO", "NUDO", "LUCIDO", "CIGLIA", "PALLA"]},
+    {"target": "TESTA", "indizi": ["CODA", "CALDO", "SERIE", "CASCO", "AMARA"]},
+    {"target": "PIEDE", "indizi": ["SCALZO", "PIATTO", "LIBERO", "LETTERA", "PASSO"]},
+    {"target": "CAPELLO", "indizi": ["RICCIO", "PETTINE", "TAGLIO", "BIONDO", "LUNGO"]},
+    {"target": "TEMPO", "indizi": ["PERSO", "BELLO", "LIBERO", "REALE", "SOSPEDO"]},
+    {"target": "NOTTE", "indizi": ["FOLLIA", "A FUMETTI", "FONDO", "BUONA", "STELLATA"]},
+    {"target": "CAMPO", "indizi": ["GIOCO", "ESTIVO", "CENTRO", "FIORI", "SANTO"]},
+    {"target": "GIOCO", "indizi": ["SQUADRA", "SALA", "AZZARDO", "TAVOLO", "RUOTA"]},
+    {"target": "VITA", "indizi": ["DURA", "PRIVATA", "CARRERA", "GIRATA", "CASA"]},
+    {"target": "STRADA", "indizi": ["MAESTRA", "CHIUSA", "FERRATA", "CASA", "LIBERA"]},
+    {"target": "CASA", "indizi": ["COLONICA", "DOLCE", "CURA", "PENSIONE", "RIPOSO"]},
+    {"target": "MONDO", "indizi": ["NOTTE", "UOMO", "NUOVO", "GIRO", "MADRE"]},
+    {"target": "AMORE", "indizi": ["PRIMO", "ETERNO", "PROPRIO", "FALSO", "CIECO"]},
+    {"target": "STORIA", "indizi": ["AMORE", "PASSATO", "SACRA", "INFINITA", "LIBRO"]}
 ]
 
 # --- DATABASE 100 CALCIATORI ---
@@ -459,7 +495,7 @@ QUIZ_SPORTIVI_DB = [
     {"target": "LAUDA", "indizi": ["Formula 1", "Austria / Ferrari", "Il ritorno miracoloso in pista dopo il rogo del Nürburgring."]},
     {"target": "PROST", "indizi": ["Formula 1", "Francia / McLaren", "Detto Il Professore per la sua guida tattica e calcolata."]},
     {"target": "ALONSO", "indizi": ["Formula 1", "Spagna / Renault", "Due volte campione capace di duellare in F1 in tre decenni diversi."]},
-    {"target": "RAIKKONEN", "indizi": ["Formula 1", "Finlandia / Ferrari", "Iceman, l'ultimo pilota a vincere il titolo con la Rossa."]},
+    {"target": "RAIKKONEN", "indizi": ["Formula 1", "Finlandia / Ferrari", "Iceman, l'ultimo pilota a vincere il titolo a Maranello."]},
     {"target": "VILLENEUVE", "indizi": ["Formula 1", "Canada / Ferrari", "Guida generosa e spericolata entrata nel cuore dei tifosi."]},
     {"target": "VALENTINO ROSSI", "indizi": ["MotoGP", "Italia / Yamaha e Honda", "Il numero 46 giallo con nove titoli mondiali."]},
     {"target": "AGOSTINI", "indizi": ["Motociclismo", "Italia / MV Agusta", "Il pilota più titolato della storia con 15 mondiali."]},
@@ -689,7 +725,7 @@ QUIZ_MARVEL_DB = [
     {"target": "NIGHTCRAWLER", "indizi": ["Marvel / X-Men", "Teletrasporto con scia di fumo di zolfo e coda", "Il mutante blu dall'aspetto demoniaco ma dal cuore pio."]},
     {"target": "COLOSSO", "indizi": ["Marvel / X-Men", "Pelle in metallo organico indistruttibile", "Il gigante russo dal cuore buono che si trasforma in acciaio."]},
     {"target": "HELLBOY", "indizi": ["Dark Horse", "Mano destra del destino in pietra e corna limate", "Il demone rosso evocato dai nazisti ma allevato dagli americani."]},
-    {"target": "SPAWN", "indizi": ["Image Comics", "Mantello vivente rosso e catene ferrate", "Il soldato mandato all'inferno ritornato come demone vendicatore."]},
+    {"target": "SPAWN", "indizi": ["Image Comics", "Mantello vivente rosso e catenes ferrate", "Il soldato mandato all'inferno ritornato come demone vendicatore."]},
     {"target": "OMNI-MAN", "indizi": ["Image Comics / Invincible", "Mantello rosso e baffo, invulnerabile", "Il padre alieno apparentemente eroe ma conquistatore spietato."]},
     {"target": "INVINCIBLE", "indizi": ["Image Comics", "Tuta gialla e blu, superforza e volo", "Il ragazzo metà umano e metà alieno Viltrumita."]},
     {"target": "PATRIOTA", "indizi": ["The Boys", "Mantello con la bandiera USA e occhi laser", "Il leader dei sette egocentrico e psicopatico."]},
@@ -725,7 +761,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "SdrogoBot v5.0 Attivo H24!"
+    return "SdrogoBot v5.1 Attivo H24!"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
@@ -733,13 +769,12 @@ def run_flask():
     log.setLevel(logging.ERROR)
     app.run(host='0.0.0.0', port=port)
 
-# --- AUTO-RESTORE DA MESSAGGIO FISSATO IN CHAT DI BACKUP ---
+# --- AUTO-RESTORE DATABASE DA MESSAGGIO FISSATO IN CHAT BACKUP ---
 async def auto_restore_from_telegram(bot):
     global USER_DATA
     if not BACKUP_CHAT_ID: return
     try:
         chat_id = int(BACKUP_CHAT_ID)
-        # Se il database locale non esiste su Render, cerca il messaggio fissato
         if not os.path.exists(DB_FILE):
             print("📦 Ricerca messaggio fissato per il ripristino...", flush=True)
             chat = await bot.get_chat(chat_id)
@@ -893,13 +928,27 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (
             "⚔️ <b>GIOCHI MULTIPLAYER</b>\n\n"
             "🎯 <b>Roulette Russa 1v1</b>\n"
-            "🎲 <b>High / Low 1v1 (Dado della Morte)</b>\n"
-            "🌐 <b>Quiz Multiplayer</b> (Sfida aperta a tutti!)"
+            "🎲 <b>High / Low 1v1</b>\n"
+            "🪓 <b>Ghigliottina Express 1v1</b> (`sfidoghigliottina @user`)\n"
+            "⚔️ <b>Duello Quiz 1v1</b> (`sfidoquiz @user`)\n"
+            "🌐 <b>Quiz Multiplayer</b> (Aperto a tutto il gruppo)"
         )
         keyboard = [
-            [InlineKeyboardButton("🎯 Roulette 1v1", callback_data=f"start_roulette_{user_id}")],
-            [InlineKeyboardButton("🎲 High / Low 1v1", callback_data=f"start_highlow_{user_id}")],
-            [InlineKeyboardButton("🌐 Quiz Multi", callback_data=f"start_qmulti_{user_id}")],
+            [InlineKeyboardButton("🎯 Roulette 1v1", callback_data=f"start_roulette_{user_id}"), InlineKeyboardButton("🎲 High/Low 1v1", callback_data=f"start_highlow_{user_id}")],
+            [InlineKeyboardButton("🪓 Ghigliottina 1v1", callback_data=f"start_ghigliottina_prep_{user_id}"), InlineKeyboardButton("⚔️ Duello Quiz 1v1", callback_data=f"start_quiz1v1_prep_{user_id}")],
+            [InlineKeyboardButton("🌐 Quiz Multi (Scegli Categoria)", callback_data=f"hub_qmulti_cat_{user_id}")],
+            back_button
+        ]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    elif action == "qmulti":
+        # Sotto-menu selezione Categoria Quiz Multi
+        text = "🌐 <b>QUIZ MULTIPLAYER PER CATEGORIA</b>\n\nScegli la categoria da lanciare in chat di gruppo:"
+        keyboard = [
+            [InlineKeyboardButton("🎲 Casuale", callback_data=f"start_qmulti_ALL_{user_id}"), InlineKeyboardButton("⚽ Calcio", callback_data=f"start_qmulti_CALCIO_{user_id}")],
+            [InlineKeyboardButton("🏎️ Formula 1", callback_data=f"start_qmulti_F1_{user_id}"), InlineKeyboardButton("🦸 Marvel & DC", callback_data=f"start_qmulti_MARVEL_{user_id}")],
+            [InlineKeyboardButton("🎬 Cinema", callback_data=f"start_qmulti_CINEMA_{user_id}"), InlineKeyboardButton("📺 Serie TV", callback_data=f"start_qmulti_SERIE_{user_id}")],
+            [InlineKeyboardButton("🌍 Città", callback_data=f"start_qmulti_CITTA_{user_id}"), InlineKeyboardButton("🏆 Sportivi", callback_data=f"start_qmulti_SPORT_{user_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -1018,7 +1067,7 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             add_user_coins(chat_id, user_id, 350)
             await query.edit_message_text("❌ Devi prima avviare il bot in chat PRIVATA per giocare a Sdrogo Heist!", parse_mode="HTML")
 
-# --- GAME: SDROGO HEIST (SBLOCCATO E FUNZIONANTE) ---
+# --- GAME: SDROGO HEIST ---
 async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
@@ -1404,33 +1453,273 @@ async def handle_highlow_callback(update: Update, context: ContextTypes.DEFAULT_
             )
             del HIGHLOW_DUELS[chat_id]
 
-# --- GAME: QUIZ MULTIPLAYER CON INDICATORE CATEGORIA & CHIUSURA AUTOMATICA ---
-async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# --- GAME: GHIGLIOTTINA 1v1 (`sfidoghigliottina @username`) ---
+async def start_ghigliottina_prep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
     if not await verify_user_lock(query, owner_id): return
+
+    await query.edit_message_text(
+        "🪓 <b>GHIGLIOTTINA EXPRESS 1v1</b>\n\n"
+        "Scrivi in chat il nome della tua vittima per sfidarla alla Ghigliottina:\n\n"
+        "👉 <code>sfidoghigliottina @username</code>",
+        parse_mode="HTML"
+    )
+
+async def handle_ghigliottina_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    chat_id = query.message.chat_id
+    user = query.from_user
+
+    if chat_id not in GHIGLIOTTINA_DUELS:
+        await query.answer("⚠️ Sfida Ghigliottina non attiva.", show_alert=True)
+        return
+
+    duel = GHIGLIOTTINA_DUELS[chat_id]
+
+    if query.data == "ghig_accetta":
+        if user.username and user.username.lower() != duel["target_username"]:
+            await query.answer("❌ Solo lo sfidato può accettare!", show_alert=True)
+            return
+
+        item = random.choice(GHIGLIOTTINA_DB)
+        duel["target_id"] = user.id
+        duel["target_name"] = user.first_name
+        duel["word"] = item["target"]
+        duel["indizi"] = item["indizi"]
+        duel["active"] = True
+
+        indizi_formatted = " • ".join([f"<b>{word}</b>" for word in item["indizi"]])
+
+        msg = await query.edit_message_text(
+            f"🪓 <b>GHIGLIOTTINA EXPRESS 1v1 INIZIATA!</b>\n\n"
+            f"⚔️ <b>{duel['sfidante_name']}</b> vs <b>{duel['target_name']}</b>\n\n"
+            f"📌 <b>Le 5 Parole Indizio:</b>\n{indizi_formatted}\n\n"
+            f"⏱️ <i>Avete 75 secondi! Il primo dei due che scrive la parola legame in chat vince <b>+💳 40 $SDG</b>!</i>",
+            parse_mode="HTML"
+        )
+        asyncio.create_task(run_ghigliottina_timeout(context.bot, chat_id, msg.message_id, item["target"]))
+
+    elif query.data == "ghig_rifiuta":
+        await query.edit_message_text("🐔 Sfida Ghigliottina rifiutata!")
+        del GHIGLIOTTINA_DUELS[chat_id]
+
+async def run_ghigliottina_timeout(bot, chat_id: int, msg_id: int):
+    await asyncio.sleep(75)
+    if chat_id in GHIGLIOTTINA_DUELS and GHIGLIOTTINA_DUELS[chat_id].get("active"):
+        target_word = GHIGLIOTTINA_DUELS[chat_id]["word"]
+        del GHIGLIOTTINA_DUELS[chat_id]
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=msg_id,
+                text=f"⏰ <b>TEMPO SCADUTO ALLA GHIGLIOTTINA!</b>\n\nNessuno dei due sfidanti ha indovinato. La parola legame era: <b>{target_word}</b>!",
+                parse_mode="HTML"
+            )
+        except Exception: pass
+
+# --- GAME: QUIZ 1v1 DUEL A 5 ROUND (`sfidoquiz @username`) ---
+async def start_quiz1v1_prep(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    parts = query.data.split("_")
+    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
+
+    if not await verify_user_lock(query, owner_id): return
+
+    await query.edit_message_text(
+        "⚔️ <b>DUELLO QUIZ 1v1 (A 5 ROUND)</b>\n\n"
+        "Scrivi in chat il nome della tua vittima per sfidarla al quiz:\n\n"
+        "👉 <code>sfidoquiz @username</code>",
+        parse_mode="HTML"
+    )
+
+async def handle_quiz1v1_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    chat_id = query.message.chat_id
+    user = query.from_user
+
+    if chat_id not in QUIZ_DUELS_1V1:
+        await query.answer("⚠️ Duello Quiz non attivo.", show_alert=True)
+        return
+
+    duel = QUIZ_DUELS_1V1[chat_id]
+
+    if query.data.startswith("q1v1_cat_"):
+        if user.id != duel["sfidante_id"]:
+            await query.answer("❌ Solo lo sfidante può scegliere la categoria!", show_alert=True)
+            return
+
+        cat_choice = query.data.split("_")[2]
+        duel["category"] = cat_choice
+
+        keyboard = [
+            [InlineKeyboardButton("🎯 Accetta Duello Quiz", callback_data="q1v1_accetta")],
+            [InlineKeyboardButton("🐔 Rifiuta", callback_data="q1v1_rifiuta")]
+        ]
+
+        await query.edit_message_text(
+            f"⚔️ <b>DUELLO QUIZ 1v1 (A 5 ROUND)</b>\n\n"
+            f"<b>{duel['sfidante_name']}</b> ha sfidato <b>@{duel['target_username']}</b> in Categoria <b>{cat_choice}</b>!\n\n"
+            f"@{duel['target_username']}, accetti la sfida?",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+
+    elif query.data == "q1v1_accetta":
+        if user.username and user.username.lower() != duel["target_username"]:
+            await query.answer("❌ Solo lo sfidato può accettare!", show_alert=True)
+            return
+
+        duel["target_id"] = user.id
+        duel["target_name"] = user.first_name
+        duel["round"] = 1
+        duel["p1_score"] = 0
+        duel["p2_score"] = 0
+        duel["active"] = True
+
+        await launch_quiz1v1_round(context.bot, chat_id)
+
+    elif query.data == "q1v1_rifiuta":
+        await query.edit_message_text("🐔 Duello Quiz rifiutato!")
+        del QUIZ_DUELS_1V1[chat_id]
+
+async def launch_quiz1v1_round(bot, chat_id: int):
+    if chat_id not in QUIZ_DUELS_1V1: return
+    duel = QUIZ_DUELS_1V1[chat_id]
+
+    cat = duel["category"]
+    db_map = {
+        "CALCIO": QUIZ_CALCIO_DB, "CINEMA": QUIZ_CINEMA_DB,
+        "SERIE": QUIZ_SERIE_DB, "CITTA": QUIZ_CITTA_DB,
+        "SPORT": QUIZ_SPORTIVI_DB, "F1": QUIZ_FORMULA1_DB,
+        "MARVEL": QUIZ_MARVEL_DB
+    }
+    
+    selected_db = db_map.get(cat, QUIZ_CALCIO_DB)
+    item = random.choice(selected_db)
+
+    duel["current_target"] = item["target"]
+    duel["current_indizi"] = item["indizi"]
+
+    msg = await bot.send_message(
+        chat_id=chat_id,
+        text=f"⚔️ <b>DUELLO QUIZ 1v1 — ROUND {duel['round']}/5</b>\n"
+             f"👤 <b>{duel['sfidante_name']}</b> ({duel['p1_score']}) vs <b>{duel['target_name']}</b> ({duel['p2_score']})\n\n"
+             f"🏷️ <b>CATEGORIA: {cat}</b>\n\n"
+             f"<b>1° Indizio:</b> {item['indizi'][0]}\n\n"
+             f"⏱️ <i>Avete 75 secondi per rispondere prima del prossimo round!</i>",
+        parse_mode="HTML"
+    )
+    duel["msg_id"] = msg.message_id
+    asyncio.create_task(run_quiz1v1_round_timer(bot, chat_id, duel['round'], msg.message_id, item["indizi"], item["target"]))
+
+async def run_quiz1v1_round_timer(bot, chat_id: int, round_num: int, msg_id: int, indizi: list, target: str):
+    # 2° Indizio dopo 25s
+    await asyncio.sleep(25)
+    if chat_id in QUIZ_DUELS_1V1 and QUIZ_DUELS_1V1[chat_id].get("round") == round_num and QUIZ_DUELS_1V1[chat_id].get("msg_id") == msg_id:
+        duel = QUIZ_DUELS_1V1[chat_id]
+        hints_text = f"• <b>Indizio 1:</b> {indizi[0]}\n• <b>Indizio 2:</b> {indizi[1]}"
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id, message_id=msg_id,
+                text=f"⚔️ <b>DUELLO QUIZ 1v1 — ROUND {round_num}/5</b>\n"
+                     f"👤 <b>{duel['sfidante_name']}</b> ({duel['p1_score']}) vs <b>{duel['target_name']}</b> ({duel['p2_score']})\n\n"
+                     f"{hints_text}",
+                parse_mode="HTML"
+            )
+        except Exception: pass
+
+    # 3° Indizio dopo altri 25s (totale 50s)
+    await asyncio.sleep(25)
+    if chat_id in QUIZ_DUELS_1V1 and QUIZ_DUELS_1V1[chat_id].get("round") == round_num and QUIZ_DUELS_1V1[chat_id].get("msg_id") == msg_id:
+        duel = QUIZ_DUELS_1V1[chat_id]
+        hints_text = f"• <b>Indizio 1:</b> {indizi[0]}\n• <b>Indizio 2:</b> {indizi[1]}\n• <b>Indizio 3:</b> {indizi[2]}"
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id, message_id=msg_id,
+                text=f"⚔️ <b>DUELLO QUIZ 1v1 — ROUND {round_num}/5</b>\n"
+                     f"👤 <b>{duel['sfidante_name']}</b> ({duel['p1_score']}) vs <b>{duel['target_name']}</b> ({duel['p2_score']})\n\n"
+                     f"{hints_text}",
+                parse_mode="HTML"
+            )
+        except Exception: pass
+
+    # Scadenza Round dopo 75s totali
+    await asyncio.sleep(25)
+    if chat_id in QUIZ_DUELS_1V1 and QUIZ_DUELS_1V1[chat_id].get("round") == round_num and QUIZ_DUELS_1V1[chat_id].get("msg_id") == msg_id:
+        duel = QUIZ_DUELS_1V1[chat_id]
+        await bot.send_message(
+            chat_id=chat_id,
+            text=f"⏰ <b>ROUND {round_num} SCADUTO!</b> Nessuno dei due ha indovinato. La risposta era: <b>{target}</b>.",
+            parse_mode="HTML"
+        )
+        if duel["round"] < 5 and duel["p1_score"] < 3 and duel["p2_score"] < 3:
+            duel["round"] += 1
+            await launch_quiz1v1_round(bot, chat_id)
+        else:
+            await conclude_quiz1v1_duel(bot, chat_id)
+
+async def conclude_quiz1v1_duel(bot, chat_id: int):
+    if chat_id not in QUIZ_DUELS_1V1: return
+    duel = QUIZ_DUELS_1V1[chat_id]
+
+    p1_s = duel["p1_score"]
+    p2_s = duel["p2_score"]
+
+    if p1_s > p2_s:
+        winner_name = duel["sfidante_name"]
+        winner_id = duel["sfidante_id"]
+    elif p2_s > p1_s:
+        winner_name = duel["target_name"]
+        winner_id = duel["target_id"]
+    else:
+        winner_name = None
+
+    if winner_name:
+        add_user_coins(chat_id, winner_id, 50)
+        text = f"🏆 <b>DUELLO QUIZ CONCLUSO!</b>\n\n🥇 <b>{winner_name}</b> vince il duello ({p1_s} a {p2_s}) e guadagna <b>+💳 50 $SDG</b>!"
+    else:
+        text = f"⚖️ <b>DUELLO QUIZ FINITO IN PAREGGIO!</b> ({p1_s} a {p2_s}). Nessun premio assegnato."
+
+    del QUIZ_DUELS_1V1[chat_id]
+    await bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
+
+# --- GAME: QUIZ MULTIPLAYER PER CATEGORIA ---
+async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    parts = query.data.split("_")
+    cat_choice = parts[2] if len(parts) > 2 else "ALL"
+    owner_id = int(parts[3]) if len(parts) > 3 else query.from_user.id
+
+    if not await verify_user_lock(query, owner_id): return
     chat_id = str(query.message.chat_id)
 
     db_map = [
-        (QUIZ_CALCIO_DB, "⚽ CALCIO"),
-        (QUIZ_CINEMA_DB, "🎬 CINEMA"),
-        (QUIZ_SERIE_DB, "📺 SERIE TV"),
-        (QUIZ_CITTA_DB, "🌍 CITTA"),
-        (QUIZ_SPORTIVI_DB, "🏆 SPORTIVI"),
-        (QUIZ_FORMULA1_DB, "🏎️ FORMULA 1"),
-        (QUIZ_MARVEL_DB, "🦸 MARVEL & DC")
+        (QUIZ_CALCIO_DB, "⚽ CALCIO", "CALCIO"),
+        (QUIZ_CINEMA_DB, "🎬 CINEMA", "CINEMA"),
+        (QUIZ_SERIE_DB, "📺 SERIE TV", "SERIE"),
+        (QUIZ_CITTA_DB, "🌍 CITTA", "CITTA"),
+        (QUIZ_SPORTIVI_DB, "🏆 SPORTIVI", "SPORT"),
+        (QUIZ_FORMULA1_DB, "🏎️ FORMULA 1", "F1"),
+        (QUIZ_MARVEL_DB, "🦸 MARVEL & DC", "MARVEL")
     ]
     
-    selected_db, cat_name = random.choice(db_map)
+    if cat_choice == "ALL":
+        selected_db, cat_name, _ = random.choice(db_map)
+    else:
+        filtered = [item for item in db_map if item[2] == cat_choice]
+        selected_db, cat_name, _ = filtered[0] if filtered else db_map[0]
+
     item = random.choice(selected_db)
 
     msg = await query.edit_message_text(
         f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n"
         f"🏷️ <b>CATEGORIA: {cat_name}</b>\n\n"
         f"Il primo che risponde in chat vince +💳 15 $SDG!\n\n"
-        f"<b>1° Indizio:</b> {item['indizi'][0]}",
+        f"<b>1° Indizio:</b> {item['indizi'][0]}\n\n"
+        f"⏱️ <i>Avete 75 secondi per indovinare!</i>",
         parse_mode="HTML"
     )
 
@@ -1452,40 +1741,37 @@ async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list, cat
         hints_text = f"• <b>Indizio 1:</b> {indizi[0]}\n• <b>Indizio 2:</b> {indizi[1]}"
         try:
             await bot.edit_message_text(
-                chat_id=int(chat_id),
-                message_id=msg_id,
+                chat_id=int(chat_id), message_id=msg_id,
                 text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n🏷️ <b>CATEGORIA: {cat_name}</b>\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
                 parse_mode="HTML"
             )
         except Exception: pass
 
-    # 3° Indizio dopo altri 25s
+    # 3° Indizio dopo altri 25s (totale 50s)
     await asyncio.sleep(25)
     if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and QUIZ_GAMES[chat_id].get("msg_id") == msg_id:
         QUIZ_GAMES[chat_id]["step"] = 3
         hints_text = f"• <b>Indizio 1:</b> {indizi[0]}\n• <b>Indizio 2:</b> {indizi[1]}\n• <b>Indizio 3:</b> {indizi[2]}"
         try:
             await bot.edit_message_text(
-                chat_id=int(chat_id),
-                message_id=msg_id,
+                chat_id=int(chat_id), message_id=msg_id,
                 text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n🏷️ <b>CATEGORIA: {cat_name}</b>\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
                 parse_mode="HTML"
             )
         except Exception: pass
 
-    # Chiusura a tempo dopo 180s (3 minuti) con rivelazione della risposta
-    await asyncio.sleep(130)
+    # Scadenza a 75s
+    await asyncio.sleep(25)
     if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and QUIZ_GAMES[chat_id].get("msg_id") == msg_id:
         del QUIZ_GAMES[chat_id]
         end_keyboard = [
-            [InlineKeyboardButton("🌐 Altro Quiz Multi", callback_data=f"start_qmulti_{owner_id}")],
+            [InlineKeyboardButton("🌐 Altro Quiz Multi", callback_data=f"hub_qmulti_cat_{owner_id}")],
             [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
         ]
         try:
             await bot.edit_message_text(
-                chat_id=int(chat_id),
-                message_id=msg_id,
-                text=f"⏰ <b>TEMPO SCADUTO!</b>\n\nNessuno ha indovinato in tempo la risposta corretta: <b>{target}</b>!",
+                chat_id=int(chat_id), message_id=msg_id,
+                text=f"⏰ <b>TEMPO SCADUTO!</b>\n\nNessuno ha indovinato in tempo. La risposta corretta era: <b>{target}</b>!",
                 reply_markup=InlineKeyboardMarkup(end_keyboard),
                 parse_mode="HTML"
             )
@@ -1701,7 +1987,8 @@ async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE,
         f"🧠 <b>QUIZ {title_name}</b> (Costo: 5 $SDG)\n\n"
         f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
         "Indovina la risposta scrivendola in chat!\n\n"
-        f"<b>1° Indizio:</b> {item['indizi'][0]}",
+        f"<b>1° Indizio:</b> {item['indizi'][0]}\n\n"
+        f"⏱️ <i>Hai 75 secondi per indovinare!</i>",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("💡 Chiedi altro indizio (-$SDG)", callback_data=f"quiz_hint_{user_id}")],
             [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user_id}")]
@@ -1719,15 +2006,14 @@ async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE,
     asyncio.create_task(run_quiz_single_timeout(context.bot, chat_id, user_id, msg.message_id, item["target"]))
 
 async def run_quiz_single_timeout(bot, chat_id: int, user_id: int, msg_id: int, target: str):
-    await asyncio.sleep(120)  # 2 minuti per indovinare
+    await asyncio.sleep(75)
     quiz_key = f"{chat_id}_{user_id}"
     if quiz_key in QUIZ_GAMES and QUIZ_GAMES[quiz_key].get("msg_id") == msg_id:
         del QUIZ_GAMES[quiz_key]
         end_keyboard = [[InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user_id}")]]
         try:
             await bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=msg_id,
+                chat_id=chat_id, message_id=msg_id,
                 text=f"⏰ <b>TEMPO SCADUTO!</b>\n\nNon hai indovinato in tempo. La risposta corretta era: <b>{target}</b>!",
                 reply_markup=InlineKeyboardMarkup(end_keyboard),
                 parse_mode="HTML"
@@ -1797,6 +2083,8 @@ async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
     WORDLE_GAMES.clear()
     MASTERMIND_GAMES.clear()
     QUIZ_GAMES.clear()
+    QUIZ_DUELS_1V1.clear()
+    GHIGLIOTTINA_DUELS.clear()
     HEIST_GAMES.clear()
     await update.message.reply_text("🛠️ Tutti i giochi bloccati sono stati resettati.")
 
@@ -1833,7 +2121,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             if p_data["count"] == 0:
                 del ACTIVE_PERSECUTE[persecute_key]
 
-    # Handling Comandi Titolo e Perseguita via messaggio generico (con e senza slash)
+    # Handling Comandi Titolo e Perseguita
     if text.lower().startswith("titolo") or text.lower().startswith("/titolo"):
         await apply_title_command(update, context)
         return
@@ -1841,8 +2129,67 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         await apply_persecute_command(update, context)
         return
 
+    # Handling Sfida Ghigliottina 1v1 ("sfidoghigliottina @username")
+    if text.lower().startswith("sfidoghigliottina") or text.lower().startswith("/sfidoghigliottina"):
+        parts = text.split()
+        target_username = None
+        for p in parts:
+            if p.startswith("@"): target_username = p.replace("@", "").lower(); break
+        
+        if not target_username:
+            await update.message.reply_text("❌ Uso: <code>sfidoghigliottina @username</code>", parse_mode="HTML")
+            return
+
+        GHIGLIOTTINA_DUELS[chat_id_int] = {
+            "sfidante_id": user.id, "sfidante_name": user.first_name,
+            "target_username": target_username, "active": False
+        }
+
+        keyboard = [[
+            InlineKeyboardButton("🪓 Accetta Ghigliottina", callback_data="ghig_accetta"),
+            InlineKeyboardButton("🐔 Rifiuta", callback_data="ghig_rifiuta")
+        ]]
+        await update.message.reply_text(
+            f"🪓 <b>GHIGLIOTTINA EXPRESS 1v1</b>\n\n"
+            f"<b>{user.first_name}</b> ha sfidato <b>@{target_username}</b> alla Ghigliottina!\n"
+            f"@{target_username}, rispondi coi bottoni:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        return
+
+    # Handling Sfida Duello Quiz 1v1 ("sfidoquiz @username")
+    if text.lower().startswith("sfidoquiz") or text.lower().startswith("/sfidoquiz"):
+        parts = text.split()
+        target_username = None
+        for p in parts:
+            if p.startswith("@"): target_username = p.replace("@", "").lower(); break
+        
+        if not target_username:
+            await update.message.reply_text("❌ Uso: <code>sfidoquiz @username</code>", parse_mode="HTML")
+            return
+
+        QUIZ_DUELS_1V1[chat_id_int] = {
+            "sfidante_id": user.id, "sfidante_name": user.first_name,
+            "target_username": target_username, "active": False
+        }
+
+        keyboard = [
+            [InlineKeyboardButton("⚽ Calcio", callback_data="q1v1_cat_CALCIO"), InlineKeyboardButton("🏎️ F1", callback_data="q1v1_cat_F1")],
+            [InlineKeyboardButton("🦸 Marvel", callback_data="q1v1_cat_MARVEL"), InlineKeyboardButton("🎬 Cinema", callback_data="q1v1_cat_CINEMA")],
+            [InlineKeyboardButton("📺 Serie TV", callback_data="q1v1_cat_SERIE"), InlineKeyboardButton("🌍 Città", callback_data="q1v1_cat_CITTA")]
+        ]
+        await update.message.reply_text(
+            f"⚔️ <b>DUELLO QUIZ 1v1 (A 5 ROUND)</b>\n\n"
+            f"<b>{user.first_name}</b> vuole sfidare <b>@{target_username}</b>!\n"
+            f"<b>{user.first_name}</b>, seleziona prima la categoria del duello:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        return
+
     # Handling Sfida Roulette Russa ("sfido @username")
-    if text.lower().startswith("sfido @"):
+    if text.lower().startswith("sfido @") or text.lower().startswith("/sfido @"):
         target_username = text.split("@")[1].strip().lower()
         ACTIVE_DUELS[chat_id_int] = {
             "sfidante_id": user.id, "sfidante_name": user.first_name,
@@ -1864,7 +2211,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     # Handling Sfida High/Low 1v1 ("sfido highlow @username")
-    if text.lower().startswith("sfido highlow @"):
+    if text.lower().startswith("sfido highlow @") or text.lower().startswith("/sfido highlow @"):
         target_username = text.split("@")[1].strip().lower()
         HIGHLOW_DUELS[chat_id_int] = {
             "sfidante_id": user.id, "sfidante_name": user.first_name,
@@ -1885,6 +2232,43 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     text_upper = text.upper()
+
+    # Handling Risposta Ghigliottina 1v1
+    if chat_id_int in GHIGLIOTTINA_DUELS and GHIGLIOTTINA_DUELS[chat_id_int].get("active"):
+        duel = GHIGLIOTTINA_DUELS[chat_id_int]
+        if user.id in [duel["sfidante_id"], duel["target_id"]]:
+            if text_upper == duel["word"]:
+                del GHIGLIOTTINA_DUELS[chat_id_int]
+                add_user_coins(chat_id_int, user.id, 40)
+                await update.message.reply_text(
+                    f"🏆 <b>GHIGLIOTTINA RISOLTA!</b>\n\n"
+                    f"✨ <b>{user.first_name}</b> ha indovinato la parola legame <b>{duel['word']}</b>!\n"
+                    f"Vince il duello e guadagna <b>+💳 40 $SDG</b>!",
+                    parse_mode="HTML"
+                )
+                return
+
+    # Handling Risposta Duello Quiz 1v1
+    if chat_id_int in QUIZ_DUELS_1V1 and QUIZ_DUELS_1V1[chat_id_int].get("active"):
+        duel = QUIZ_DUELS_1V1[chat_id_int]
+        if user.id in [duel["sfidante_id"], duel["target_id"]]:
+            if text_upper == duel["current_target"]:
+                if user.id == duel["sfidante_id"]:
+                    duel["p1_score"] += 1
+                else:
+                    duel["p2_score"] += 1
+
+                await update.message.reply_text(
+                    f"🎯 <b>RISPOSTA CORRETTA!</b> <b>{user.first_name}</b> indovina <b>{duel['current_target']}</b> e prende il punto del Round {duel['round']}!",
+                    parse_mode="HTML"
+                )
+
+                if duel["round"] < 5 and duel["p1_score"] < 3 and duel["p2_score"] < 3:
+                    duel["round"] += 1
+                    await launch_quiz1v1_round(context.bot, chat_id_int)
+                else:
+                    await conclude_quiz1v1_duel(context.bot, chat_id_int)
+                return
 
     # Handling Mastermind Express
     mm_key = f"{chat_id}_{user.id}"
@@ -1925,7 +2309,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             del QUIZ_GAMES[chat_id]
             add_user_coins(chat_id_int, user.id, 15)
             end_keyboard = [
-                [InlineKeyboardButton("🌐 Altro Quiz Multiplayer", callback_data=f"start_qmulti_{user.id}")],
+                [InlineKeyboardButton("🌐 Altro Quiz Multiplayer", callback_data=f"hub_qmulti_cat_{user.id}")],
                 [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user.id}")]
             ]
             await update.message.reply_text(
@@ -2077,7 +2461,6 @@ async def main_async():
 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    # Esegue l'Auto-Restore automatico se il database locale è mancante
     await auto_restore_from_telegram(application.bot)
 
     if application.job_queue:
@@ -2090,7 +2473,7 @@ async def main_async():
     application.add_handler(CommandHandler("pen", clear_penalties))
     application.add_handler(CommandHandler("resetduello", reset_duello))
 
-    for cmd in ["roulette", "blackjack", "slot", "highlow", "wordle", "quiz", "shop", "heist", "titolo", "perseguita"]:
+    for cmd in ["roulette", "blackjack", "slot", "highlow", "wordle", "quiz", "shop", "heist"]:
         application.add_handler(CommandHandler(cmd, block_direct_command))
 
     # Callbacks HUB, Shop & Games
@@ -2104,7 +2487,7 @@ async def main_async():
     application.add_handler(CallbackQueryHandler(start_wordle_from_hub, pattern="^start_wordle_"))
     application.add_handler(CallbackQueryHandler(start_mastermind_from_hub, pattern="^start_mm_"))
     
-    # Category Quizzes
+    # Category Quizzes Single
     application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_CALCIO_DB, "CALCIO"), pattern="^start_qcalcio_"))
     application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_CINEMA_DB, "CINEMA"), pattern="^start_qcinema_"))
     application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_SERIE_DB, "SERIE TV"), pattern="^start_qserie_"))
@@ -2113,16 +2496,22 @@ async def main_async():
     application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_FORMULA1_DB, "FORMULA 1"), pattern="^start_qf1_"))
     application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_MARVEL_DB, "MARVEL & DC"), pattern="^start_qmarvel_"))
     
+    # Callbacks Multi & Duelli
     application.add_handler(CallbackQueryHandler(start_quiz_multiplayer, pattern="^start_qmulti_"))
     application.add_handler(CallbackQueryHandler(quiz_more_hint, pattern="^quiz_hint_"))
     application.add_handler(CallbackQueryHandler(start_roulette_prep, pattern="^start_roulette_"))
     application.add_handler(CallbackQueryHandler(start_highlow_prep, pattern="^start_highlow_"))
+    application.add_handler(CallbackQueryHandler(start_ghigliottina_prep, pattern="^start_ghigliottina_prep_"))
+    application.add_handler(CallbackQueryHandler(start_quiz1v1_prep, pattern="^start_quiz1v1_prep_"))
+    
     application.add_handler(CallbackQueryHandler(gestione_bottoni_roulette, pattern="^roulette_"))
     application.add_handler(CallbackQueryHandler(handle_highlow_callback, pattern="^hl_"))
+    application.add_handler(CallbackQueryHandler(handle_ghigliottina_callback, pattern="^ghig_"))
+    application.add_handler(CallbackQueryHandler(handle_quiz1v1_callback, pattern="^q1v1_"))
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
 
-    print("SdrogoBot v5.0 pronto all'uso!", flush=True)
+    print("SdrogoBot v5.1 pronto all'uso!", flush=True)
 
     await application.initialize()
     await application.start()
