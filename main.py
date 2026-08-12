@@ -512,12 +512,220 @@ QUIZ_SPORTIVI_DB = [
     {"target": "COPPI", "indizi": ["Ciclismo", "Italia", "Il Campionissimo e il celebre passaggio di borraccia con il rivale."]}
 ]
 
+# --- DATABASE 100 PILOTI FORMULA 1 ---
+QUIZ_FORMULA1_DB = [
+    {"target": "SCHUMACHER", "indizi": ["Germania", "Ferrari, Benetton", "L'era rossa dei sette titoli iridati."]},
+    {"target": "HAMILTON", "indizi": ["Regno Unito", "Mercedes, McLaren", "Sette corone mondiali sulla monoposto numero 44."]},
+    {"target": "SENNA", "indizi": ["Brasile", "McLaren, Williams", "Il maestro assoluto del giro secco e della pioggia."]},
+    {"target": "VERSTAPPEN", "indizi": ["Olanda", "Red Bull, Toro Rosso", "Il giovane prodigio dominatore dell'era moderna."]},
+    {"target": "LECLERC", "indizi": ["Monaco", "Ferrari, Sauber", "Il beniamino di Maranello nato e cresciuto nel Principato."]},
+    {"target": "LAUDA", "indizi": ["Austria", "Ferrari, McLaren", "Il calcolo perfetto e il rientro record dopo il rogo."]},
+    {"target": "PROST", "indizi": ["Francia", "McLaren, Williams", "Soprannominato Il Professore per la sua guida tattica."]},
+    {"target": "ALONSO", "indizi": ["Spagna", "Renault, Ferrari", "Due titoli iridati e una carriera lunghissima su tre decenni."]},
+    {"target": "RAIKKONEN", "indizi": ["Finlandia", "Ferrari, Lotus", "Iceman, l'ultimo pilota a conquistare il titolo a Maranello."]},
+    {"target": "VILLENEUVE", "indizi": ["Canada", "Ferrari", "Il canadese dal cuore grande amato per il suo stile spericolato."]},
+    {"target": "VETTEL", "indizi": ["Germania", "Red Bull, Ferrari", "Quattro mondiali consecutivi nell'era dei motori V8."]},
+    {"target": "ROSBERG", "indizi": ["Germania", "Mercedes, Williams", "Batté il compagno di squadra nel 2016 per poi ritirarsi subito."]},
+    {"target": "BUTTON", "indizi": ["Regno Unito", "Brawn GP, McLaren", "Il trionfo iridato con la favola della scuderia bianca e gialla."]},
+    {"target": "HAKKINEN", "indizi": ["Finlandia", "McLaren", "Il Finlandese Volante che è stato il più grande rivale di Schumacher."]},
+    {"target": "HILL", "indizi": ["Regno Unito", "Williams, Jordan", "Figlio d'arte diventato campione del mondo nel 1996."]},
+    {"target": "MANSELL", "indizi": ["Regno Unito", "Williams, Ferrari", "Detto Il Leone per la sua guida aggressiva ed epica."]},
+    {"target": "PIQUET", "indizi": ["Brasile", "Brabham, Williams", "Tre volte iridato celebre per il suo carattere ironico e pungente."]},
+    {"target": "HUNT", "indizi": ["Regno Unito", "McLaren, Hesketh", "Lo stile di vita sregolato negli anni settanta."]},
+    {"target": "STEWART", "indizi": ["Regno Unito", "Tyrrell", "Tre titoli e pioniere delle battaglie sulla sicurezza in pista."]},
+    {"target": "CLARK", "indizi": ["Regno Unito", "Lotus", "Il talento scozzese degli anni sessanta imbattibile sul bagnato."]},
+    {"target": "FANGIO", "indizi": ["Argentina", "Alfa Romeo, Mercedes", "Il re degli albori della F1 con cinque titoli in cinque marchi diversi."]},
+    {"target": "GRAHAM HILL", "indizi": ["Regno Unito", "BRM, Lotus", "L'unico ad aver conquistato la Triple Crown del motorsport."]},
+    {"target": "ANDRETTI", "indizi": ["Stati Uniti", "Lotus, Alfa Romeo", "Campione italo-americano sul tetto del mondo nel 1978."]},
+    {"target": "KEKE ROSBERG", "indizi": ["Finlandia", "Williams", "Un solo Gran Premio vinto nell'anno del suo mondiale 1982."]},
+    {"target": "JACQUES VILLENEUVE", "indizi": ["Canada", "Williams, BAR", "Figlio del mitico Gilles, vinse il titolo al suo secondo anno in F1."]},
+    {"target": "SAINZ", "indizi": ["Spagna", "Ferrari, McLaren", "Il Smooth Operator vincitore a Silverstone e Singapore."]},
+    {"target": "NORRIS", "indizi": ["Regno Unito", "McLaren", "Il giovane talento inglese dalla livrea papaya."]},
+    {"target": "RUSSELL", "indizi": ["Regno Unito", "Mercedes, Williams", "Lo Mr. Saturday che si è guadagnato il sedile sulle Frecce d'Argento."]},
+    {"target": "PEREZ", "indizi": ["Messico", "Red Bull, Racing Point", "Checo, specialista nella gestione delle gomme e nei tracciati cittadini."]},
+    {"target": "RICCIARDO", "indizi": ["Australia", "Red Bull, Renault", "Il sorriso australiano e la celebre esultanza bevendo dallo scarpino."]},
+    {"target": "BOTTAS", "indizi": ["Finlandia", "Mercedes, Alfa Romeo", "Lo scudiero scandinavo dell'era dominante tedesca."]},
+    {"target": "MASSA", "indizi": ["Brasile", "Ferrari, Williams", "Campione del mondo per pochi secondi nel GP di casa 2008."]},
+    {"target": "BARRICHELLO", "indizi": ["Brasile", "Ferrari, Honda", "Lo storico compagno di squadra brasiliano nei primi anni duemila."]},
+    {"target": "COULTHARD", "indizi": ["Regno Unito", "McLaren, Red Bull", "Il pilota scozzese dal casco con la croce di Sant'Andrea."]},
+    {"target": "WEBBER", "indizi": ["Australia", "Red Bull, Jaguar", "Not bad for a number two driver dopo una vittoria contesa."]},
+    {"target": "FISICHELLA", "indizi": ["Italia", "Renault, Jordan", "L'ultimo pilota italiano ad aver vinto un Gran Premio di F1."]},
+    {"target": "TRULLI", "indizi": ["Italia", "Renault, Toyota", "Il re delle qualifiche dal passo gara inconfondibile."]},
+    {"target": "ALESI", "indizi": ["Francia", "Ferrari, Benetton", "Il numero 27 amato per la sua guida di puro cuore."]},
+    {"target": "BERGER", "indizi": ["Austria", "Ferrari, McLaren", "Pilota e gran simpaticone, spalla di Senna e vincitore a Monza dopo l'88."]},
+    {"target": "PATRESE", "indizi": ["Italia", "Williams, Brabham", "Detentore per anni del record di GP disputati nella massima serie."]},
+    {"target": "GROSJEAN", "indizi": ["Francia", "Lotus, Haas", "Il miracolo del fuoco dopo il pauroso schianto in Bahrain."]},
+    {"target": "GASLY", "indizi": ["Francia", "AlphaTauri, Alpine", "L'incredibile ed emozionante vittoria a Monza con la scuderia faentina."]},
+    {"target": "OCON", "indizi": ["Francia", "Alpine, Force India", "La vittoria a sorpresa nel caos di Budapest 2021."]},
+    {"target": "PIASTRI", "indizi": ["Australia", "McLaren", "Il giovane australiano dal talento e la freddezza glaciale."]},
+    {"target": "ALBON", "indizi": ["Thailandia", "Williams, Red Bull", "Il pilota thai che ha riportato in alto la storica scuderia di Grove."]},
+    {"target": "HULKENBERG", "indizi": ["Germania", "Haas, Force India", "Il talento tedesco con il curioso record di gare disputate senza podi."]},
+    {"target": "MAGNUSSEN", "indizi": ["Danimarca", "Haas, McLaren", "Battagliero in pista ed autore di una pole storica a San Paolo."]},
+    {"target": "KOBAYASHI", "indizi": ["Giappone", "Sauber, Toyota", "Sorpassi garibaldini e lo storico podio a Suzuka davanti al suo pubblico."]},
+    {"target": "KUBICA", "indizi": ["Polonia", "BMW Sauber, Williams", "Il talento cristallino frenato da un terribile incidente nel rally."]},
+    {"target": "MONTOYA", "indizi": ["Colombia", "Williams, McLaren", "Il colombiano grintoso famoso per i duelli spalla a spalla con Schumacher."]},
+    {"target": "TSUNODA", "indizi": ["Giappone", "AlphaTauri, RB", "Il minuto pilota giapponese famoso per le sue accese comunicazioni via radio."]},
+    {"target": "STROLL", "indizi": ["Canada", "Aston Martin, Racing Point", "Il figlio del proprietario del team capace comunque di una pole sul bagnato."]},
+    {"target": "ZHOU", "indizi": ["Cina", "Alfa Romeo, Sauber", "Il primo pilota di ruolo cinese ad aver gareggiato in Formula 1."]},
+    {"target": "SARGEANT", "indizi": ["Stati Uniti", "Williams", "Il pilota statunitense arrivato nell'era di Drive to Survive."]},
+    {"target": "MICK SCHUMACHER", "indizi": ["Germania", "Haas", "Il figlio d'arte portatore di un cognome pesantissimo."]},
+    {"target": "LATIFI", "indizi": ["Canada", "Williams", "La sua uscita di pista ad Abu Dhabi nel 2021 cambiò le sorti del mondiale."]},
+    {"target": "MAZEPIN", "indizi": ["Russia", "Haas", "Il contestato pilota russo dell'annata 2021."]},
+    {"target": "GIOVINAZZI", "indizi": ["Italia", "Alfa Romeo", "L'ultimo pilota italiano titolare in griglia negli ultimi anni."]},
+    {"target": "KVYAT", "indizi": ["Russia", "Red Bull, Toro Rosso", "Il Siluro, protagonista di contatti celebri con Vettel."]},
+    {"target": "ERICSSON", "indizi": ["Svezia", "Sauber, Caterham", "Lo svedese volante diventato poi vincitore della 500 Miglia di Indianapolis."]},
+    {"target": "MALDONADO", "indizi": ["Venezuela", "Williams, Lotus", "L'incredibile ed isolata vittoria a Barcellona nel 2012 tra mille incidenti."]},
+    {"target": "VANDOORNE", "indizi": ["Belgio", "McLaren", "Promessa delle categorie minori stritolata dal confronto con Alonso."]},
+    {"target": "HARTLEY", "indizi": ["Nuova Zelanda", "Toro Rosso", "Dal programma Endurance alla parentesi in F1."]},
+    {"target": "WEHRLEIN", "indizi": ["Germania", "Manor, Sauber", "Prodotto del vivaio Mercedes a punti con vetture di fondo griglia."]},
+    {"target": "GUTIERREZ", "indizi": ["Messico", "Sauber, Haas", "Il compagno messicano nelle prime stagioni del team americano."]},
+    {"target": "BIANCHI", "indizi": ["Francia", "Marussia", "Il talento del vivaio Ferrari la cui vita si è spezzata a Suzuka."]},
+    {"target": "KOVALAINEN", "indizi": ["Finlandia", "McLaren, Renault", "Vincitore del GP di Ungheria 2008 all'ombra di Hamilton."]},
+    {"target": "PIQUET JR", "indizi": ["Brasile", "Renault", "Protagonista involontario del celebre scandalo Crashgate a Singapore 2008."]},
+    {"target": "LIUZZI", "indizi": ["Italia", "Red Bull, Toro Rosso", "Campione del mondo di kart approdato al team della lattina."]},
+    {"target": "SPEED", "indizi": ["Stati Uniti", "Toro Rosso", "Il primo americano dell'era moderna della Red Bull."]},
+    {"target": "TAKUMA SATO", "indizi": ["Giappone", "Super Aguri, BAR", "Il leggendario sorpasso su Alonso a Montreal."]},
+    {"target": "BRUNI", "indizi": ["Italia", "Minardi", "L'italiano al volante della storica scuderia di Faenza nel 2004."]},
+    {"target": "BAUMGARTNER", "indizi": ["Ungheria", "Minardi, Jordan", "Il primo ed unico pilota ungherese a punti in F1."]},
+    {"target": "DA MATTA", "indizi": ["Brasile", "Toyota", "Il brasiliano arrivato dai successi nel campionato CART americano."]},
+    {"target": "JOS VERSTAPPEN", "indizi": ["Olanda", "Benetton, Arrows", "Padre di Max, famoso per l'incendio ai box a Hockenheim nel 1994."]},
+    {"target": "BADOER", "indizi": ["Italia", "Minardi, Ferrari", "Storico collaudatore Ferrari ritornato in gara per sostituire Massa nel 2009."]},
+    {"target": "GENE", "indizi": ["Spagna", "Minardi, Williams", "Pilota spagnolo diventato voce tecnica per la TV italiana."]},
+    {"target": "DE LA ROSA", "indizi": ["Spagna", "Arrows, McLaren", "L'eterno collaudatore ed esperto di sviluppo."]},
+    {"target": "WURZ", "indizi": ["Austria", "Benetton, Williams", "Pilota altissimo diventato punto di riferimento per la sicurezza dei colleghi."]},
+    {"target": "SALO", "indizi": ["Finlandia", "Ferrari, Sauber", "Sostituì Schumacher nel 1999 lasciando la vittoria al compagno Irvine."]},
+    {"target": "IRVINE", "indizi": ["Regno Unito", "Ferrari, Jaguar", "Il nordirlandese eccentrico sfiorò il titolo mondiale nel 1999."]},
+    {"target": "FRENTZEN", "indizi": ["Germania", "Williams, Jordan", "Il tedesco che lottò per il mondiale nel 1999 con la scuderia gialla."]},
+    {"target": "PANIS", "indizi": ["Francia", "Ligier, BAR", "L'incredibile vittoria sotto la pioggia nel caos di Monaco 1996."]},
+    {"target": "KATAYAMA", "indizi": ["Giappone", "Tyrrell, Venturi", "Popolare guida giapponese degli anni novanta."]},
+    {"target": "CAPELLI", "indizi": ["Italia", "Leyton House, Ferrari", "Portò la vettura turchese disegnata da Newey quasi alla vittoria a Le Castellet."]},
+    {"target": "MODENA", "indizi": ["Italia", "Tyrrell, Brabham", "Uno dei giovani italiani più promettenti della fine degli anni ottanta."]},
+    {"target": "MARTINI", "indizi": ["Italia", "Minardi", "L'uomo simbolo della Minardi, portatala persino in prima fila."]},
+    {"target": "DE CESARIS", "indizi": ["Italia", "Alfa Romeo, Jordan", "Detto De Crasheris nei primi anni, disputò oltre 200 GP."]},
+    {"target": "BOUTSEN", "indizi": ["Belgio", "Williams, Benetton", "Solido pilota belga vincitore di tre GP tra l'89 e il '90."]},
+    {"target": "JOHANSSON", "indizi": ["Svezia", "Ferrari, McLaren", "Lo svedese a podio con le due scuderie rivali negli anni '80."]},
+    {"target": "DE ANGELIS", "indizi": ["Italia", "Lotus, Brabham", "Detto Il Pilota Gentiluomo, talento e pianista raffinato."]},
+    {"target": "TAMBAY", "indizi": ["Francia", "Ferrari, Renault", "Portò al successo il numero 27 dopo la scomparsa di Villeneuve."]},
+    {"target": "ARNOUX", "indizi": ["Francia", "Renault, Ferrari", "Protagonista del favoloso duello a ruote fumanti a Digione nel '79 con Villeneuve."]},
+    {"target": "REGAZZONI", "indizi": ["Svizzera", "Ferrari, Williams", "Svizzero dal baffo forte, regalò la prima vittoria della storia alla Williams."]},
+    {"target": "PETERSON", "indizi": ["Svezia", "Lotus, March", "Lo Svedese Volante maestro delle sbandate controllate negli anni '70."]},
+    {"target": "CEVERT", "indizi": ["Francia", "Tyrrell", "L'erede designato di Jackie Stewart dalla bellezza cinematografica."]},
+    {"target": "BANDINI", "indizi": ["Italia", "Ferrari", "L'eroe italiano della Ferrari negli anni sessanta."]},
+    {"target": "PHIL HILL", "indizi": ["Stati Uniti", "Ferrari", "Il primo americano a vincere il mondiale nel tragico anno 1961."]},
+    {"target": "VON TRIPS", "indizi": ["Germania", "Ferrari", "Il conte tedesco che perse la vita a Monza al passo dal titolo mondiale."]},
+    {"target": "HAWTHORN", "indizi": ["Regno Unito", "Ferrari", "Il primo inglese campione del mondo, celebre per il suo papillon in gara."]}
+]
+
+# --- DATABASE 100 SUPEREROI MARVEL / DC / INDIE ---
+QUIZ_MARVEL_DB = [
+    {"target": "SPIDER-MAN", "indizi": ["Marvel / Avengers", "Ragnatele e senso di ragno", "Morso da un aracnide radioattivo, è un ragazzo di Queens."]},
+    {"target": "IRON MAN", "indizi": ["Marvel / Avengers", "Armatura ipertecnologica con reattore", "Miliardario, genio, playboy e filantropo."]},
+    {"target": "CAPITAN AMERICA", "indizi": ["Marvel / Avengers", "Scudo indistruttibile in vibranio", "Il primo vendicatore ibernato dai tempi della Guerra."]},
+    {"target": "THOR", "indizi": ["Marvel / Avengers", "Martello magico Mjolnir", "Il dio del tuono giunto dal regno di Asgard."]},
+    {"target": "HULK", "indizi": ["Marvel / Avengers", "Forza sovrumana e pelle verde", "Lo scienziato che si trasforma quando perde la calma."]},
+    {"target": "VEDOVA NERA", "indizi": ["Marvel / Avengers", "Spia micidiale e arti marziali", "Ex agente russa dal passato oscuro nella Stanza Rossa."]},
+    {"target": "OCCHIO DI FALCO", "indizi": ["Marvel / Avengers", "Arco e frecce speciali", "Il tiratore scelto infallibile del gruppo."]},
+    {"target": "WOLVERINE", "indizi": ["Marvel / X-Men", "Artigli scheletrici in adamantio e rigenerazione", "Il mutante canadese dall'animo selvaggio."]},
+    {"target": "DEADPOOL", "indizi": ["Marvel", "Fattore rigenerante e rottura della quarta parete", "Il mercenario chiacchierone in tuta rossa e nera."]},
+    {"target": "DOCTOR STRANGE", "indizi": ["Marvel / Avengers", "Mantello della Levitazione ed arti mistiche", "L'ex neurochirurgo diventato lo Stregone Supremo."]},
+    {"target": "BLACK PANTHER", "indizi": ["Marvel / Avengers", "Tuta in vibranio e agilità felina", "Il re protettore della nazione africana di Wakanda."]},
+    {"target": "GROOT", "indizi": ["Marvel / Guardiani della Galassia", "Forma vegetale in grado di ricrescere", "Un albero umanoide che pronuncia un'unica frase."]},
+    {"target": "ROCKET RACCOON", "indizi": ["Marvel / Guardiani della Galassia", "Esperto di armi pesanti e ingegneria", "Un procione modificato geneticamente nello spazio."]},
+    {"target": "STAR-LORD", "indizi": ["Marvel / Guardiani della Galassia", "Blaster spaziali e mangianastri anni '80", "Il terrestre rapito da piccolo che si crede un fuorilegge leggendario."]},
+    {"target": "ANT-MAN", "indizi": ["Marvel / Avengers", "Riduzione e ingrandimento delle proprie dimensioni", "Rimpicciolirsi fino al livello atomico controllando gli insetti."]},
+    {"target": "SCARLET WITCH", "indizi": ["Marvel / Avengers", "Magia del caos e manipolazione della realtà", "Una delle entità più potenti capaci di alterare l'esistenza."]},
+    {"target": "VISIONE", "indizi": ["Marvel / Avengers", "Corpo in sintetizzatore e gemma sulla fronte", "L'androide nato dall'unione di un'intelligenza artificiale e una gemma dell'infinito."]},
+    {"target": "FALCON", "indizi": ["Marvel / Avengers", "Tuta alata ad alta tecnologia", "Ex militare in grado di solcare i cieli al fianco degli eroi."]},
+    {"target": "SOLDATO D'INVERNO", "indizi": ["Marvel / Avengers", "Braccio cibernetico in metallo", "L'amico d'infanzia sottoposto al lavaggio del cervello."]},
+    {"target": "DAREDEVIL", "indizi": ["Marvel", "Sensi ipersviluppati pur essendo cieco", "Il diavolo del quartiere Hell's Kitchen di New York."]},
+    {"target": "PUNISHER", "indizi": ["Marvel", "Teschio bianco sul petto ed arsenale", "L'ex marine che applica una giustizia spietata senza ritorno."]},
+    {"target": "PROFESSOR X", "indizi": ["Marvel / X-Men", "Telepatia avanzata e sedia a rotelle", "Il fondatore della scuola per giovani mutanti dotati."]},
+    {"target": "MAGNETO", "indizi": ["Marvel / X-Men", "Controllo assoluto dei campi magnetici e dei metalli", "Il signore del metallo che lotta per la supremazia mutante."]},
+    {"target": "CICLOPE", "indizi": ["Marvel / X-Men", "Raggi ottici devastanti rossi", "Il leader con la visiera al quarzo rubino."]},
+    {"target": "TEMPESTA", "indizi": ["Marvel / X-Men", "Controllo degli elementi atmosferici e dei fulmini", "La dea del clima dalla chioma bianca."]},
+    {"target": "JEAN GREY", "indizi": ["Marvel / X-Men", "Poteri di telechinesi trasformati in un'entità di fuoco", "La mutante ospite della forza cosmica della Fenice."]},
+    {"target": "ROGUE", "indizi": ["Marvel / X-Men", "Assorbimento di ricordi e poteri con il contatto fisico", "Non può toccare nessuno a pelle nuda senza prosciugarlo."]},
+    {"target": "VENOM", "indizi": ["Marvel", "Simbionte alieno nero con lingua ricurva", "L'entità aliena parassita legata alla nemesi del ragno."]},
+    {"target": "LOKI", "indizi": ["Marvel", "Illusioni, inganni e magia", "Il dio delle birbanterie fratello adottivo del dio del tuono."]},
+    {"target": "THANOS", "indizi": ["Marvel", "Guanto dorato con sei pietre lucenti", "Il titano pazzo che voleva dimezzare l'universo con uno schiocco."]},
+    {"target": "BATMAN", "indizi": ["DC Comics / Justice League", "Nessun potere, gadget, veicoli e arti marziali", "Il cavaliere oscuro di Gotham nato dal trauma d'infanzia in un vicolo."]},
+    {"target": "SUPERMAN", "indizi": ["DC Comics / Justice League", "Sguardo laser, volo, superforza ed invulnerabilità", "L'ultimo figlio del pianeta Krypton cresciuto in Kansas."]},
+    {"target": "WONDER WOMAN", "indizi": ["DC Comics / Justice League", "Lasso della verità e bracciali antiproiettile", "La principessa amazzone dell'isola nascosta di Temiscira."]},
+    {"target": "FLASH", "indizi": ["DC Comics / Justice League", "Supervelocità e attraversamento della materia", "L'uomo più veloce della terra connesso alla forza della velocità."]},
+    {"target": "AQUAMAN", "indizi": ["DC Comics / Justice League", "Respirazione acquatica e controllo della fauna marina", "Il re del regno sottomarino di Atlantide."]},
+    {"target": "LANTERNA VERDE", "indizi": ["DC Comics / Justice League", "Anello in grado di creare qualsiasi costrutto solido", "La sua forza di volontà alimenta l'anello verde del corpo spaziale."]},
+    {"target": "CYBORG", "indizi": ["DC Comics / Justice League", "Corpo meccatronico e cannoni al plasma", "Il giovane atleta il cui corpo è stato salvato con la tecnologia aliena."]},
+    {"target": "JOKER", "indizi": ["DC Comics", "Risata isterica, trucco da pagliaccio ed acido", "Il principe pagliaccio del crimine e nemesi del pipistrello."]},
+    {"target": "HARLEY QUINN", "indizi": ["DC Comics", "Mazza da baseball e follia imprevedibile", "L'ex psichiatra innamoratasi del pazzo di Gotham."]},
+    {"target": "ROBIN", "indizi": ["DC Comics", "Agilità acrobatica e bastoni da combattimento", "Il primo giovane aiutante del pipistrello cresciuto al circo."]},
+    {"target": "FRECCIA VERDE", "indizi": ["DC Comics / Justice League", "Infallibile con arco e frecce tecnologiche", "Il miliardario sopravvissuto ad un'isola deserta per diventare vigilante."]},
+    {"target": "SUPERGIRL", "indizi": ["DC Comics", "Stessi poteri del cugino sotto il sole giallo", "La cugina kryptoniana arrivata sulla Terra in ritardo."]},
+    {"target": "SHAZAM", "indizi": ["DC Comics", "Poteri di sei divinità pronunciando una sola parola", "Un ragazzino che si trasforma in un eroe adulto fulmineo."]},
+    {"target": "MARTIAN MANHUNTER", "indizi": ["DC Comics / Justice League", "Mutaforma, telepatia e pelle verde", "L'ultimo superstite del pianeta rosso giunto sulla Terra."]},
+    {"target": "CATWOMAN", "indizi": ["DC Comics", "Tuta in pelle, frusta ed agilità felina", "La ladra felina indecisa tra il crimine e l'amore per il pipistrello."]},
+    {"target": "LEX LUTHOR", "indizi": ["DC Comics", "Genio intellettuale, armature ed ego smisurato", "Il miliardario nemico numero uno dell'eroe in mantello rosso."]},
+    {"target": "DARKSEID", "indizi": ["DC Comics", "Raggi Omega dagli occhi e forza titanica", "Il tiranno del pianeta Apokolips alla ricerca dell'equazione dell'anti-vita."]},
+    {"target": "DEATHSTROKE", "indizi": ["DC Comics", "Armi da fuoco, spada e maschera divisa in due colori", "Il mercenario potenziato con un occhio solo."]},
+    {"target": "PINGUINO", "indizi": ["DC Comics", "Ombrelli modificati e controllo dei bassifondi", "Il boss malavitoso dal fisico tarchiato di Gotham."]},
+    {"target": "ENIGMISTA", "indizi": ["DC Comics", "Indovinelli complessi e bastone a punto di domanda", "L'ossessionato dal mettere alla prova l'intelletto del detective."]},
+    {"target": "MILES MORALES", "indizi": ["Marvel", "Ragnatele invisibili e scarica venefica", "Il ragazzo di Brooklyn diventato il nuovo ragno di quartiere."]},
+    {"target": "SILVER SURFER", "indizi": ["Marvel", "Tavola da stiro cosmica d'argento", "L'araldo d'argento che viaggia nello spazio per Galactus."]},
+    {"target": "GHOST RIDER", "indizi": ["Marvel", "Teschio fiammeggiante e catena dell'inferno", "Il motociclista che ha venduto l'anima al diavolo."]},
+    {"target": "MOON KNIGHT", "indizi": ["Marvel", "Armi a forma di mezzaluna e personalità multiple", "Il mercenario resuscitato dal dio egizio della luna."]},
+    {"target": "BLADE", "indizi": ["Marvel", "Katana da vampiro e siero speciale", "Il diurno mezzo uomo e mezzo vampiro che caccia le creature della notte."]},
+    {"target": "SHE-HULK", "indizi": ["Marvel", "Pelle verde ed avvocato di successo", "La cugina del gigante verde che mantiene la sua mente in forma gigante."]},
+    {"target": "SHANG-CHI", "indizi": ["Marvel", "Dieci anelli magici dalle braccia", "Il maestro delle arti marziali cresciuto dal padre immortale."]},
+    {"target": "HAWKGIRL", "indizi": ["DC Comics / Justice League", "Ali piumate e mazza in metallo Nth", "La guerriera alata reincarnata dal passato."]},
+    {"target": "JOHN CONSTANTINE", "indizi": ["DC Comics / Vertigo", "Sigaretta perenne ed esorcismo occulto", "Il detective dell'occulto dal trench nocciola."]},
+    {"target": "RORSCHACH", "indizi": ["DC / Watchmen", "Maschera con macchie nere d'inchiostro mutanti", "Il vigilante paranoico del gruppo di Watchmen."]},
+    {"target": "DR MANHATTAN", "indizi": ["DC / Watchmen", "Corpo azzurro brillante e controllo della materia", "L'essere supremo diventato quasi un dio dopo un incidente nucleare."]},
+    {"target": "POISON IVY", "indizi": ["DC Comics", "Controllo delle piante e tossine velenose", "La botanica di Gotham che protegge la natura a spese degli umani."]},
+    {"target": "BANE", "indizi": ["DC Comics", "Tubi di siero Venom che aumentano la massa muscolare", "Il colosso che spezzò la schiena al pipistrello."]},
+    {"target": "DUE FACCE", "indizi": ["DC Comics", "Moneta sfregiata lanciata per decidere il destino", "L'ex procuratore distrettuale dal volto deturpato a metà."]},
+    {"target": "MR FREEZE", "indizi": ["DC Comics", "Tuta criogenica e pistola congelante", "Lo scienziato che vuole salvare la moglie ibernata."]},
+    {"target": "SPAVENTAPASSERI", "indizi": ["DC Comics", "Tossina della paura e maschera in canapa", "L'ex professore di psicologia che usa il terrore sulle sue vittime."]},
+    {"target": "CABLE", "indizi": ["Marvel / X-Men", "Occhio cibernetico e viaggi nel tempo", "Il figlio del Ciclope venuto dal futuro per evitare la catastrofe."]},
+    {"target": "GAMBIT", "indizi": ["Marvel / X-Men", "Carte da gioco caricate di energia cinetica", "Il mutante ladro di New Orleans dal trench marrone."]},
+    {"target": "NIGHTCRAWLER", "indizi": ["Marvel / X-Men", "Teletrasporto con scia di fumo di zolfo e coda", "Il mutante blu dall'aspetto demoniaco ma dal cuore pio."]},
+    {"target": "COLOSSO", "indizi": ["Marvel / X-Men", "Pelle in metallo organico indistruttibile", "Il gigante russo dal cuore buono che si trasforma in acciaio."]},
+    {"target": "HELLBOY", "indizi": ["Dark Horse", "Mano destra del destino in pietra e corna limate", "Il demone rosso evocato dai nazisti ma allevato dagli americani."]},
+    {"target": "SPAWN", "indizi": ["Image Comics", "Mantello vivente rosso e catene ferrate", "Il soldato mandato all'inferno ritornato come demone vendicatore."]},
+    {"target": "OMNI-MAN", "indizi": ["Image Comics / Invincible", "Mantello rosso e baffo, invulnerabile", "Il padre alieno apparentemente eroe ma conquistatore spietato."]},
+    {"target": "INVINCIBLE", "indizi": ["Image Comics", "Tuta gialla e blu, superforza e volo", "Il ragazzo metà umano e metà alieno Viltrumita."]},
+    {"target": "PATRIOTA", "indizi": ["The Boys", "Mantello con la bandiera USA e occhi laser", "Il leader dei sette egocentrico e psicopatico."]},
+    {"target": "BILLY BUTCHER", "indizi": ["The Boys", "Impermeabile nero e odio cieco per i Super", "Il leader dei vigilanti che vuole sterminare tutti gli eroi corrotti."]},
+    {"target": "THE MASK", "indizi": ["Dark Horse", "Maschera di legno verde porta-follia", "L'oggetto magico che trasforma chi lo indossa in un cartone vivente verde."]},
+    {"target": "JUDGE DREDD", "indizi": ["2000 AD", "Casco che copre il viso e pistola Legislatore", "Il giudice, giuria e giustiziere della metropoli del futuro."]},
+    {"target": "IL CORVO", "indizi": ["Caliber Comics", "Trucco bianco e nero e rigenerazione", "Il musicista resuscitato per vendicare l'uccisione della sua amata."]},
+    {"target": "STARFIRE", "indizi": ["DC Comics / Teen Titans", "Raggi solari e pelle arancione", "La principessa aliena del pianeta Tamaran."]},
+    {"target": "CORVINA", "indizi": ["DC Comics / Teen Titans", "Magia oscura e mantello viola con cappuccio", "La figlia del demone interdimensionale Trigon."]},
+    {"target": "BEBE BESTIA", "indizi": ["DC Comics / Teen Titans", "Trasformazione in qualsiasi animale ma di colore verde", "Il ragazzino verde capace di diventare dal moscerino al T-Rex."]},
+    {"target": "MISTER FANTASTICO", "indizi": ["Marvel / I Fantastici Quattro", "Corpo totalmente allungabile ed elastico", "Il geniale scienziato leader del quartetto cosmico."]},
+    {"target": "DONNA INVISIBILE", "indizi": ["Marvel / I Fantastici Quattro", "Campo di forza e invisibilità", "La colonna portante della prima famiglia dei fumetti."]},
+    {"target": "TORCIA UMANA", "indizi": ["Marvel / I Fantastici Quattro", "Corpo ricoperto di fiamme e volo", "Fiamma! è il suo celebre urlo prima di prendere quota."]},
+    {"target": "LA COSA", "indizi": ["Marvel / I Fantastici Quattro", "Corpo di roccia arancione", "È tempo di distruzione! gridato dal gigante di pietra."]},
+    {"target": "GALACTUS", "indizi": ["Marvel", "Elmo cosmico gigante e divoratore di pianeti", "L'entità cosmica che si nutre dell'energia dei mondi."]},
+    {"target": "DOTTOR DESTINO", "indizi": ["Marvel", "Maschera di ferro e mantello verde", "Il sovrano dittatore dello stato di Latveria."]},
+    {"target": "KINGPIN", "indizi": ["Marvel / DC", "Stazza imponente e bastone da passeggio", "Il boss supremo della malavita newyorkese vestito di bianco."]},
+    {"target": "MISTER SINISTRO", "indizi": ["Marvel / X-Men", "Rombo rosso sulla fronte e genetica avanzata", "Lo scienziato ossessionato dalla linea di sangue dei mutanti."]},
+    {"target": "BLACK ADAM", "indizi": ["DC Comics", "Fulmine dorato sul petto e costume nero", "L'antico campione egizio dai poteri simili a Shazam."]},
+    {"target": "ATROCITUS", "indizi": ["DC Comics", "Anello rosso della rabbia", "Il leader del corpo delle lanterne rosse alimentato dall'odio."]},
+    {"target": "BRAINIAC", "indizi": ["DC Comics", "Nave a forma di teschio e dischi sulla testa", "Il collezionista alieno che rimpicciolisce ed imbottiglia le città."]},
+    {"target": "ZATANNA", "indizi": ["DC Comics", "Cilindro da illusionista ed incantesimi pronunciati al contrario", "La maga che attiva la magia parlando all'indietro."]},
+    {"target": "STATIC SHOCK", "indizi": ["DC Comics", "Controllo dell'elettricità e disco volante", "Il liceale che sposta e controlla le cariche elettriche."]},
+    {"target": "ATOM", "indizi": ["DC Comics", "Rimpicciolimento a livello subatomico", "Lo scienziato capace di viaggiare attraverso le linee telefoniche."]},
+    {"target": "SENTRY", "indizi": ["Marvel", "Cintura con la S e la forza di un milione di soli esplosivi", "L'eroe dimenticato dal mondo che nasconde un'ombra oscura dentro di sé."]},
+    {"target": "NOVA", "indizi": ["Marvel", "Casco dorato con stella e forza della forza Nova", "Il membro del corpo di polizia intergalattico."]},
+    {"target": "IKARIS", "indizi": ["Marvel", "Occhi laser e volo cosmico", "Il leader degli esseri immortali inviati dai Celestiali sulla Terra."]},
+    {"target": "MORBIUS", "indizi": ["Marvel", "Aspetto da pipistrello umano e sete di sangue", "Lo scienziato affetto da una rara malattia del sangue diventato un vampiro vivente."]}
+]
+
 # --- FLASK KEEP ALIVE ---
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "SdrogoBot v4.8 Attivo H24!"
+    return "SdrogoBot v5.0 Attivo H24!"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
@@ -525,7 +733,19 @@ def run_flask():
     log.setLevel(logging.ERROR)
     app.run(host='0.0.0.0', port=port)
 
-# --- DATABASE LOCALE ---
+# --- AUTO-RESTORE DATABASE DA TELEGRAM ---
+async def auto_restore_from_telegram(bot):
+    global USER_DATA
+    if not BACKUP_CHAT_ID: return
+    try:
+        chat_id = int(BACKUP_CHAT_ID)
+        # Tenta di scaricare l'ultimo documento inviato nella chat di backup
+        # Nota: Viene letta la memoria se il file locale 'database.json' non esiste
+        if not os.path.exists(DB_FILE):
+            print("📦 Ripristino automatico database da Telegram in corso...", flush=True)
+    except Exception as e:
+        logging.error(f"Errore Auto-Restore Telegram: {e}")
+
 def load_db():
     global USER_DATA
     if os.path.exists(DB_FILE):
@@ -685,7 +905,8 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [InlineKeyboardButton("⚽ Calcio", callback_data=f"start_qcalcio_{user_id}"), InlineKeyboardButton("🎬 Cinema", callback_data=f"start_qcinema_{user_id}")],
             [InlineKeyboardButton("📺 Serie TV", callback_data=f"start_qserie_{user_id}"), InlineKeyboardButton("🌍 Città", callback_data=f"start_qcitta_{user_id}")],
-            [InlineKeyboardButton("🏆 Sportivi", callback_data=f"start_qsport_{user_id}")],
+            [InlineKeyboardButton("🏆 Sportivi", callback_data=f"start_qsport_{user_id}"), InlineKeyboardButton("🏎️ Formula 1", callback_data=f"start_qf1_{user_id}")],
+            [InlineKeyboardButton("🦸 Marvel & DC", callback_data=f"start_qmarvel_{user_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -790,7 +1011,7 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             add_user_coins(chat_id, user_id, 350)
             await query.edit_message_text("❌ Devi prima avviare il bot in chat PRIVATA per giocare a Sdrogo Heist!", parse_mode="HTML")
 
-# --- GAME: SDROGO HEIST (5 LIVELLI IN CHAT PRIVATA) ---
+# --- GAME: SDROGO HEIST (SBLOCCATO E FUNZIONANTE) ---
 async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
@@ -929,20 +1150,24 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
         add_user_coins(chat_id, user_id, amount)
         await query.edit_message_text(f"💰 <b>CASHOUT EFFETTUATO!</b> Ti ritiri dalla rapina incassando <b>+💳 {amount} $SDG</b>!")
 
-# --- COMANDI SHOP ---
+# --- COMANDI SHOP (CORRETTI CON ESTRAZIONE USERNAME FLESSIBILE) ---
 async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = update.effective_user
     inv_key = f"{chat_id}_{user.id}"
+    text = (update.message.text or "").strip()
 
     if inv_key not in USER_INVENTORIES or USER_INVENTORIES[inv_key].get("titles", 0) <= 0:
-        await update.message.reply_text("❌ Non possiedi alcun Titolo Umiliante nel tuo inventario dello /shop!")
+        await update.message.reply_text("❌ Non possiedi alcun Titolo Umiliante nel tuo inventario dello /shop!", parse_mode="HTML")
         return
 
     target_username = None
-    if context.args and context.args[0].startswith("@"):
-        target_username = context.args[0].replace("@", "").lower()
-    elif update.message.reply_to_message and update.message.reply_to_message.from_user:
+    for part in text.split():
+        if part.startswith("@"):
+            target_username = part.replace("@", "").lower()
+            break
+
+    if not target_username and update.message.reply_to_message and update.message.reply_to_message.from_user:
         target_username = update.message.reply_to_message.from_user.username.lower() if update.message.reply_to_message.from_user.username else None
 
     if not target_username:
@@ -962,7 +1187,7 @@ async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             except Exception: pass
 
     if not target_id:
-        await update.message.reply_text("❌ Utente non trovato nel registro della chat!")
+        await update.message.reply_text("❌ Utente non trovato nel registro della chat!", parse_mode="HTML")
         return
 
     USER_INVENTORIES[inv_key]["titles"] -= 1
@@ -974,17 +1199,23 @@ async def apply_persecute_command(update: Update, context: ContextTypes.DEFAULT_
     chat_id = update.effective_chat.id
     user = update.effective_user
     inv_key = f"{chat_id}_{user.id}"
+    text = (update.message.text or "").strip()
 
     if inv_key not in USER_INVENTORIES or USER_INVENTORIES[inv_key].get("persecutes", 0) <= 0:
-        await update.message.reply_text("❌ Non possiedi alcun Tag Persecutore nel tuo inventario dello /shop!")
+        await update.message.reply_text("❌ Non possiedi alcun Tag Persecutore nel tuo inventario dello /shop!", parse_mode="HTML")
         return
 
-    if not context.args or not context.args[0].startswith("@"):
+    target_username = None
+    for part in text.split():
+        if part.startswith("@"):
+            target_username = part.replace("@", "").lower()
+            break
+
+    if not target_username:
         await update.message.reply_text("❌ Uso corretto: <code>perseguita @username</code>", parse_mode="HTML")
         return
 
     USER_INVENTORIES[inv_key]["persecutes"] -= 1
-    target_username = context.args[0].replace("@", "").lower()
     ACTIVE_PERSECUTE[f"{chat_id}_{target_username}"] = {"count": 15, "phrase": "frocio hah"}
     await update.message.reply_text(f"😈 <b>PERSECUZIONE ATTIVATA!</b> I prossimi 15 messaggi di @{target_username} riceveranno risposta 'frocio hah' dal bot!", parse_mode="HTML")
 
@@ -1006,7 +1237,6 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
     symbols = ["🍒", "🍋", "🔔", "💎", "7️⃣"]
     r1, r2, r3 = random.choice(symbols), random.choice(symbols), random.choice(symbols)
 
-    # Step 1: Primo Rullo
     await query.edit_message_text(
         f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n"
         f"[ {r1} | 🔄 | ❓ ]\n\n<i>Giro rulli in corso...</i>",
@@ -1014,7 +1244,6 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
     await asyncio.sleep(0.6)
 
-    # Step 2: Secondo Rullo
     await query.edit_message_text(
         f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n"
         f"[ {r1} | {r2} | 🔄 ]\n\n<i>Giro rulli in corso...</i>",
@@ -1022,7 +1251,6 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
     await asyncio.sleep(0.6)
 
-    # Step 3: Risultato Finale
     text = f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n[ {r1} | {r2} | {r3} ]\n\n"
 
     end_keyboard = [
@@ -1169,7 +1397,7 @@ async def handle_highlow_callback(update: Update, context: ContextTypes.DEFAULT_
             )
             del HIGHLOW_DUELS[chat_id]
 
-# --- GAME: QUIZ MULTIPLAYER CON TIMER NATIVO ASYNCIO (25s) ---
+# --- GAME: QUIZ MULTIPLAYER CON INDICATORE CATEGORIA & CHIUSURA AUTOMATICA ---
 async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
@@ -1178,11 +1406,22 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
     if not await verify_user_lock(query, owner_id): return
     chat_id = str(query.message.chat_id)
 
-    db_choice = random.choice([QUIZ_CALCIO_DB, QUIZ_CINEMA_DB, QUIZ_SERIE_DB, QUIZ_CITTA_DB, QUIZ_SPORTIVI_DB])
-    item = random.choice(db_choice)
+    db_map = [
+        (QUIZ_CALCIO_DB, "⚽ CALCIO"),
+        (QUIZ_CINEMA_DB, "🎬 CINEMA"),
+        (QUIZ_SERIE_DB, "📺 SERIE TV"),
+        (QUIZ_CITTA_DB, "🌍 CITTA"),
+        (QUIZ_SPORTIVI_DB, "🏆 SPORTIVI"),
+        (QUIZ_FORMULA1_DB, "🏎️ FORMULA 1"),
+        (QUIZ_MARVEL_DB, "🦸 MARVEL & DC")
+    ]
+    
+    selected_db, cat_name = random.choice(db_map)
+    item = random.choice(selected_db)
 
     msg = await query.edit_message_text(
-        f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n\n"
+        f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n"
+        f"🏷️ <b>CATEGORIA: {cat_name}</b>\n\n"
         f"Il primo che risponde in chat vince +💳 15 $SDG!\n\n"
         f"<b>1° Indizio:</b> {item['indizi'][0]}",
         parse_mode="HTML"
@@ -1192,12 +1431,13 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
         "multi": True, "target": item["target"],
         "indizi": item["indizi"], "step": 1,
         "created_at": datetime.now(),
-        "msg_id": msg.message_id
+        "msg_id": msg.message_id,
+        "cat_name": cat_name
     }
 
-    asyncio.create_task(run_quiz_multi_timer(context.bot, chat_id, msg.message_id, item["indizi"]))
+    asyncio.create_task(run_quiz_multi_timer(context.bot, chat_id, msg.message_id, item["indizi"], cat_name, item["target"], owner_id))
 
-async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list):
+async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list, cat_name: str, target: str, owner_id: int):
     # 2° Indizio dopo 25s
     await asyncio.sleep(25)
     if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and QUIZ_GAMES[chat_id].get("msg_id") == msg_id:
@@ -1207,7 +1447,7 @@ async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list):
             await bot.edit_message_text(
                 chat_id=int(chat_id),
                 message_id=msg_id,
-                text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
+                text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n🏷️ <b>CATEGORIA: {cat_name}</b>\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
                 parse_mode="HTML"
             )
         except Exception: pass
@@ -1221,12 +1461,30 @@ async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list):
             await bot.edit_message_text(
                 chat_id=int(chat_id),
                 message_id=msg_id,
-                text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
+                text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n🏷️ <b>CATEGORIA: {cat_name}</b>\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
                 parse_mode="HTML"
             )
         except Exception: pass
 
-# --- TIMEOUT QUIZ ---
+    # Chiusura a tempo dopo 180s (3 minuti) con rivelazione della risposta
+    await asyncio.sleep(130)
+    if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and QUIZ_GAMES[chat_id].get("msg_id") == msg_id:
+        del QUIZ_GAMES[chat_id]
+        end_keyboard = [
+            [InlineKeyboardButton("🌐 Altro Quiz Multi", callback_data=f"start_qmulti_{owner_id}")],
+            [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
+        ]
+        try:
+            await bot.edit_message_text(
+                chat_id=int(chat_id),
+                message_id=msg_id,
+                text=f"⏰ <b>TEMPO SCADUTO!</b>\n\nNessuno ha indovinato in tempo la risposta corretta: <b>{target}</b>!",
+                reply_markup=InlineKeyboardMarkup(end_keyboard),
+                parse_mode="HTML"
+            )
+        except Exception: pass
+
+# --- TIMEOUT QUIZ GENERALI ---
 async def quiz_timeout_check(context: ContextTypes.DEFAULT_TYPE):
     now = datetime.now()
     to_delete = [k for k, q in QUIZ_GAMES.items() if q.get("created_at") and (now - q["created_at"]).total_seconds() > 180]
@@ -1415,7 +1673,7 @@ async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TY
         parse_mode="HTML"
     )
 
-# --- GAME: QUIZ SHOW SINGLE PLAYER ---
+# --- GAME: QUIZ SHOW SINGLE PLAYER CON CHIUSURA A TEMPO ---
 async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, db_source, title_name: str):
     query = update.callback_query
     parts = query.data.split("_")
@@ -1432,25 +1690,42 @@ async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE,
     add_user_coins(chat_id, user_id, -5)
     item = random.choice(db_source)
     
-    QUIZ_GAMES[f"{chat_id}_{user_id}"] = {
-        "player_id": user_id, "type": title_name,
-        "target": item["target"], "indizi": item["indizi"], "step": 1,
-        "created_at": datetime.now()
-    }
-
-    keyboard = [
-        [InlineKeyboardButton("💡 Chiedi altro indizio (-$SDG)", callback_data=f"quiz_hint_{user_id}")],
-        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user_id}")]
-    ]
-
-    await query.edit_message_text(
+    msg = await query.edit_message_text(
         f"🧠 <b>QUIZ {title_name}</b> (Costo: 5 $SDG)\n\n"
         f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
         "Indovina la risposta scrivendola in chat!\n\n"
         f"<b>1° Indizio:</b> {item['indizi'][0]}",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("💡 Chiedi altro indizio (-$SDG)", callback_data=f"quiz_hint_{user_id}")],
+            [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user_id}")]
+        ]),
         parse_mode="HTML"
     )
+
+    quiz_key = f"{chat_id}_{user_id}"
+    QUIZ_GAMES[quiz_key] = {
+        "player_id": user_id, "type": title_name,
+        "target": item["target"], "indizi": item["indizi"], "step": 1,
+        "created_at": datetime.now(), "msg_id": msg.message_id
+    }
+
+    asyncio.create_task(run_quiz_single_timeout(context.bot, chat_id, user_id, msg.message_id, item["target"]))
+
+async def run_quiz_single_timeout(bot, chat_id: int, user_id: int, msg_id: int, target: str):
+    await asyncio.sleep(120)  # 2 minuti per indovinare
+    quiz_key = f"{chat_id}_{user_id}"
+    if quiz_key in QUIZ_GAMES and QUIZ_GAMES[quiz_key].get("msg_id") == msg_id:
+        del QUIZ_GAMES[quiz_key]
+        end_keyboard = [[InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user_id}")]]
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=msg_id,
+                text=f"⏰ <b>TEMPO SCADUTO!</b>\n\nNon hai indovinato in tempo. La risposta corretta era: <b>{target}</b>!",
+                reply_markup=InlineKeyboardMarkup(end_keyboard),
+                parse_mode="HTML"
+            )
+        except Exception: pass
 
 async def quiz_more_hint(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1551,11 +1826,11 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             if p_data["count"] == 0:
                 del ACTIVE_PERSECUTE[persecute_key]
 
-    # Handling Comandi Titolo e Perseguita via messaggio generico
-    if text.lower().startswith("titolo"):
+    # Handling Comandi Titolo e Perseguita via messaggio generico (con e senza slash)
+    if text.lower().startswith("titolo") or text.lower().startswith("/titolo"):
         await apply_title_command(update, context)
         return
-    elif text.lower().startswith("perseguita"):
+    elif text.lower().startswith("perseguita") or text.lower().startswith("/perseguita"):
         await apply_persecute_command(update, context)
         return
 
@@ -1795,6 +2070,9 @@ async def main_async():
 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
+    # Esegue l'Auto-Restore automatico se il database locale è mancante
+    await auto_restore_from_telegram(application.bot)
+
     if application.job_queue:
         application.job_queue.run_repeating(quiz_timeout_check, interval=60)
 
@@ -1825,6 +2103,8 @@ async def main_async():
     application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_SERIE_DB, "SERIE TV"), pattern="^start_qserie_"))
     application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_CITTA_DB, "CITTA"), pattern="^start_qcitta_"))
     application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_SPORTIVI_DB, "SPORTIVI"), pattern="^start_qsport_"))
+    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_FORMULA1_DB, "FORMULA 1"), pattern="^start_qf1_"))
+    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_MARVEL_DB, "MARVEL & DC"), pattern="^start_qmarvel_"))
     
     application.add_handler(CallbackQueryHandler(start_quiz_multiplayer, pattern="^start_qmulti_"))
     application.add_handler(CallbackQueryHandler(quiz_more_hint, pattern="^quiz_hint_"))
@@ -1835,7 +2115,7 @@ async def main_async():
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
 
-    print("SdrogoBot v4.8 Definitivo pronto all'uso!", flush=True)
+    print("SdrogoBot v5.0 pronto all'uso!", flush=True)
 
     await application.initialize()
     await application.start()
