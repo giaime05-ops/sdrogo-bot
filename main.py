@@ -173,7 +173,7 @@ QUIZ_CALCIO_DB = [
     {"target": "NAKAMURA", "indizi": ["Giappone", "Celtic, Reggina", "Punizione telecomandata sotto l'incrocio contro il Manchester United."]},
     {"target": "QUAGLIARELLA", "indizi": ["Italia", "Sampdoria, Udinese", "Reti fuori da ogni logica balistica, spesso di tacco o da centrocampo."]},
     {"target": "NANI", "indizi": ["Portogallo", "Manchester United, Sporting CP", "Capriole acrobatiche per festeggiare giocate all'ombra del connazionale più famoso."]},
-    {"target": "ILICIC", "indizi": ["Slovenia", "Atalanta, Palermo", "Poker magico in trasferta in Champions prima che le ombre oscurassero il suo talento."]},
+    {"target": "ILICIC", "indizi": ["Slovenia", "Atalanta, Palermo", "Poker magico in trasferta in Champions prima che les ombre oscurassero il suo talento."]},
     {"target": "NAVAS", "indizi": ["Costa Rica", "Real Madrid, PSG", "Reattività prodigiosa tra i pali delle tre coppe europee consecutive."]},
     {"target": "ALEX", "indizi": ["Brasile", "Fenerbahçe, Coritiba", "Idolo assoluto a Istanbul, tanto da meritarsi una statua al parco."]},
     {"target": "HUBNER", "indizi": ["Italia", "Piacenza, Brescia", "Capocannoniere in massima serie alternando gol e sigarette in panchina."]},
@@ -345,7 +345,7 @@ QUIZ_SERIE_DB = [
     {"target": "BRIDGERTON", "indizi": ["Romantico / In costume", "Foglio di pettegolezzi", "Caccia al miglior partito nei balli dell'alta società."]},
     {"target": "MERCOLEDI", "indizi": ["Mystery / Fantasy", "Trecce e uniforme nera", "Una studentessa cinica indagatrice tra i segreti del collegio."]},
     {"target": "DOCTOR WHO", "indizi": ["Sci-Fi", "Cabina blu", "Un viaggiatore che muta forma attraverso lo spazio e il tempo."]},
-    {"target": "NARCOS", "indizi": ["Crime / Biografico", "Baffi e mazzette di banconote", "La caccia delle forze dell'ordine ai re del narcotraffico."]},
+    {"target": "NARCOS", "indizi": ["Crime / Biografico", "Baffi e mazzette di banconote", "La caccia delle forces dell'ordine ai re del narcotraffico."]},
     {"target": "THE LAST OF US", "indizi": ["Sci-Fi / Drama", "Infezione da funghi", "Un viaggio di protezione in un mondo in rovina."]},
     {"target": "SUITS", "indizi": ["Legale", "Abito tre pezzi e cravatta", "Un talento prodigioso operativo senza mai aver preso la laurea."]},
     {"target": "MR ROBOT", "indizi": ["Cyberpunk / Thriller", "Felpa nera", "Un programmatore che vuole smantellare il sistema finanziario."]},
@@ -489,13 +489,13 @@ QUIZ_SPORTIVI_DB = [
     {"target": "GRAF", "indizi": ["Tennis", "Germania", "L'unica capace di completare il Golden Slam nello stesso anno."]},
     {"target": "SCHUMACHER", "indizi": ["Formula 1", "Germania / Ferrari", "L'era rossa dei cinque titoli mondiali consecutivi."]},
     {"target": "HAMILTON", "indizi": ["Formula 1", "Regno Unito / Mercedes", "Sette titoli mondiali sulla monoposto numero 44."]},
-    {"target": "SENNA", "indizi": ["Formula 1", "Brasile / McLaren", "Talento puro e maestro assoluto della guida sotto la pioggia."]},
+    {"target": "SENNA", "indizi": ["Formula 1", "Brasile / McLaren", "Talento puro e maestro assoluto del giro secco e della pioggia."]},
     {"target": "VERSTAPPEN", "indizi": ["Formula 1", "Olanda / Red Bull", "Olandese volante dominatore della F1 moderna."]},
     {"target": "LECLERC", "indizi": ["Formula 1", "Monaco / Ferrari", "Il Predestinato beniamino del pubblico di Maranello."]},
     {"target": "LAUDA", "indizi": ["Formula 1", "Austria / Ferrari", "Il ritorno miracoloso in pista dopo il rogo del Nürburgring."]},
     {"target": "PROST", "indizi": ["Formula 1", "Francia / McLaren", "Detto Il Professore per la sua guida tattica e calcolata."]},
     {"target": "ALONSO", "indizi": ["Formula 1", "Spagna / Renault", "Due volte campione capace di duellare in F1 in tre decenni diversi."]},
-    {"target": "RAIKKONEN", "indizi": ["Formula 1", "Finlandia / Ferrari", "Iceman, l'ultimo pilota a vincere il titolo a Maranello."]},
+    {"target": "RAIKKONEN", "indizi": ["Formula 1", "Finlandia / Ferrari", "Iceman, l'ultimo pilota a vincere il titolo con la Rossa."]},
     {"target": "VILLENEUVE", "indizi": ["Formula 1", "Canada / Ferrari", "Guida generosa e spericolata entrata nel cuore dei tifosi."]},
     {"target": "VALENTINO ROSSI", "indizi": ["MotoGP", "Italia / Yamaha e Honda", "Il numero 46 giallo con nove titoli mondiali."]},
     {"target": "AGOSTINI", "indizi": ["Motociclismo", "Italia / MV Agusta", "Il pilota più titolato della storia con 15 mondiali."]},
@@ -605,7 +605,7 @@ QUIZ_FORMULA1_DB = [
     {"target": "ZHOU", "indizi": ["Cina", "Alfa Romeo, Sauber", "Il primo pilota di ruolo cinese ad aver gareggiato in Formula 1."]},
     {"target": "SARGEANT", "indizi": ["Stati Uniti", "Williams", "Il pilota statunitense arrivato nell'era di Drive to Survive."]},
     {"target": "MICK SCHUMACHER", "indizi": ["Germania", "Haas", "Il figlio d'arte portatore di un cognome pesantissimo."]},
-    {"target": "LATIFI", "indizi": ["Canada", "Williams", "La sua uscita di pista ad Abu Dhabi nel 2021 cambiò le sorti del mondiale."]},
+    {"target": "LATIFI", "indizi": ["Canada", "Williams", "La sua uscita di pista ad Abu Dhabi nel 2021 cambiò les sorti del mondiale."]},
     {"target": "MAZEPIN", "indizi": ["Russia", "Haas", "Il contestato pilota russo dell'annata 2021."]},
     {"target": "GIOVINAZZI", "indizi": ["Italia", "Alfa Romeo", "L'ultimo pilota italiano titolare in griglia negli ultimi anni."]},
     {"target": "KVYAT", "indizi": ["Russia", "Red Bull, Toro Rosso", "Il Siluro, protagonista di contatti celebri con Vettel."]},
@@ -725,7 +725,7 @@ QUIZ_MARVEL_DB = [
     {"target": "NIGHTCRAWLER", "indizi": ["Marvel / X-Men", "Teletrasporto con scia di fumo di zolfo e coda", "Il mutante blu dall'aspetto demoniaco ma dal cuore pio."]},
     {"target": "COLOSSO", "indizi": ["Marvel / X-Men", "Pelle in metallo organico indistruttibile", "Il gigante russo dal cuore buono che si trasforma in acciaio."]},
     {"target": "HELLBOY", "indizi": ["Dark Horse", "Mano destra del destino in pietra e corna limate", "Il demone rosso evocato dai nazisti ma allevato dagli americani."]},
-    {"target": "SPAWN", "indizi": ["Image Comics", "Mantello vivente rosso e catenes ferrate", "Il soldato mandato all'inferno ritornato come demone vendicatore."]},
+    {"target": "SPAWN", "indizi": ["Image Comics", "Mantello vivente rosso e catene ferrate", "Il soldato mandato all'inferno ritornato come demone vendicatore."]},
     {"target": "OMNI-MAN", "indizi": ["Image Comics / Invincible", "Mantello rosso e baffo, invulnerabile", "Il padre alieno apparentemente eroe ma conquistatore spietato."]},
     {"target": "INVINCIBLE", "indizi": ["Image Comics", "Tuta gialla e blu, superforza e volo", "Il ragazzo metà umano e metà alieno Viltrumita."]},
     {"target": "PATRIOTA", "indizi": ["The Boys", "Mantello con la bandiera USA e occhi laser", "Il leader dei sette egocentrico e psicopatico."]},
@@ -761,7 +761,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "SdrogoBot v5.1 Attivo H24!"
+    return "SdrogoBot v5.2 Attivo H24!"
 
 def run_flask():
     port = int(os.environ.get('PORT', 8080))
@@ -891,6 +891,8 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     data = query.data
     parts = data.split("_")
     action = parts[1]
@@ -899,12 +901,11 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await verify_user_lock(query, owner_id):
         return
 
-    await query.answer()
     chat_id = query.message.chat_id
     user_id = query.from_user.id
     coins = get_user_coins(chat_id, user_id)
 
-    back_button = [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user_id}")]
+    back_button = [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
 
     if action == "main":
         await show_hub(update, context)
@@ -918,8 +919,8 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🔐 <b>Mastermind Express</b> — <i>10 $SDG</i>"
         )
         keyboard = [
-            [InlineKeyboardButton("🃏 Blackjack", callback_data=f"start_bj_{user_id}"), InlineKeyboardButton("🎰 Slot 777", callback_data=f"start_slot_{user_id}")],
-            [InlineKeyboardButton("🔠 Wordle", callback_data=f"start_wordle_{user_id}"), InlineKeyboardButton("🔐 Mastermind", callback_data=f"start_mm_{user_id}")],
+            [InlineKeyboardButton("🃏 Blackjack", callback_data=f"start_bj_{owner_id}"), InlineKeyboardButton("🎰 Slot 777", callback_data=f"start_slot_{owner_id}")],
+            [InlineKeyboardButton("🔠 Wordle", callback_data=f"start_wordle_{owner_id}"), InlineKeyboardButton("🔐 Mastermind", callback_data=f"start_mm_{owner_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -934,21 +935,20 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🌐 <b>Quiz Multiplayer</b> (Aperto a tutto il gruppo)"
         )
         keyboard = [
-            [InlineKeyboardButton("🎯 Roulette 1v1", callback_data=f"start_roulette_{user_id}"), InlineKeyboardButton("🎲 High/Low 1v1", callback_data=f"start_highlow_{user_id}")],
-            [InlineKeyboardButton("🪓 Ghigliottina 1v1", callback_data=f"start_ghigliottina_prep_{user_id}"), InlineKeyboardButton("⚔️ Duello Quiz 1v1", callback_data=f"start_quiz1v1_prep_{user_id}")],
-            [InlineKeyboardButton("🌐 Quiz Multi (Scegli Categoria)", callback_data=f"hub_qmulti_cat_{user_id}")],
+            [InlineKeyboardButton("🎯 Roulette 1v1", callback_data=f"start_roulette_{owner_id}"), InlineKeyboardButton("🎲 High/Low 1v1", callback_data=f"start_highlow_{owner_id}")],
+            [InlineKeyboardButton("🪓 Ghigliottina 1v1", callback_data=f"start_ghigliottina_prep_{owner_id}"), InlineKeyboardButton("⚔️ Duello Quiz 1v1", callback_data=f"start_quiz1v1_prep_{owner_id}")],
+            [InlineKeyboardButton("🌐 Quiz Multi (Scegli Categoria)", callback_data=f"hub_qmulti_{owner_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
     elif action == "qmulti":
-        # Sotto-menu selezione Categoria Quiz Multi
         text = "🌐 <b>QUIZ MULTIPLAYER PER CATEGORIA</b>\n\nScegli la categoria da lanciare in chat di gruppo:"
         keyboard = [
-            [InlineKeyboardButton("🎲 Casuale", callback_data=f"start_qmulti_ALL_{user_id}"), InlineKeyboardButton("⚽ Calcio", callback_data=f"start_qmulti_CALCIO_{user_id}")],
-            [InlineKeyboardButton("🏎️ Formula 1", callback_data=f"start_qmulti_F1_{user_id}"), InlineKeyboardButton("🦸 Marvel & DC", callback_data=f"start_qmulti_MARVEL_{user_id}")],
-            [InlineKeyboardButton("🎬 Cinema", callback_data=f"start_qmulti_CINEMA_{user_id}"), InlineKeyboardButton("📺 Serie TV", callback_data=f"start_qmulti_SERIE_{user_id}")],
-            [InlineKeyboardButton("🌍 Città", callback_data=f"start_qmulti_CITTA_{user_id}"), InlineKeyboardButton("🏆 Sportivi", callback_data=f"start_qmulti_SPORT_{user_id}")],
+            [InlineKeyboardButton("🎲 Casuale", callback_data=f"start_qmulti_ALL_{owner_id}"), InlineKeyboardButton("⚽ Calcio", callback_data=f"start_qmulti_CALCIO_{owner_id}")],
+            [InlineKeyboardButton("🏎️ Formula 1", callback_data=f"start_qmulti_F1_{owner_id}"), InlineKeyboardButton("🦸 Marvel & DC", callback_data=f"start_qmulti_MARVEL_{owner_id}")],
+            [InlineKeyboardButton("🎬 Cinema", callback_data=f"start_qmulti_CINEMA_{owner_id}"), InlineKeyboardButton("📺 Serie TV", callback_data=f"start_qmulti_SERIE_{owner_id}")],
+            [InlineKeyboardButton("🌍 Città", callback_data=f"start_qmulti_CITTA_{owner_id}"), InlineKeyboardButton("🏆 Sportivi", callback_data=f"start_qmulti_SPORT_{owner_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -959,10 +959,10 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Scegli una categoria:"
         )
         keyboard = [
-            [InlineKeyboardButton("⚽ Calcio", callback_data=f"start_qcalcio_{user_id}"), InlineKeyboardButton("🎬 Cinema", callback_data=f"start_qcinema_{user_id}")],
-            [InlineKeyboardButton("📺 Serie TV", callback_data=f"start_qserie_{user_id}"), InlineKeyboardButton("🌍 Città", callback_data=f"start_qcitta_{user_id}")],
-            [InlineKeyboardButton("🏆 Sportivi", callback_data=f"start_qsport_{user_id}"), InlineKeyboardButton("🏎️ Formula 1", callback_data=f"start_qf1_{user_id}")],
-            [InlineKeyboardButton("🦸 Marvel & DC", callback_data=f"start_qmarvel_{user_id}")],
+            [InlineKeyboardButton("⚽ Calcio", callback_data=f"start_qcalcio_{owner_id}"), InlineKeyboardButton("🎬 Cinema", callback_data=f"start_qcinema_{owner_id}")],
+            [InlineKeyboardButton("📺 Serie TV", callback_data=f"start_qserie_{owner_id}"), InlineKeyboardButton("🌍 Città", callback_data=f"start_qcitta_{owner_id}")],
+            [InlineKeyboardButton("🏆 Sportivi", callback_data=f"start_qsport_{owner_id}"), InlineKeyboardButton("🏎️ Formula 1", callback_data=f"start_qf1_{owner_id}")],
+            [InlineKeyboardButton("🦸 Marvel & DC", callback_data=f"start_qmarvel_{owner_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -979,9 +979,9 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🏢 <b>3. Pass SDROGO HEIST (350 $SDG)</b>\nRapina a 5 livelli in PRIVATO col bot per Jackpot + Stelle!"
         )
         keyboard = [
-            [InlineKeyboardButton("🏷️ Compra Titolo (100 $SDG)", callback_data=f"buy_title_{user_id}")],
-            [InlineKeyboardButton("🗣️ Compra Tag Persecutore (120 $SDG)", callback_data=f"buy_persecute_{user_id}")],
-            [InlineKeyboardButton("🏢 Avvia SDROGO HEIST (350 $SDG)", callback_data=f"buy_heist_{user_id}")],
+            [InlineKeyboardButton("🏷️ Compra Titolo (100 $SDG)", callback_data=f"buy_title_{owner_id}")],
+            [InlineKeyboardButton("🗣️ Compra Tag Persecutore (120 $SDG)", callback_data=f"buy_persecute_{owner_id}")],
+            [InlineKeyboardButton("🏢 Avvia SDROGO HEIST (350 $SDG)", callback_data=f"buy_heist_{owner_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -994,7 +994,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🎁 <b>Bonus Daily:</b> Riscuoti 50 $SDG ogni 24 ore."
         )
         keyboard = [
-            [InlineKeyboardButton("🎁 Riscuoti Daily (+50 $SDG)", callback_data=f"claim_daily_{user_id}")],
+            [InlineKeyboardButton("🎁 Riscuoti Daily (+50 $SDG)", callback_data=f"claim_daily_{owner_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -1005,6 +1005,8 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- SHOP ACTIONS ---
 async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     item_type = parts[1]
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
@@ -1070,6 +1072,8 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- GAME: SDROGO HEIST ---
 async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     stage = parts[1]
     owner_id = int(parts[2])
@@ -1077,9 +1081,7 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
     if query.from_user.id != owner_id:
         return
 
-    await query.answer()
     user_id = query.from_user.id
-    
     if user_id not in HEIST_GAMES:
         await query.edit_message_text("❌ Sessione Rapina terminata.")
         return
@@ -1206,7 +1208,7 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
         add_user_coins(chat_id, user_id, amount)
         await query.edit_message_text(f"💰 <b>CASHOUT EFFETTUATO!</b> Ti ritiri dalla rapina incassando <b>+💳 {amount} $SDG</b>!")
 
-# --- COMANDI SHOP (CORRETTI CON ESTRAZIONE USERNAME FLESSIBILE) ---
+# --- COMANDI SHOP ---
 async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = update.effective_user
@@ -1275,9 +1277,11 @@ async def apply_persecute_command(update: Update, context: ContextTypes.DEFAULT_
     ACTIVE_PERSECUTE[f"{chat_id}_{target_username}"] = {"count": 15, "phrase": "frocio hah"}
     await update.message.reply_text(f"😈 <b>PERSECUZIONE ATTIVATA!</b> I prossimi 15 messaggi di @{target_username} riceveranno risposta 'frocio hah' dal bot!", parse_mode="HTML")
 
-# --- GAME: SLOT MACHINE 777 CON ANIMAZIONE PROGRESSIVA A 3 STEP ---
+# --- GAME: SLOT MACHINE 777 ---
 async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
@@ -1310,8 +1314,8 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
     text = f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n[ {r1} | {r2} | {r3} ]\n\n"
 
     end_keyboard = [
-        [InlineKeyboardButton("🔂 Rigioca (10 $SDG)", callback_data=f"start_slot_{user.id}")],
-        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user.id}")]
+        [InlineKeyboardButton("🔂 Rigioca (10 $SDG)", callback_data=f"start_slot_{owner_id}")],
+        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
     ]
 
     if r1 == r2 == r3:
@@ -1329,9 +1333,11 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
 
-# --- GAME: MASTERMIND EXPRESS (5 TENTATIVI) ---
+# --- GAME: MASTERMIND EXPRESS ---
 async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
@@ -1364,6 +1370,8 @@ async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAUL
 # --- GAME: HIGHLOW 1v1 ---
 async def start_highlow_prep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
@@ -1378,6 +1386,8 @@ async def start_highlow_prep(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def handle_highlow_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     chat_id = query.message.chat_id
     user = query.from_user
 
@@ -1453,11 +1463,13 @@ async def handle_highlow_callback(update: Update, context: ContextTypes.DEFAULT_
             )
             del HIGHLOW_DUELS[chat_id]
 
-# --- GAME: GHIGLIOTTINA 1v1 (`sfidoghigliottina @username`) ---
+# --- GAME: GHIGLIOTTINA 1v1 ---
 async def start_ghigliottina_prep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
-    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
+    owner_id = int(parts[3]) if len(parts) > 3 else query.from_user.id
 
     if not await verify_user_lock(query, owner_id): return
 
@@ -1470,6 +1482,8 @@ async def start_ghigliottina_prep(update: Update, context: ContextTypes.DEFAULT_
 
 async def handle_ghigliottina_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     chat_id = query.message.chat_id
     user = query.from_user
 
@@ -1520,11 +1534,13 @@ async def run_ghigliottina_timeout(bot, chat_id: int, msg_id: int):
             )
         except Exception: pass
 
-# --- GAME: QUIZ 1v1 DUEL A 5 ROUND (`sfidoquiz @username`) ---
+# --- GAME: QUIZ 1v1 DUEL ---
 async def start_quiz1v1_prep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
-    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
+    owner_id = int(parts[3]) if len(parts) > 3 else query.from_user.id
 
     if not await verify_user_lock(query, owner_id): return
 
@@ -1537,6 +1553,8 @@ async def start_quiz1v1_prep(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def handle_quiz1v1_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     chat_id = query.message.chat_id
     user = query.from_user
 
@@ -1616,7 +1634,6 @@ async def launch_quiz1v1_round(bot, chat_id: int):
     asyncio.create_task(run_quiz1v1_round_timer(bot, chat_id, duel['round'], msg.message_id, item["indizi"], item["target"]))
 
 async def run_quiz1v1_round_timer(bot, chat_id: int, round_num: int, msg_id: int, indizi: list, target: str):
-    # 2° Indizio dopo 25s
     await asyncio.sleep(25)
     if chat_id in QUIZ_DUELS_1V1 and QUIZ_DUELS_1V1[chat_id].get("round") == round_num and QUIZ_DUELS_1V1[chat_id].get("msg_id") == msg_id:
         duel = QUIZ_DUELS_1V1[chat_id]
@@ -1631,7 +1648,6 @@ async def run_quiz1v1_round_timer(bot, chat_id: int, round_num: int, msg_id: int
             )
         except Exception: pass
 
-    # 3° Indizio dopo altri 25s (totale 50s)
     await asyncio.sleep(25)
     if chat_id in QUIZ_DUELS_1V1 and QUIZ_DUELS_1V1[chat_id].get("round") == round_num and QUIZ_DUELS_1V1[chat_id].get("msg_id") == msg_id:
         duel = QUIZ_DUELS_1V1[chat_id]
@@ -1646,7 +1662,6 @@ async def run_quiz1v1_round_timer(bot, chat_id: int, round_num: int, msg_id: int
             )
         except Exception: pass
 
-    # Scadenza Round dopo 75s totali
     await asyncio.sleep(25)
     if chat_id in QUIZ_DUELS_1V1 and QUIZ_DUELS_1V1[chat_id].get("round") == round_num and QUIZ_DUELS_1V1[chat_id].get("msg_id") == msg_id:
         duel = QUIZ_DUELS_1V1[chat_id]
@@ -1689,6 +1704,8 @@ async def conclude_quiz1v1_duel(bot, chat_id: int):
 # --- GAME: QUIZ MULTIPLAYER PER CATEGORIA ---
 async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     cat_choice = parts[2] if len(parts) > 2 else "ALL"
     owner_id = int(parts[3]) if len(parts) > 3 else query.from_user.id
@@ -1734,7 +1751,6 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
     asyncio.create_task(run_quiz_multi_timer(context.bot, chat_id, msg.message_id, item["indizi"], cat_name, item["target"], owner_id))
 
 async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list, cat_name: str, target: str, owner_id: int):
-    # 2° Indizio dopo 25s
     await asyncio.sleep(25)
     if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and QUIZ_GAMES[chat_id].get("msg_id") == msg_id:
         QUIZ_GAMES[chat_id]["step"] = 2
@@ -1747,7 +1763,6 @@ async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list, cat
             )
         except Exception: pass
 
-    # 3° Indizio dopo altri 25s (totale 50s)
     await asyncio.sleep(25)
     if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and QUIZ_GAMES[chat_id].get("msg_id") == msg_id:
         QUIZ_GAMES[chat_id]["step"] = 3
@@ -1760,12 +1775,11 @@ async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list, cat
             )
         except Exception: pass
 
-    # Scadenza a 75s
     await asyncio.sleep(25)
     if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and QUIZ_GAMES[chat_id].get("msg_id") == msg_id:
         del QUIZ_GAMES[chat_id]
         end_keyboard = [
-            [InlineKeyboardButton("🌐 Altro Quiz Multi", callback_data=f"hub_qmulti_cat_{owner_id}")],
+            [InlineKeyboardButton("🌐 Altro Quiz Multi", callback_data=f"hub_qmulti_{owner_id}")],
             [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
         ]
         try:
@@ -1825,6 +1839,8 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
 # --- DAILY ---
 async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
@@ -1852,6 +1868,8 @@ async def block_direct_command(update: Update, context: ContextTypes.DEFAULT_TYP
 # --- GAME: BLACKJACK ---
 async def start_bj_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
@@ -1873,8 +1891,8 @@ async def start_bj_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     keyboard = [[
-        InlineKeyboardButton("🎴 Carta", callback_data=f"bj_hit_{user.id}"),
-        InlineKeyboardButton("✋ Stai", callback_data=f"bj_stand_{user.id}")
+        InlineKeyboardButton("🎴 Carta", callback_data=f"bj_hit_{owner_id}"),
+        InlineKeyboardButton("✋ Stai", callback_data=f"bj_stand_{owner_id}")
     ]]
 
     await query.edit_message_text(
@@ -1888,12 +1906,13 @@ async def start_bj_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     action = parts[1]
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
     if not await verify_user_lock(query, owner_id): return
-    await query.answer()
     chat_id = query.message.chat_id
     user_id = query.from_user.id
     game_key = f"{chat_id}_{user_id}"
@@ -1905,8 +1924,8 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     game = BLACKJACK_GAMES[game_key]
     cards = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11]
     end_keyboard = [
-        [InlineKeyboardButton("🔂 Rigioca (10 $SDG)", callback_data=f"start_bj_{user_id}")],
-        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user_id}")]
+        [InlineKeyboardButton("🔂 Rigioca (10 $SDG)", callback_data=f"start_bj_{owner_id}")],
+        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
     ]
 
     if action == "hit":
@@ -1917,7 +1936,7 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             del BLACKJACK_GAMES[game_key]
             await query.edit_message_text(f"💥 <b>SBALLATO!</b> ({score})\nHai perso 10 $SDG!", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML')
         else:
-            keyboard = [[InlineKeyboardButton("🎴 Carta", callback_data=f"bj_hit_{user_id}"), InlineKeyboardButton("✋ Stai", callback_data=f"bj_stand_{user_id}")]]
+            keyboard = [[InlineKeyboardButton("🎴 Carta", callback_data=f"bj_hit_{owner_id}"), InlineKeyboardButton("✋ Stai", callback_data=f"bj_stand_{owner_id}")]]
             await query.edit_message_text(f"🃏 <b>BLACKJACK 21</b>\n\nCarte: {game['player_hand']} ({score})\nBanco: [{game['dealer_hand'][0]}, ?]", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
 
     elif action == "stand":
@@ -1939,6 +1958,8 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 # --- GAME: WORDLE EXPRESS ---
 async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
@@ -1969,6 +1990,8 @@ async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TY
 # --- GAME: QUIZ SHOW SINGLE PLAYER CON CHIUSURA A TEMPO ---
 async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, db_source, title_name: str):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
@@ -1990,8 +2013,8 @@ async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE,
         f"<b>1° Indizio:</b> {item['indizi'][0]}\n\n"
         f"⏱️ <i>Hai 75 secondi per indovinare!</i>",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("💡 Chiedi altro indizio (-$SDG)", callback_data=f"quiz_hint_{user_id}")],
-            [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user_id}")]
+            [InlineKeyboardButton("💡 Chiedi altro indizio (-$SDG)", callback_data=f"quiz_hint_{owner_id}")],
+            [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
         ]),
         parse_mode="HTML"
     )
@@ -2022,6 +2045,8 @@ async def run_quiz_single_timeout(bot, chat_id: int, user_id: int, msg_id: int, 
 
 async def quiz_more_hint(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
@@ -2052,6 +2077,8 @@ async def quiz_more_hint(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- GAME: ROULETTE RUSSA 1v1 ---
 async def start_roulette_prep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     parts = query.data.split("_")
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
@@ -2309,7 +2336,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             del QUIZ_GAMES[chat_id]
             add_user_coins(chat_id_int, user.id, 15)
             end_keyboard = [
-                [InlineKeyboardButton("🌐 Altro Quiz Multiplayer", callback_data=f"hub_qmulti_cat_{user.id}")],
+                [InlineKeyboardButton("🌐 Altro Quiz Multiplayer", callback_data=f"hub_qmulti_{user.id}")],
                 [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user.id}")]
             ]
             await update.message.reply_text(
@@ -2394,6 +2421,8 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 # --- CALLBACK ROULETTE ---
 async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
+    
     chat_id = query.message.chat_id
     user = query.from_user
 
@@ -2511,7 +2540,7 @@ async def main_async():
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
 
-    print("SdrogoBot v5.1 pronto all'uso!", flush=True)
+    print("SdrogoBot v5.2 pronto all'uso!", flush=True)
 
     await application.initialize()
     await application.start()
