@@ -63,11 +63,11 @@ WORDS = [
     "ROSSO", "TIGRE", "TERRA", "VERDE", "AMICO", "BARCA", "CALDO", "DENTI", "FESTA", "ISOLA",
     "MUSEO", "PALLA", "RUOTA", "TRENO", "VALLE", "ACUME", "BOATO", "CIFRA", "DARDO", "ETICA",
     "FALDA", "GELSO", "ICONA", "LARGO", "MANTO", "NINFA", "OVALE", "PIUMA", "ROCCA", "SUONO",
-    "TARLO", "VALLO", "ZOLLA", "ABETO", "BORGO", "CREPA", "DOGMA", "ELICA", "FOSSA", "GRANA",
-    "LAMPO", "MAREA", "NAPPA", "ORAFO", "PRATO", "QUOTA", "SFERA", "TRONO", "VARCO", "ZANNA",
-    "BLUSA", "CRASI", "EGIDA", "FATUO", "ILICE", "LAICO", "MIGMA", "NENIA", "ONICE", "PRODA",
-    "REUMA", "ZURRO", "ALATO", "BIZZA", "DOTTO", "ETERE", "FALCE", "IRIDE", "LESTO", "AUREO",
-    "ANICE", "CONCA", "EREBO", "ILOTE", "LIBRA", "MOINA", "NAFTA", "OPALE", "PLICO", "TURBA"
+    "TARLO", "VALLO", "ZOLLA", "ABETE", "BORGO", "CREPA", "DOGMA", "ELICA", "FOSSA", "GRANA",
+    "LAMPO", "MAREA", "NAFTA", "ORAFO", "PRATO", "QUOTA", "SFERA", "TRONO", "VARCO", "ZANNA",
+    "BUSTA", "CRASI", "ESITO", "FATUO", "ALICE", "LAICO", "MITRA", "NENIA", "ROSPO", "PROCI",
+    "FALCO", "ZUPPA", "ALATO", "BIZZA", "DOTTO", "ETERE", "FALCE", "IRIDE", "LESTO", "AUREO",
+    "ANICE", "CONCA", "EBREO", "PONTE", "LISCA", "TROIA", "KAYAK", "OVALE", "PUNTO", "TURBE"
 ]
 
 # --- DATABASE 30 GHIGLIOTTINE (PAROLE LEGAME) ---
@@ -83,7 +83,7 @@ GHIGLIOTTINA_DB = [
     {"target": "GATTO", "indizi": ["NERO", "TOPO", "STIVALI", "MIAO", "SIAMESE"]},
     {"target": "FIORE", "indizi": ["ALL'OCCHIELLO", "CAMPO", "FRESCO", "VASO", "SPOSA"]},
     {"target": "LIBRO", "indizi": ["CUORE", "APERTO", "TESTO", "GIALLO", "PAGINA"]},
-    {"target": "STRELLA", "indizi": ["CADENTE", "POLARE", "MARINA", "NOTTE", "CINEMA"]},
+    {"target": "STELLA", "indizi": ["CADENTE", "POLARE", "MARINA", "NOTTE", "CINEMA"]},
     {"target": "ACQUA", "indizi": ["SANTA", "MINERALE", "RUBINETTO", "VITA", "CORRENTE"]},
     {"target": "TERRA", "indizi": ["PROMESSA", "PADRE", "CONFINE", "FIRMA", "PIANETA"]},
     {"target": "FUOCO", "indizi": ["CAMINO", "ARTIFICIO", "AMICO", "LENTO", "AMORE"]},
@@ -186,7 +186,7 @@ QUIZ_CALCIO_DB = [
     {"target": "BEN ARFA", "indizi": ["Francia", "Nizza, Newcastle", "Dribblava l'intera squadra avversaria ma litigava con ogni allenatore."]},
     {"target": "LUALUA", "indizi": ["RD del Congo", "Portsmouth, Newcastle", "Serie interminabile di salti mortali dopo ogni marcatura."]},
     {"target": "MICCOLI", "indizi": ["Italia", "Palermo, Lecce", "Estro e gol da antologia per il folletto del Barbera."]},
-    {"target": "TSHABALALA", "indizi": ["Sudafrica", "Kaizer Chiefs", "Il mancino all'incrocio che fece esplodere le vuvuzelas nella gara d'apertura 2010."]},
+    {"target": "TSHABALALA", "indizi": ["Sudafrica", "Kaizer Chiefs", "Il mancino all'incrocio che fece esplodere les vuvuzelas nella gara d'apertura 2010."]},
     {"target": "MACCARONE", "indizi": ["Italia", "Middlesbrough, Empoli", "Gol allo scadere in semifinale europea per portare gli inglesi in finale."]},
     {"target": "TAARABT", "indizi": ["Marocco", "QPR, Milan", "Tunnel sfacciati e giocolerie nella seconda serie inglese."]},
     {"target": "PROTTI", "indizi": ["Italia", "Bari, Livorno", "Capocannoniere nella massima serie con una squadra poi retrocessa."]},
@@ -364,188 +364,6 @@ QUIZ_SERIE_DB = [
     {"target": "SKINS", "indizi": ["Teen / Drama", "Feste sregolate", "L'adolescenza senza filtri vista da un gruppo di ragazzi inglesi."]},
     {"target": "GLEE", "indizi": ["Musical / Teen", "Microfono e spartiti", "La rivalsa degli emarginati della scuola attraverso il canto."]},
     {"target": "YELLOWSTONE", "indizi": ["Western / Drama", "Cappello da cowboy e marchio", "La difesa ad ogni costo dei confini del proprio ranch."]}
-]
-
-# --- DATABASE 100 CITTA ---
-QUIZ_CITTA_DB = [
-    {"target": "ROMA", "indizi": ["Europa", "Italia", "Colosseo"]},
-    {"target": "MILANO", "indizi": ["Europa", "Italia", "Duomo"]},
-    {"target": "VENEZIA", "indizi": ["Europa", "Italia", "Piazza San Marco e Canal Grande"]},
-    {"target": "FIRENZE", "indizi": ["Europa", "Italia", "Cupola del Brunelleschi e Ponte Vecchio"]},
-    {"target": "NAPOLI", "indizi": ["Europa", "Italia", "Vesuvio e Spaccanapoli"]},
-    {"target": "PISA", "indizi": ["Europa", "Italia", "Torre Pendente"]},
-    {"target": "TORINO", "indizi": ["Europa", "Italia", "Mole Antonelliana"]},
-    {"target": "VERONA", "indizi": ["Europa", "Italia", "Arena e Balcone di Giulietta"]},
-    {"target": "PALERMO", "indizi": ["Europa", "Italia", "Cattedrale e Teatro Massimo"]},
-    {"target": "BOLOGNA", "indizi": ["Europa", "Italia", "Le Due Torri (Asinelli e Garisenda)"]},
-    {"target": "PARIGI", "indizi": ["Europa", "Francia", "Torre Eiffel"]},
-    {"target": "NIZZA", "indizi": ["Europa", "Francia", "Promenade des Anglais"]},
-    {"target": "LIONE", "indizi": ["Europa", "Francia", "Basilica di Notre-Dame de Fourvière"]},
-    {"target": "LONDRA", "indizi": ["Europa", "Regno Unito", "Big Ben e Tower Bridge"]},
-    {"target": "EDIMBURGO", "indizi": ["Europa", "Regno Unito", "Castello sulla roccia"]},
-    {"target": "BARCELLONA", "indizi": ["Europa", "Spagna", "Sagrada Família"]},
-    {"target": "MADRID", "indizi": ["Europa", "Spagna", "Museo del Prado e Puerta del Sol"]},
-    {"target": "SIVIGLIA", "indizi": ["Europa", "Spagna", "Plaza de España e Giralda"]},
-    {"target": "VALENCIA", "indizi": ["Europa", "Spagna", "Città delle Arti e delle Scienze"]},
-    {"target": "BERLINO", "indizi": ["Europa", "Germania", "Porta di Brandeburgo"]},
-    {"target": "MONACO DI BAVIERA", "indizi": ["Europa", "Germania", "Marienplatz"]},
-    {"target": "FRANCOFORTE", "indizi": ["Europa", "Germania", "Grattacieli del quartiere finanziario"]},
-    {"target": "AMSTERDAM", "indizi": ["Europa", "Paesi Bassi", "Canali e Museo di Van Gogh"]},
-    {"target": "ROTTERDAM", "indizi": ["Europa", "Paesi Bassi", "Case Cubiche di Piet Blom"]},
-    {"target": "BRUXELLES", "indizi": ["Europa", "Belgio", "Atomium e Grand Place"]},
-    {"target": "VIENNA", "indizi": ["Europa", "Austria", "Castello di Schönbrunn"]},
-    {"target": "SALISBURGO", "indizi": ["Europa", "Austria", "Casa natale di Mozart"]},
-    {"target": "PRAGA", "indizi": ["Europa", "Repubblica Ceca", "Ponte Carlo e Orologio Astronomico"]},
-    {"target": "BUDAPEST", "indizi": ["Europa", "Ungheria", "Parlamento sul Danubio"]},
-    {"target": "ATENE", "indizi": ["Europa", "Grecia", "Partenone sull'Acropoli"]},
-    {"target": "SANTORINI", "indizi": ["Europa", "Grecia", "Casette bianche con cupole blu"]},
-    {"target": "LISBONA", "indizi": ["Europa", "Portogallo", "Torre di Belém e Tram 28"]},
-    {"target": "PORTO", "indizi": ["Europa", "Portogallo", "Ponte Dom Luís I"]},
-    {"target": "DUBLINO", "indizi": ["Europa", "Irlanda", "Temple Bar e Fabbrica Guinness"]},
-    {"target": "COPENAGHEN", "indizi": ["Europa", "Danimarca", "Statua della Sirenetta e Nyhavn"]},
-    {"target": "STOCCOLMA", "indizi": ["Europa", "Svezia", "Gamla Stan (Città vecchia)"]},
-    {"target": "OSLO", "indizi": ["Europa", "Norvegia", "Parco delle sculture di Vigeland"]},
-    {"target": "ZURIGO", "indizi": ["Europa", "Svizzera", "Lago e Chiesa di Grossmünster"]},
-    {"target": "GINEVRA", "indizi": ["Europa", "Svizzera", "Jet d'Eau sul lago"]},
-    {"target": "VARSAVIA", "indizi": ["Europa", "Polonia", "Palazzo della Cultura e della Scienza"]},
-    {"target": "CRACOVIA", "indizi": ["Europa", "Polonia", "Piazza del Mercato"]},
-    {"target": "BUCAREST", "indizi": ["Europa", "Romania", "Palazzo del Parlamento"]},
-    {"target": "MOSCA", "indizi": ["Europa", "Russia", "Piazza Rossa e Cattedrale di San Basilio"]},
-    {"target": "SAN PIETROBURGO", "indizi": ["Europa", "Russia", "Museo Hermitage"]},
-    {"target": "ISTANBUL", "indizi": ["Europa/Asia", "Turchia", "Basilica di Santa Sofia e Cisterne"]},
-    {"target": "NEW YORK", "indizi": ["America del Nord", "Stati Uniti", "Statua della Libertà e Times Square"]},
-    {"target": "LOS ANGELES", "indizi": ["America del Nord", "Stati Uniti", "Scritta Hollywood e Walk of Fame"]},
-    {"target": "SAN FRANCISCO", "indizi": ["America del Nord", "Stati Uniti", "Golden Gate Bridge"]},
-    {"target": "LAS VEGAS", "indizi": ["America del Nord", "Stati Uniti", "Casinò della Strip"]},
-    {"target": "MIAMI", "indizi": ["America del Nord", "Stati Uniti", "Ocean Drive e Art Déco"]},
-    {"target": "CHICAGO", "indizi": ["America del Nord", "Stati Uniti", "La scultura The Bean"]},
-    {"target": "WASHINGTON", "indizi": ["America del Nord", "Stati Uniti", "Casa Bianca e Capitol Hill"]},
-    {"target": "ORLANDO", "indizi": ["America del Nord", "Stati Uniti", "Parchi tematici Disney e Universal"]},
-    {"target": "TORONTO", "indizi": ["America del Nord", "Canada", "CN Tower"]},
-    {"target": "MONTREAL", "indizi": ["America del Nord", "Canada", "Basilica di Notre-Dame"]},
-    {"target": "VANCOUVER", "indizi": ["America del Nord", "Canada", "Stanley Park"]},
-    {"target": "CITTA DEL MESSICO", "indizi": ["America del Nord", "Messico", "Zócalo e Cattedrale"]},
-    {"target": "CANCUN", "indizi": ["America del Nord", "Messico", "Spiagge e vicini templi Maya"]},
-    {"target": "RIO DE JANEIRO", "indizi": ["America del Sud", "Brasile", "Cristo Redentore sul Corcovado"]},
-    {"target": "SAN PAOLO", "indizi": ["America del Sud", "Brasile", "Avenida Paulista"]},
-    {"target": "BUENOS AIRES", "indizi": ["America del Sud", "Argentina", "Obelisco e quartiere La Boca"]},
-    {"target": "SANTIAGO DEL CILE", "indizi": ["America del Sud", "Cile", "Cerro San Cristóbal e le Ande"]},
-    {"target": "LIMA", "indizi": ["America del Sud", "Perù", "Plaza Mayor"]},
-    {"target": "BOGOTA", "indizi": ["America del Sud", "Colombia", "Cerro de Monserrate"]},
-    {"target": "L'AVANA", "indizi": ["America del Nord", "Cuba", "Malecón e auto d'epoca"]},
-    {"target": "TOKYO", "indizi": ["Asia", "Giappone", "Incrocio di Shibuya e Torre di Tokyo"]},
-    {"target": "KYOTO", "indizi": ["Asia", "Giappone", "Torii rossi del Fushimi Inari"]},
-    {"target": "OSAKA", "indizi": ["Asia", "Giappone", "Castello ed insegne di Dotonbori"]},
-    {"target": "PECHINO", "indizi": ["Asia", "Cina", "Città Proibita e Grande Muraglia"]},
-    {"target": "SHANGHAI", "indizi": ["Asia", "Cina", "Torre della Perla Orientale e The Bund"]},
-    {"target": "HONG KONG", "indizi": ["Asia", "Cina", "Skyline del Victoria Harbour"]},
-    {"target": "SEUL", "indizi": ["Asia", "Corea del Sud", "Palazzo Gyeongbokgung"]},
-    {"target": "BANGKOK", "indizi": ["Asia", "Thailandia", "Tempio del Buddha Sdraiatore"]},
-    {"target": "SINGAPORE", "indizi": ["Asia", "Singapore", "Marina Bay Sands e Supertrees"]},
-    {"target": "KUALA LUMPUR", "indizi": ["Asia", "Malesia", "Torri Petronas"]},
-    {"target": "GIACARTA", "indizi": ["Asia", "Indonesia", "Monumento Nazionale (Monas)"]},
-    {"target": "NUOVA DELHI", "indizi": ["Asia", "India", "Porta dell'India"]},
-    {"target": "AGRA", "indizi": ["Asia", "India", "Taj Mahal"]},
-    {"target": "MUMBAI", "indizi": ["Asia", "India", "Porta dell'India (Porto)"]},
-    {"target": "DUBAI", "indizi": ["Asia", "Emirati Arabi Uniti", "Burj Khalifa"]},
-    {"target": "ABU DHABI", "indizi": ["Asia", "Emirati Arabi Uniti", "Grande Moschea dello Sceicco Zayed"]},
-    {"target": "DOHA", "indizi": ["Asia", "Qatar", "Museo d'Arte Islamica e Souq Waqif"]},
-    {"target": "RIAD", "indizi": ["Asia", "Arabia Saudita", "Grattacielo Kingdom Centre"]},
-    {"target": "GERUSALEMME", "indizi": ["Asia", "Israele", "Muro del Pianto e Cupola della Roccia"]},
-    {"target": "TEL AVIV", "indizi": ["Asia", "Israele", "Lungomare e spiagge della città vecchia"]},
-    {"target": "IL CAIRO", "indizi": ["Africa", "Egitto", "Piramidi di Giza e Sfinge"]},
-    {"target": "LUXOR", "indizi": ["Africa", "Egitto", "Valle dei Re e Tempio di Karnak"]},
-    {"target": "MARRAKECH", "indizi": ["Africa", "Marocco", "Piazza Jemaa el-Fna"]},
-    {"target": "CASABLANCA", "indizi": ["Africa", "Marocco", "Moschea di Hassan II"]},
-    {"target": "CITTA DEL CAPO", "indizi": ["Africa", "Sudafrica", "Table Mountain e Capo di Buona Speranza"]},
-    {"target": "JOHANNESBURG", "indizi": ["Africa", "Sudafrica", "Quartiere Soweto"]},
-    {"target": "NAIROBI", "indizi": ["Africa", "Kenya", "Parco Nazionale con fauna selvatica"]},
-    {"target": "TUNISI", "indizi": ["Africa", "Tunisia", "Rovine di Cartaginese e Medina"]},
-    {"target": "SYDNEY", "indizi": ["Oceania", "Australia", "Opera House e Harbour Bridge"]},
-    {"target": "MELBOURNE", "indizi": ["Oceania", "Australia", "Flinders Street Station"]},
-    {"target": "PERTH", "indizi": ["Oceania", "Australia", "Kings Park sul fiume Swan"]},
-    {"target": "AUCKLAND", "indizi": ["Oceania", "Nuova Zelanda", "Sky Tower"]},
-    {"target": "HONOLULU", "indizi": ["Oceania", "Stati Uniti", "Spiaggia di Waikiki"]},
-    {"target": "MALE", "indizi": ["Asia", "Maldive", "Isola capitale e atolli turistici"]},
-    {"target": "NASSAU", "indizi": ["America del Nord", "Bahamas", "Resort di Paradise Island"]}
-]
-
-# --- DATABASE 100 SPORTIVI ---
-QUIZ_SPORTIVI_DB = [
-    {"target": "FEDERER", "indizi": ["Tennis", "Svizzera", "Elegante re dell'erba di Londra."]},
-    {"target": "NADAL", "indizi": ["Tennis", "Spagna", "Dominatore imbattibile sulla terra rossa."]},
-    {"target": "DJOKOVIC", "indizi": ["Tennis", "Serbia", "Risposta imbattibile e record di titoli Slam."]},
-    {"target": "SINNER", "indizi": ["Tennis", "Italia", "Colpi potenti da fondo per conquistar la cima del ranking."]},
-    {"target": "SERENA WILLIAMS", "indizi": ["Tennis", "Stati Uniti", "Potenza devastante con 23 Slam vinti."]},
-    {"target": "ALCARAZ", "indizi": ["Tennis", "Spagna", "Prodigio capace di vincere Slam su ogni superficie da giovanissimo."]},
-    {"target": "BERRETTINI", "indizi": ["Tennis", "Italia", "Servizio e dritto che lo hanno portato in finale sul manto erboso inglese."]},
-    {"target": "PANATTA", "indizi": ["Tennis", "Italia", "Icona degli anni '70 vincitore a Parigi e in Coppa Davis."]},
-    {"target": "PIETRANGELI", "indizi": ["Tennis", "Italia", "Leggenda azzurra del passato sulla terra battuta."]},
-    {"target": "AGASSI", "indizi": ["Tennis", "Stati Uniti", "Trasformato da ribelle a campione di tutti e quattro gli Slam."]},
-    {"target": "SAMPRAS", "indizi": ["Tennis", "Stati Uniti", "Servizio e volée d'acciaio prima dell'era dei Big Three."]},
-    {"target": "BORG", "indizi": ["Tennis", "Svezia", "L'Uomo di Ghiaccio che dominava negli anni settanta."]},
-    {"target": "MCENROE", "indizi": ["Tennis", "Stati Uniti", "Mancino geniale celebre per i continui litigi con gli arbitri."]},
-    {"target": "SHARAPOVA", "indizi": ["Tennis", "Russia", "Urlo inconfondibile durante il colpo e trionfo a Wimbledon da teenager."]},
-    {"target": "GRAF", "indizi": ["Tennis", "Germania", "L'unica capace di completare il Golden Slam nello stesso anno."]},
-    {"target": "SCHUMACHER", "indizi": ["Formula 1", "Germania / Ferrari", "L'era rossa dei cinque titoli mondiali consecutivi."]},
-    {"target": "HAMILTON", "indizi": ["Formula 1", "Regno Unito / Mercedes", "Sette titoli mondiali sulla monoposto numero 44."]},
-    {"target": "SENNA", "indizi": ["Formula 1", "Brasile / McLaren", "Talento puro e maestro assoluto del giro secco e della pioggia."]},
-    {"target": "VERSTAPPEN", "indizi": ["Formula 1", "Olanda / Red Bull", "Olandese volante dominatore della F1 moderna."]},
-    {"target": "LECLERC", "indizi": ["Formula 1", "Monaco / Ferrari", "Il Predestinato beniamino del pubblico di Maranello."]},
-    {"target": "LAUDA", "indizi": ["Formula 1", "Austria / Ferrari", "Il ritorno miracoloso in pista dopo il rogo del Nürburgring."]},
-    {"target": "PROST", "indizi": ["Formula 1", "Francia / McLaren", "Detto Il Professore per la sua guida tattica e calcolata."]},
-    {"target": "ALONSO", "indizi": ["Formula 1", "Spagna / Renault", "Due volte campione capace di duellare in F1 in tre decenni diversi."]},
-    {"target": "RAIKKONEN", "indizi": ["Formula 1", "Finlandia / Ferrari", "Iceman, l'ultimo pilota a vincere il titolo con la Rossa."]},
-    {"target": "VILLENEUVE", "indizi": ["Formula 1", "Canada / Ferrari", "Guida generosa e spericolata entrata nel cuore dei tifosi."]},
-    {"target": "VALENTINO ROSSI", "indizi": ["MotoGP", "Italia / Yamaha e Honda", "Il numero 46 giallo con nove titoli mondiali."]},
-    {"target": "AGOSTINI", "indizi": ["Motociclismo", "Italia / MV Agusta", "Il pilota più titolato della storia con 15 mondiali."]},
-    {"target": "MARQUEZ", "indizi": ["MotoGP", "Spagna / Honda", "Piegate estreme salvando le cadute con il gomito a terra."]},
-    {"target": "BAGNAIA", "indizi": ["MotoGP", "Italia / Ducati", "Campione del mondo riportando la moto italiana in cima."]},
-    {"target": "SIMONCELLI", "indizi": ["MotoGP", "Italia / Honda", "Il numero 58 dal grande cuore e la chioma inconfondibile."]},
-    {"target": "STONER", "indizi": ["MotoGP", "Australia / Ducati", "L'unico capace di domare la Desmosedici nei primi anni 2000."]},
-    {"target": "BIAGGI", "indizi": ["Motociclismo", "Italia / Aprilia", "Il Corsaro, quattro volte iridato nella classe 250."]},
-    {"target": "LORENZO", "indizi": ["MotoGP", "Spagna / Yamaha", "Martello dallo stile di guida pulitissimo e preciso."]},
-    {"target": "DOVIZIOSO", "indizi": ["MotoGP", "Italia / Ducati", "I duelli fino all'ultima staccata contro il numero 93."]},
-    {"target": "JORDAN", "indizi": ["Basket", "Stati Uniti / Chicago Bulls", "Il numero 23 per eccellenza e la capacità di volare a canestro."]},
-    {"target": "KOBE BRYANT", "indizi": ["Basket", "Stati Uniti / Los Angeles Lakers", "Black Mamba e gli 81 punti segnati in una sola partita."]},
-    {"target": "LEBRON JAMES", "indizi": ["Basket", "Stati Uniti / Lakers", "Il miglior marcatore della storia della lega americana."]},
-    {"target": "STEPHEN CURRY", "indizi": ["Basket", "Stati Uniti / Golden State", "Ha cambiato la pallacanestro segnando continuamente da tre punti."]},
-    {"target": "SHAQUILLE O'NEAL", "indizi": ["Basket", "Stati Uniti / Los Angeles Lakers", "Il centro più fisicamente dominante vicino al tabellone."]},
-    {"target": "MAGIC JOHNSON", "indizi": ["Basket", "Stati Uniti / Los Angeles Lakers", "I passaggi no-look che hanno inventato lo Showtime."]},
-    {"target": "LARRY BIRD", "indizi": ["Basket", "Stati Uniti / Boston Celtics", "Tiro mortifero e leggendaria rivalità con i Lakers anni '80."]},
-    {"target": "ANTETOKOUNMPO", "indizi": ["Basket", "Grecia / Milwaukee Bucks", "Greek Freak dalle falcate infinite da un canestro all'altro."]},
-    {"target": "DONCIC", "indizi": ["Basket", "Slovenia / Dallas Mavericks", "Il talento europeo capace di dominare in America senza sforzo apparente."]},
-    {"target": "BELINELLI", "indizi": ["Basket", "Italia / San Antonio Spurs", "Primo ed unico italiano ad aver vinto un titolo NBA."]},
-    {"target": "GALLINARI", "indizi": ["Basket", "Italia", "Lungo percorso d'élite oltreoceano con la maglia azzurra nel cuore."]},
-    {"target": "POZZECCO", "indizi": ["Basket", "Italia / Varese e Milano", "Mossa del Mosca, playmaker estroso diventato allenatore."]},
-    {"target": "MENEGHIN", "indizi": ["Basket", "Italia / Varese e Milano", "Il gigante pilastro della pallacanestro italiana del passato."]},
-    {"target": "JOKIC", "indizi": ["Basket", "Serbia / Denver Nuggets", "Il centro serbo che sforna assist e triple doppie a ripetizione."]},
-    {"target": "TOMBA", "indizi": ["Sci Alpino", "Italia", "Tomba la Bomba, l'uomo che fermava l'Italia per lo slalom."]},
-    {"target": "GOGGIA", "indizi": ["Sci Alpino", "Italia", "Discesista grintosa e senza paura sulle piste più ripide."]},
-    {"target": "BRIGNONE", "indizi": ["Sci Alpino", "Italia", "Prima azzurra a conquistar la Coppa del Mondo generale."]},
-    {"target": "PELLEGRINI", "indizi": ["Nuoto", "Italia", "La Divina regina dei 200 metri stile libero per oltre 15 anni."]},
-    {"target": "PHELPS", "indizi": ["Nuoto", "Stati Uniti", "Lo squalo di Baltimora con 28 medaglie olimpiche sul collo."]},
-    {"target": "PALTRINIERI", "indizi": ["Nuoto", "Italia", "Re della resistenza nei 1500 metri in vasca e nelle acque libere."]},
-    {"target": "CECCON", "indizi": ["Nuoto", "Italia", "Dorsista veneto e recordman mondiale nei 100 metri."]},
-    {"target": "LEDECKY", "indizi": ["Nuoto", "Stati Uniti", "Imbattibile nelle lunghe distanze dello stile libero femminile."]},
-    {"target": "BOLT", "indizi": ["Atletica Leggera", "Giamaica", "L'uomo più veloce di sempre e l'esultanza a forma di fulmine."]},
-    {"target": "JACOBS", "indizi": ["Atletica Leggera", "Italia", "Il lampo azzurro che ha conquistato l'oro nei 100 metri a Tokyo."]},
-    {"target": "TAMBERI", "indizi": ["Atletica Leggera", "Italia", "Spettacolo nel salto in alto con la barba tagliata a metà."]},
-    {"target": "MENNEA", "indizi": ["Atletica Leggera", "Italia", "La Freccia del Sud recordman nei 200 metri per ben 17 anni."]},
-    {"target": "CARL LEWIS", "indizi": ["Atletica Leggera", "Stati Uniti", "Il Figlio del Vento oro nella corsa e nel salto in lungo."]},
-    {"target": "SIMEONI", "indizi": ["Atletica Leggera", "Italia", "Icona del salto in alto e medaglia d'oro a Mosca 1980."]},
-    {"target": "DUPLANTIS", "indizi": ["Atletica Leggera", "Svezia", "Supera regolarmente il proprio record del mondo nel salto con l'asta."]},
-    {"target": "FIONA MAY", "indizi": ["Atletica Leggera", "Italia", "Saltatrice in lungo vincitrice di due titoli mondiali."]},
-    {"target": "ZAYTSEV", "indizi": ["Pallavolo", "Italia", "Il Loong, battute al fulmine ed iconico opposto della Nazionale."]},
-    {"target": "GIANNELLI", "indizi": ["Pallavolo", "Italia", "Regista e capitano trascinatore dell'Italia campione del mondo."]},
-    {"target": "EGONU", "indizi": ["Pallavolo", "Italia", "Schiacciate ad altezze siderali e potenza d'attacco devastante."]},
-    {"target": "GIANI", "indizi": ["Pallavolo", "Italia", "Pilastro della Generazione di Fenomeni degli anni '90."]},
-    {"target": "BERNARDI", "indizi": ["Pallavolo", "Italia", "Eletto Miglior giocatore del secolo dalla Federazione."]},
-    {"target": "PANTANI", "indizi": ["Ciclismo", "Italia", "Il Pirata dallo scatto secco sulle grandi salite del Giro e del Tour."]},
-    {"target": "NIBALI", "indizi": ["Ciclismo", "Italia", "Lo Squalo dello Stretto vincitore di tutti e tre i Grandi Giri."]},
-    {"target": "POGACAR", "indizi": ["Ciclismo", "Slovenia", "Il giovane fenomeno dominatore delle corse a tappe e delle classiche."]},
-    {"target": "BARTALI", "indizi": ["Ciclismo", "Italia", "Il grande rivale di Coppi, famoso anche per aver salvato molte vite."]},
-    {"target": "COPPI", "indizi": ["Ciclismo", "Italia", "Il Campionissimo e il celebre passaggio di borraccia con il rivale."]}
 ]
 
 # --- DATABASE 100 PILOTI FORMULA 1 ---
@@ -756,6 +574,526 @@ QUIZ_MARVEL_DB = [
     {"target": "MORBIUS", "indizi": ["Marvel", "Aspetto da pipistrello umano e sete di sangue", "Lo scienziato affetto da una rara malattia del sangue diventato un vampiro vivente."]}
 ]
 
+# --- DATABASE 100 PAESI DEL MONDO ---
+QUIZ_PAESI_DB = [
+    {"target": "ITALIA", "indizi": ["Europa", "Roma", "La patria della pizza, del Rinascimento e del Colosseo."]},
+    {"target": "FRANCIA", "indizi": ["Europa", "Parigi", "Famosa per la Torre Eiffel, i formaggi pregiati ed i musei d'arte d'élite."]},
+    {"target": "SPAGNA", "indizi": ["Europa", "Madrid", "Terra della paella, del flamenco e delle serate di movida."]},
+    {"target": "GERMANIA", "indizi": ["Europa", "Berlino", "Famosa per l'Oktoberfest, i bratwurst e le autostrade senza limiti di velocità."]},
+    {"target": "REGNO UNITO", "indizi": ["Europa", "Londra", "La patria del tè delle cinque, dei bus rossi a due piani e della monarchia."]},
+    {"target": "GRECIA", "indizi": ["Europa", "Atene", "Culla della democrazia antica, dei templi sull'Acropoli e delle isole dalle case bianche e blu."]},
+    {"target": "PAESI BASSI", "indizi": ["Europa", "Amsterdam", "Famosi per i mulini a vento, i campi di tulipani e le biciclette sui canali."]},
+    {"target": "PORTOGALLO", "indizi": ["Europa", "Lisbona", "Terra del Fado, dei famosi dolcetti al cream (Pastéis) e del punto più ad ovest d'Europa."]},
+    {"target": "SVIZZERA", "indizi": ["Europa", "Berna", "Famosa per gli orologi di precisione, la cioccolata raffinata e la neutralità storica."]},
+    {"target": "AUSTRIA", "indizi": ["Europa", "Vienna", "Patria della musica classica di Mozart, dei valzer e della torta Sacher."]},
+    {"target": "BELGIO", "indizi": ["Europa", "Bruxelles", "Famoso per i waffle croccanti, le birre artigianali, il cioccolato e i fumetti."]},
+    {"target": "IRLANDA", "indizi": ["Europa", "Dublino", "L'isola di trifogli verdi, della festa di San Patrizio e della birra scura Stout."]},
+    {"target": "SVEZIA", "indizi": ["Europa", "Stoccolma", "Patria del gruppo pop ABBA, dei mobili da montare a casa e delle polpette di carne."]},
+    {"target": "NORVEGIA", "indizi": ["Europa", "Oslo", "Famosa per i maestosi fiordi scavati dai ghiacciai e le luci dell'aurora boreale."]},
+    {"target": "DANIMARCA", "indizi": ["Europa", "Copenaghen", "Patria dei mattoncini colorati giocattolo e della sirenetta affacciata sul porto."]},
+    {"target": "FINLANDIA", "indizi": ["Europa", "Helsinki", "Terra dei mille laghi, della sauna tradizionale e del villaggio di Babbo Natale."]},
+    {"target": "POLONIA", "indizi": ["Europa", "Varsavia", "Patria di Papa Giovanni Paolo II, di Chopin e dei famosi ravioli bolliti (Pierogi)."]},
+    {"target": "REPUBBLICA CECA", "indizi": ["Europa", "Praga", "Famosa per le piazze medievali, i castelli fiabeschi e il consumo record di birra."]},
+    {"target": "UNGHERIA", "indizi": ["Europa", "Budapest", "Terra del gulash speziato e dei celebri complessi termali lungo il Danubio."]},
+    {"target": "ROMANIA", "indizi": ["Europa", "Bucarest", "Famosa per le foreste della Transilvania e le leggende legate al re dei vampiri."]},
+    {"target": "UCRAINA", "indizi": ["Europa", "Kiev", "Patria del piatto di zuppa di barbabietole (Borscht) e delle immense distese di girasoli."]},
+    {"target": "RUSSIA", "indizi": ["Europa / Asia", "Mosca", "Famosa per le piazze d'inverno, la vodka, i colbacco e le cattedrali a cupole colorate."]},
+    {"target": "ISLANDA", "indizi": ["Europa", "Reykjavík", "La terra del ghiaccio e del fuoco, famosa per i geyser e i vulcani attivi."]},
+    {"target": "CROAZIA", "indizi": ["Europa", "Zagabria", "Famosa per i parchi naturali di laghi e le meravigliose coste frastagliate sull'Adriatico."]},
+    {"target": "TURCHIA", "indizi": ["Europa / Asia", "Ankara", "Terra del caffè forte, dei bagni turchi e del passaggio tra i due continenti."]},
+    {"target": "ALBANIA", "indizi": ["Europa", "Tirana", "Nazione delle aquile, famosa per i bunker diffusi e le spiagge incontaminate della riviera."]},
+    {"target": "SERBIA", "indizi": ["Europa", "Belgrado", "Cuore dei Balcani sul Danubio, famosa per la vita notturna sui fiumi e l'ospitalità."]},
+    {"target": "MALTA", "indizi": ["Europa", "La Valletta", "Piccola isola al centro del Mediterraneo ricca di storia dei cavalieri e mare cristallino."]},
+    {"target": "CIPRO", "indizi": ["Europa", "Nicosia", "L'isola mitologica nascita della dea Venere, divisa da un confine al centro della capitale."]},
+    {"target": "SLOVACCHIA", "indizi": ["Europa", "Bratislava", "Nazione dell'Europa centrale famosa per i suoi numerosi castelli medievali e le montagne Tatra."]},
+    {"target": "GIAPPONE", "indizi": ["Asia", "Tokyo", "Patria del sushi, degli anime, dei ciliegi in fiore e dei treni proiettile ad alta velocità."]},
+    {"target": "CINA", "indizi": ["Asia", "Pechino", "Famosa per la Grande Muraglia, la cittadella imperiale e i panda giganti."]},
+    {"target": "INDIA", "indizi": ["Asia", "Nuova Delhi", "Famosa per il mausoleo di marmo bianco, il curry spunzo, lo yoga e il fiume Gange."]},
+    {"target": "COREA DEL SUD", "indizi": ["Asia", "Seul", "Famosa per la musica K-Pop, le serie drama e il piatto fermentato Kimchi."]},
+    {"target": "THAILANDIA", "indizi": ["Asia", "Bangkok", "La terra dei sorrisi, dei templi dorati del Buddha e dello street food speziato."]},
+    {"target": "VIETNAM", "indizi": ["Asia", "Hanoi", "Famoso per i cappelli di paglia conici, la baia di isole calcaree e le zuppe Pho."]},
+    {"target": "INDONESIA", "indizi": ["Asia", "Giacarta", "L'immenso arcipelago famoso per l'isola di Bali, i vulcani ed i draghi di Komodo."]},
+    {"target": "FILIPPINE", "indizi": ["Asia", "Manila", "Arcipelago tropicale di oltre 7.000 isole famoso per le barriere coralline ed i jeepney colorati."]},
+    {"target": "MALESIA", "indizi": ["Asia", "Kuala Lumpur", "Famosa per le torri gemelle più alte del mondo ed il mix di culture e foreste pluviali."]},
+    {"target": "SINGAPORE", "indizi": ["Asia", "Singapore", "La città-stato futuristica famosa per i giardini con super-alberi e la massima pulizia."]},
+    {"target": "MALDIVE", "indizi": ["Asia", "Malé", "Famoso paradiso tropicale composto da atolli corallini e bungalow palafitta sull'acqua."]},
+    {"target": "NEPAL", "indizi": ["Asia", "Katmandu", "La terra delle vette dell'Himalaya, dell'Everest e delle bandiere di preghiera colorate."]},
+    {"target": "SRI LANKA", "indizi": ["Asia", "Sri Jayawardenepura Kotte", "L'isola a forma di lacrima famosa per le piantagioni di tè Ceylon e gli elefanti selvatici."]},
+    {"target": "EMIRATI ARABI UNITI", "indizi": ["Asia", "Abu Dhabi", "Famosi per i grattacieli futuristici nel deserto, il lusso sfrenato e la torre più alta del mondo."]},
+    {"target": "ARABIA SAUDITA", "indizi": ["Asia", "Riad", "Il regno del deserto custodiente i luoghi più sacri dell'Islam e le città moderne in espansione."]},
+    {"target": "QATAR", "indizi": ["Asia", "Doha", "Ricco stato peninsulare del Golfo, ospite dei mondiali di calcio del 2022 nel deserto."]},
+    {"target": "ISRAELE", "indizi": ["Asia", "Gerusalemme", "Famoso per la Città Santa per tre grandi religioni e le acque ipersalate del Mar Morto."]},
+    {"target": "GIORDANIA", "indizi": ["Asia", "Amman", "Terra del deserto del Wadi Rum e dell'antica città scolpita nella roccia rosa (Petra)."]},
+    {"target": "LIBANO", "indizi": ["Asia", "Beirut", "Famoso per gli alberi di cedro sulla bandiera ed la rinomata cucina mediterranea mediorientale."]},
+    {"target": "IRAN", "indizi": ["Asia", "Teheran", "L'antica Persia famosa per i tappeti pregiati, le moschee di piastrelle blu e la poesia."]},
+    {"target": "PAKISTAN", "indizi": ["Asia", "Islamabad", "Nazione asiatica dominata dalle imponenti catene del Karakoram e dal picco K2."]},
+    {"target": "MONGOLIA", "indizi": ["Asia", "Ulan Bator", "La terra delle steppe sconfinate, dei nomadi, delle tende ger ed i cavalli selvatici."]},
+    {"target": "KAZAKISTAN", "indizi": ["Asia", "Astana", "L'immenso stato transcontinental dell'Asia centrale ricco di risorse e steppe sconfinate."]},
+    {"target": "CAMBOGIA", "indizi": ["Asia", "Phnom Penh", "Famosa per l'immenso complesso di templi religiosi nella giungla (Angkor Wat)."]},
+    {"target": "UZBEKISTAN", "indizi": ["Asia", "Tashkent", "Cuore dell'antica Via della Seta famoso per le piazze turchesi di Samarcanda."]},
+    {"target": "STATI UNITI", "indizi": ["America del Nord", "Washington D.C.", "La patria del fast food, dei film di Hollywood, dei grattacieli e delle 50 stelle sulla bandiera."]},
+    {"target": "CANADA", "indizi": ["America del Nord", "Ottawa", "Famoso per le foglie d'acero, lo sciroppo dolce, le cascate del Niagara ed il ghiaccio."]},
+    {"target": "MESSICO", "indizi": ["America del Nord", "Città del Messico", "Patria dei taco, del tequila, della musica mariachi e delle piramidi Maya."]},
+    {"target": "CUBA", "indizi": ["America del Nord (Caraibi)", "L'Avana", "L'isola dei sigari fatti a mano, delle auto d'epoca colorate ed il ritmo della salsa."]},
+    {"target": "GIAMAICA", "indizi": ["America del Nord (Caraibi)", "Kingston", "Patria della musica Reggae, del velocista Usain Bolt e dei colori verde, giallo e nero."]},
+    {"target": "REPUBBLICA DOMINICANA", "indizi": ["America del Nord (Caraibi)", "Santo Domingo", "Famosa per le spiagge caraibiche di sabbia bianca, il merengue ed i resort."]},
+    {"target": "BAHAMAS", "indizi": ["America del Nord (Caraibi)", "Nassau", "Arcipelago caraibico famoso per il mare trasparente e le maialini che nuotano in spiaggia."]},
+    {"target": "PANAMA", "indizi": ["America del Nord (Centramerica)", "Città di Panama", "Famoso per l'ingegneristico canale artificiale che collega i due grandi oceani."]},
+    {"target": "COSTA RICA", "indizi": ["America del Nord (Centramerica)", "San José", "Nazione pioniera dell'ecoturismo, celebre per la biodiversità e lo stile di vita Pura Vida."]},
+    {"target": "GUATEMALA", "indizi": ["America del Nord (Centramerica)", "Città del Guatemala", "Terra dai vulcani attivi, mercati indigeni colorati ed antiche rovine Maya."]},
+    {"target": "HONDURAS", "indizi": ["America del Nord (Centramerica)", "Tegucigalpa", "Nazione centroamericana famosa per le rovine Maya di Copán ed il barriera corallina."]},
+    {"target": "HAITI", "indizi": ["America del Nord (Caraibi)", "Port-au-Prince", "Prima repubblica nera indipendente al mondo, famosa per la vivace arte caraibica."]},
+    {"target": "EL SALVADOR", "indizi": ["America del Nord (Centramerica)", "San Salvador", "Piccola nazione costiera famosa tra i surfer per le onde perfette ed i vulcani."]},
+    {"target": "NICARAGUA", "indizi": ["America del Nord (Centramerica)", "Managua", "La terra dei laghi e dei vulcani, famosa per il vulcano dove si pratica il volcano boarding."]},
+    {"target": "BARBADOS", "indizi": ["America del Nord (Caraibi)", "Bridgetown", "Isola caraibica patria del rum e della cantante pop globale Rihanna."]},
+    {"target": "BRASILE", "indizi": ["America del Sud", "Brasilia", "La patria del carnevale di Rio, del calcio baiano, della samba e della foresta Amazzonica."]},
+    {"target": "ARGENTINA", "indizi": ["America del Sud", "Buenos Aires", "Terra del ballo del tango, della carne asado, della Pampa e di Maradona e Messi."]},
+    {"target": "COLOMBIA", "indizi": ["America del Sud", "Bogotà", "Famosa per il caffè di altissima qualità, le smeraldi e la musica cumbia."]},
+    {"target": "PERU", "indizi": ["America del Sud", "Lima", "Patria dell'antica civiltà Inca, del piatto marinato Ceviche e della fortezza tra le montagne."]},
+    {"target": "CILE", "indizi": ["America del Sud", "Santiago del Cile", "Lo stretto paese lunghissimo tra la catena delle Ande e l'Oceano Pacifico."]},
+    {"target": "VENEZUELA", "indizi": ["America del Sud", "Caracas", "Famoso per la cascata più alta del mondo (Salto Angel) ed i successi nei concorsi di bellezza."]},
+    {"target": "URUGUAY", "indizi": ["America del Sud", "Montevideo", "Piccola nazione sudamericana famosa per il mate, le spiagge ed i due titoli mondiali di calcio antichi."]},
+    {"target": "ECUADOR", "indizi": ["America del Sud", "Quito", "Deve il nome alla linea immaginaria che divide la Terra e possiede le isole Galápagos."]},
+    {"target": "BOLIVIA", "indizi": ["America del Sud", "Sucre / La Paz", "Famosa per il deserto di sale più grande del mondo (Salar de Uyuni) e la cultura andina."]},
+    {"target": "PARAGUAY", "indizi": ["America del Sud", "Asunción", "Nazione dell'interno sudamericano famosa per la lingua guaraní ed l'infuso di erba mate freddo."]},
+    {"target": "SURINAME", "indizi": ["America del Sud", "Paramaribo", "Unica nazione dell'America del Sud in cui la lingua ufficiale è l'olandese."]},
+    {"target": "GUYANA", "indizi": ["America del Sud", "Georgetown", "Piccolo stato coperto per gran parte da foreste vergini e la maestosa cascata Kaieteur."]},
+    {"target": "EGITTO", "indizi": ["Africa", "Il Cairo", "La terra dei faraoni, delle piramidi di pietra, della Sfinge e del lungo fiume Nilo."]},
+    {"target": "MAROCCO", "indizi": ["Africa", "Rabat", "Famoso per i mercati delle spezie nelle medine, il tè alla menta ed il deserto del Sahara."]},
+    {"target": "SUDAFRICA", "indizi": ["Africa", "Pretoria", "Nazione arcobaleno celebre per i safari nei parchi, il Capo di Buona Speranza ed i tre capitali."]},
+    {"target": "KENYA", "indizi": ["Africa", "Nairobi", "Famoso per le corse dei maratoneti, la grande migrazione di animali ed il monte innevato."]},
+    {"target": "TANZANIA", "indizi": ["Africa", "Dodoma", "Terra della vetta più alta d'Africa (Kilimangiaro), del Parco Serengeti e delle spiagge di Zanzibar."]},
+    {"target": "NIGERIA", "indizi": ["Africa", "Abuja", "Il gigante demografico africano, famoso per l'industria cinematografica Nollywood e la musica Afrobeats."]},
+    {"target": "SENEGAL", "indizi": ["Africa", "Dakar", "Famoso per la leggendaria gara di rally del passato, l'ospitalità Teranga ed il piatto di riso e pesce."]},
+    {"target": "MADAGASCAR", "indizi": ["Africa", "Antananarivo", "L'enorme isola oceano-africana famosa per gli alberi baobab ed i lemuri unici al mondo."]},
+    {"target": "ETIOPIA", "indizi": ["Africa", "Addis Abeba", "Considerata la culla dell'umanità e patria d'origine della pianta del caffè."]},
+    {"target": "TUNISIA", "indizi": ["Africa", "Tunisi", "Famosa per le rovine dell'antica Cartagine, i villaggi bianchi e blu ed il deserto set cinematografico."]},
+    {"target": "ALGERIA", "indizi": ["Africa", "Algeri", "Il Paese più grande d'Africa, dominato per oltre l'80% dalle dune del deserto del Sahara."]},
+    {"target": "GHANA", "indizi": ["Africa", "Accra", "Famoso per essere stato la Costa d'Oro, grande produttore di cacao ed il tessuto colorato Kente."]},
+    {"target": "CAMERUN", "indizi": ["Africa", "Yaoundé", "Nazione detta Africa in miniatura per la varietà di paesaggi e per le Ioni Indomabili del calcio."]},
+    {"target": "COSTA D'AVORIO", "indizi": ["Africa", "Yamoussoukro", "Il maggior produttore mondiale di cacao, famoso per le foreste tropicali e grandi campioni di calcio."]},
+    {"target": "UGANDA", "indizi": ["Africa", "Kampala", "Detto La perla d'Africa da Churchill, celebre per i gorilla di montagna ed le sorgenti del Nilo."]},
+    {"target": "AUSTRALIA", "indizi": ["Oceania", "Canberra", "La terra dei canguri, dei koala, del teatro dell'Opera di Sydney e del grande deserto Outback."]},
+    {"target": "NUOVA ZELANDA", "indizi": ["Oceania", "Wellington", "Patria del popolo Maori, degli uccelli Kiwi, della squadra di rugby degli All Blacks ed i paesaggi del Signore degli Anelli."]},
+    {"target": "FIJI", "indizi": ["Oceania", "Suva", "Arcipelago dell'Oceano Pacifico famoso per i fondali corallini, le camicie colorate ed il rito della bevanda Kava."]}
+]
+
+# --- DATABASE 100 ANIME & MANGA ---
+QUIZ_ANIME_DB = [
+    {"target": "DRAGON BALL", "indizi": ["Shonen / Anni '80-'90", "Sette sfere magiche e aure dorate", "Un guerriero con la coda di scimmia cerca le sfere e si allena per diventare il più forte dell'universo."]},
+    {"target": "ONE PIECE", "indizi": ["Shonen / Avventura", "Frutto del diavolo di gomma", "Un ragazzo dal cappello di paglia naviga con la sua ciurma per diventare il Re dei Pirati."]},
+    {"target": "NARUTO", "indizi": ["Shonen / Ninja", "Volpe a nove code sigillata nella pancia", "Un ninja emarginato sogna di farsi accettare da tutti diventando Hokage del suo villaggio."]},
+    {"target": "L'ATTACCO DEI GIGANTI", "indizi": ["Seinen / Dark Fantasy", "Mura giganti e dispositivo di manovra tridimensionale", "L'umanità vive reclusa per proteggersi da enormi mostri umanoidi che divorano le persone."]},
+    {"target": "DEATH NOTE", "indizi": ["Thriller / Soprannaturale", "Quaderno nero della morte", "Uno studente prodigio trova un taccuino di uno Shinigami e inizia a giustiziare i criminali del mondo."]},
+    {"target": "DEMON SLAYER", "indizi": ["Shonen / Azione", "Spada Nichirin e tecniche di respirazione", "Un ragazzo viaggia con la sorella trasformata in demone per trovare una cura e vendicare la famiglia."]},
+    {"target": "MY HERO ACADEMIA", "indizi": ["Shonen / Supereroi", "Un potere unico tramandato di generazione in generazione", "In un mondo dove quasi tutti hanno superpoteri, un ragazzo nato normale studia nel liceo degli eroi."]},
+    {"target": "JUJUTSU KAISEN", "indizi": ["Shonen / Dark Fantasy", "Dita maledette ingoiate e tecniche d'energia nera", "Un liceale ingoia un amuleto maledetto e si iscrive alla scuola di stregoneria per contenere un demone antico."]},
+    {"target": "POKEMON", "indizi": ["Avventura / Fantastico", "Sfera Poké rossa e bianca", "Un allenatore di Biancavilla viaggia per tutte le regioni insieme alla sua fidata cavia elettrica gialla."]},
+    {"target": "DETECTIVE CONAN", "indizi": ["Giallo / Mistero", "Veleno che rimpicciolisce il corpo", "Un celebre detective liceale torna bambino a causa di una sostanza chimica e risolve casi sotto falsa identità."]},
+    {"target": "LUPIN III", "indizi": ["Azione / Commedia", "Giacca colorata e pistola Walther P38", "Il ladro gentiluomo più famoso del mondo sfugge continuamente all'ispettore Zenigata."]},
+    {"target": "NEON GENESIS EVANGELION", "indizi": ["Mecha / Psicologico", "Robot giganti biologici guidati da piloti adolescenti", "Tre ragazzi pilotano enormi unità biomeccaniche per difendere la Terra dall'attacco degli 'Angeli'."]},
+    {"target": "FULLMETAL ALCHEMIST", "indizi": ["Shonen / Fantasy", "Trasmutazione alchemica e braccio d'acciaio", "Due fratelli cercano la Pietra Filosofale per riavere i corpi persi dopo un rituale proibito."]},
+    {"target": "HUNTER X HUNTER", "indizi": ["Shonen / Avventura", "Licenza da Hunter ed energia Nen", "Un ragazzino affronta un esame difficilissimo per trovare il padre diventato un celebre cacciatore."]},
+    {"target": "TOKYO GHOUL", "indizi": ["Dark Fantasy / Horror", "Maschera da canino e tentacoli organici", "Dopo un trapianto d'organi, un universitario diventa un ibrido costretto a nutrirsi di carne umana."]},
+    {"target": "SAILOR MOON", "indizi": ["Majokko / Shojo", "Spettro di luna e trasformazione con lo scettro", "Una studentessa goffa scopre di essere la guerriera della luna destinata a proteggere la Terra."]},
+    {"target": "CREAMY", "indizi": ["Majokko / Anni '80", "Bacchetta magica e doppia identità da cantante", "Una bambina riceve il potere di trasformarsi per un anno in una bellissima popstar di successo."]},
+    {"target": "HOLLY E BENJI", "indizi": ["Sportivo / Calcio", "Campi di gioco infiniti e tiri ad effetto", "Un prodigio del pallone sogna di portare la propria nazionale ai Mondiali partendo dal torneo scolastico."]},
+    {"target": "KEN IL GUERRIERO", "indizi": ["Azione / Post-apocalittico", "Punti di pressione che fanno esplodere gli avversari", "Il successore di una scuola marziale vaga in un mondo devastato dalla guerra atomica."]},
+    {"target": "I CAVALIERI DELLO ZODIACO", "indizi": ["Shonen / Mitologico", "Armature d'oro legate alle costellazioni", "Guerrieri devoti alla dea Atena combattono le forze del male bruciando il proprio cosmo."]},
+    {"target": "ONE PUNCH MAN", "indizi": ["Azione / Satirico", "Mantello bianco e pugno unico risolutivo", "Un eroe per hobby è così forte da sconfiggere qualsiasi mostro con un solo colpo, cadendo nella noia."]},
+    {"target": "BLEACH", "indizi": ["Shonen / Soprannaturale", "Spada Zanpakuto e veste nera da Shinigami", "Un liceale in grado di vedere gli spiriti riceve i poteri di un Mietitore d'Anime."]},
+    {"target": "CHAINSAW MAN", "indizi": ["Dark Fantasy / Splatter", "Motosega che esce dalla testa e dalle braccia", "Un ragazzo fuso con il suo diavolo-cane si arruola nella caccia ai demoni per la pubblica sicurezza."]},
+    {"target": "JOJO", "indizi": ["Shonen / Azione", "Evocazioni spirituali chiamate Stand", "Le generazioni di una specifica stirpe familiare combattono minacce soprannaturali."]},
+    {"target": "SLAM DUNK", "indizi": ["Sportivo / Basket", "Capelli rossi da teppista", "Un teppista di liceo si iscrive al club di pallacanestro solo per impressionare la ragazza che gli piace."]},
+    {"target": "YU-GI-OH!", "indizi": ["Shonen / Giochi", "Carte da gioco magiche e Puzzle del Millennio", "Un ragazzo ricompone un antico manufatto egizio ospitando lo spirito di un faraone."]},
+    {"target": "FAIRY TAIL", "indizi": ["Shonen / Fantasy", "Magia del drago di fuoco", "Una maga degli spiriti stellari si unisce alla gilda di maghi più casinista del regno."]},
+    {"target": "INUYASHA", "indizi": ["Fantasy / Storico", "Spada ricavata da una zanna e sfera dei quattro spiriti", "Una liceale finisce in un pozzo magico e viaggia nel Giappone feudale insieme a un mezzo demone-cane."]},
+    {"target": "CODE GEASS", "indizi": ["Mecha / Politico", "Occhio rosso con il potere del comando assoluto", "Un principe esiliato riceve un potere mentale e guida una ribellione in maschera."]},
+    {"target": "SWORD ART ONLINE", "indizi": ["Sci-Fi / VRMMO", "Visore di realtà virtuale mortale e due spade", "Migliaia di giocatori rimangono intrappolati in un videogioco dove morire nel gioco significa morire davvero."]},
+    {"target": "HAIKYUU!!", "indizi": ["Sportivo / Pallavolo", "Schiacciata ad altissima velocità e maglia nera numero 10", "Un piccolo schiacciatore e un alzatore geniale fanno rinascere la squadra del loro liceo."]},
+    {"target": "STEINS;GATE", "indizi": ["Sci-Fi / Thriller", "Microonde a banane e messaggi nel tempo", "Uno scienziato pazzo inventa per sbaglio un sistema per inviare messaggi nel passato."]},
+    {"target": "THE SEVEN DEADLY SINS", "indizi": ["Shonen / Fantasy", "Marchi animali sul corpo e oste di una taverna volante", "La principessa di un regno cerca i sette cavalieri leggendari per salvare il trono."]},
+    {"target": "MONSTER", "indizi": ["Thriller / Psicologico", "Chirurgo cerebrale e gemelli", "Un neurochirurgo salva la vita a un bambino che anni dopo si rivela essere un sociopatico spietato."]},
+    {"target": "BERSERK", "indizi": ["Dark Fantasy / Seinen", "Spada gigante chiamata Ammazzadraghi e marchio del sacrificio", "Un guerriero nero vaga in cerca di vendetta contro il suo ex migliore amico diventato demone."]},
+    {"target": "RANMA 1/2", "indizi": ["Commedia / Arti marziali", "Acqua fredda e calda per cambiare sesso", "Un ragazzo maledetto si trasforma in una ragazza se bagnato con acqua fredda."]},
+    {"target": "OCCHI DI GATTO", "indizi": ["Azione / Commedia", "Biglietto da visita rosa lasciata sui luoghi del furto", "Tre sorelle gestiscono un bar di giorno e rubano opere d'arte di notte per ritrovare il padre."]},
+    {"target": "E QUASI MAGIA JOHNNY", "indizi": ["Shojo / Commedia", "Cappello rosso e poteri ESP", "Un ragazzo dai poteri telecinetici si ritrova al centro di un triangolo amoroso."]},
+    {"target": "INAZUMA ELEVEN", "indizi": ["Sportivo / Fantastico", "Tecniche speciali di calcio elementari", "Il nipote di un celebre portiere recluta calciatori dai poteri fantastici."]},
+    {"target": "FATE/STAY NIGHT", "indizi": ["Fantasy / Azione", "Evocazione di spiriti eroici storici per il Santo Graal", "Sette maghi combattono insieme ai loro spiriti guerrieri per ottenere un calice magico."]},
+    {"target": "VINLAND SAGA", "indizi": ["Storico / Drammatico", "Pugnali da vichingo", "Un giovane guerriero norreno cerca di vendicare il padre ucciso arruolandosi nella banda dell'assassino."]},
+    {"target": "SPY X FAMILY", "indizi": ["Commedia / Spy", "Famiglia fittizia con spia, assassina e telepath", "Una spia crea una falsa famiglia con un'assassina e una bambina che legge nel pensiero."]},
+    {"target": "TOKYO REVENGERS", "indizi": ["Azione / Viaggi nel tempo", "Divisa da gang di motociclisti", "Un ragazzo torna indietro nel tempo ai tempi delle medie per salvare la sua ex fidanzata."]},
+    {"target": "BLACK CLOVER", "indizi": ["Shonen / Fantasy", "Grimoire con trifoglio a cinque foglie e spada anti-magia", "Un ragazzo privo di potere magico riceve un libro misterioso e punta a diventare Imperatore Magico."]},
+    {"target": "GINTAMA", "indizi": ["Commedia / Sci-Fi", "Spada di legno nel Giappone con invasori alieni", "Un samurai pigro gestisce un'agenzia di tuttofare in un'epoca feudale dominata da extraterrestri."]},
+    {"target": "ASSASSINATION CLASSROOM", "indizi": ["Shonen / Commedia", "Polpo giallo gigante che insegna a scuola", "Gli studenti di una classe polverosa devono assassinare il loro strano professore alieno."]},
+    {"target": "MOB PSYCHO 100", "indizi": ["Commedia / Soprannaturale", "Contatore percentuale dell'esplosione emotiva", "Un mediocre studente nasconde poteri psichici spaventosi che esplodono quando la rabbia arriva al 100%."]},
+    {"target": "FIRE FORCE", "indizi": ["Shonen / Azione", "Piedi di fuoco ed abiti da vigile del fuoco", "Speciali vigili del fuoco combattono contro persone che prendono spontaneamente fuoco."]},
+    {"target": "DR. STONE", "indizi": ["Sci-Fi / Avventura", "Formula chimica e pietrificazione globale", "Migliaia di anni dopo che l'umanità si è pietrificata, un ragazzo geniale usa la scienza per ricostruire la civiltà."]},
+    {"target": "BLUE LOCK", "indizi": ["Sportivo / Calcio", "Struttura d'allenamento isolata per egoisti", "Trecento giovani attaccanti vengono reclusi in una prigione sportiva per creare il centravanti più egoista."]},
+    {"target": "PARASYTE", "indizi": ["Horror / Sci-Fi", "Mano destra parlante che si trasforma in lame", "Parassiti alieni si insediano nei cervelli umani, ma uno si fonde solo con la mano del protagonista."]},
+    {"target": "PSYCHO-PASS", "indizi": ["Distopico / Sci-Fi", "Pistola Dominator che misura l'indice di criminalità", "In un futuro controllato da un sistema informatico, i poliziotti arrestano le persone prima che commettano reati."]},
+    {"target": "GURREN LAGANN", "indizi": ["Mecha / Sci-Fi", "Triangolo-occhiali da sole e trivella gigante", "Due fratelli adottivi scavano dalle caverne sotterranee fino alle stelle guidando un piccolo mecha."]},
+    {"target": "KILL LA KILL", "indizi": ["Azione / Ecchi", "Uniformi scolastiche viventi fatte di fibre da combattimento", "Una studentessa armata di mezza forbice gigante cerca l'assassino del padre."]},
+    {"target": "MADE IN ABYSS", "indizi": ["Fantasy / Drammatico", "Fischietto bianco ed un enorme voragine verticale", "Una ragazzina e un bambino-robot scendono nelle profondità di una voragine misteriosa."]},
+    {"target": "DORORO", "indizi": ["Storico / Dark Fantasy", "Protesi di legno con lame nascoste", "Un giovane guerriero senza organi combatte contro cinquantadue demoni per riprendersi il corpo."]},
+    {"target": "GTO", "indizi": ["Commedia", "Giacca di pelle e moto d'epoca", "Un ex teppista motociclista diventa insegnante di liceo applicando metodi non convenzionali."]},
+    {"target": "COWBOY BEBOP", "indizi": ["Sci-Fi / Noir", "Navetta spaziale Swordfish e sigaretta accesa", "Un gruppo di cacciatori di taglie viaggia nello spazio a bordo di una vecchia astronave."]},
+    {"target": "SAMURAI CHAMPLOO", "indizi": ["Storico / Hip-Hop", "Katana e mosse di breakdance", "Una ragazza ingaggia due samurai opposti per trovare un guerriero che profuma di girasoli."]},
+    {"target": "FLCL", "indizi": ["Sci-Fi / Surrealista", "Vespa gialla e chitarra Rickenbacker usata come mazza", "Un ragazzo si ritrova un corno in testa dopo essere stato investito da una strana donna aliena."]},
+    {"target": "TRIGUN", "indizi": ["Sci-Fi / Western", "Braccio meccanico trasformabile in cannone", "Un ricercato dalla taglia gigante viaggia in un pianeta deserto rifiutandosi di uccidere."]},
+    {"target": "HELLSING", "indizi": ["Horror / Azione", "Pistole sproporzionate e cappello rosso ad tesa larga", "Un vampiro primordiale lavora per un'organizzazione britannica che stermina i mostri della notte."]},
+    {"target": "DEVILMAN", "indizi": ["Horror / Dark Fantasy", "Trasformazione demoniaca mantenendo il cuore umano", "Un ragazzo puro si fonde con un demone supremo per combattere l'invasione delle creature infernali."]},
+    {"target": "YU DEGLI SPETTRI", "indizi": ["Shonen / Azione", "Pistola dello spirito sparata dall'indice", "Un teppista muore per salvare un bambino e diventa un detective del mondo spirituale."]},
+    {"target": "KENSHIN IL VAGABONDO", "indizi": ["Storico / Azione", "Spada con la lama invertita che non uccide", "Un ex assassino dell'era Meiji vaga per il Giappone proteggendo i deboli senza versare sangue."]},
+    {"target": "CITY HUNTER", "indizi": ["Azione / Commedia", "Martellone da 100 tonnellate scagliato sulla testa", "Un investigatore privato infallibile con le armi non sa resistere al fascino delle belle donne."]},
+    {"target": "MAISON IKKOKU", "indizi": ["Commedia / Romantico", "Grembiule da casa con pulcino", "Uno studente universitario perennemente bocciato si innamora della nuova giovane amministratrice."]},
+    {"target": "CAPITAN HARLOCK", "indizi": ["Sci-Fi", "Benda sull'occhio, teschio sul petto ed astronave nera", "Un pirata spaziale solitario difende la Terra da una minaccia aliena a bordo dell'Arcadia."]},
+    {"target": "GOLDRAKE", "indizi": ["Mecha / Anni '70", "Alabarda spaziale e maglio perforante", "Un principe alieno rifugiato sulla Terra pilota un gigantesco robot per difenderla dagli invasori."]},
+    {"target": "MAZINGA Z", "indizi": ["Mecha / Anni '70", "Raggi fotonici dagli occhi e pugni a reazione", "Un ragazzo guida dentro la testa di un gigante d'acciaio costruito dal nonno."]},
+    {"target": "DEVIL MAY CRY", "indizi": ["Azione / Fantasy", "Spada spadone e due pistole chiamate Ebony & Ivory", "Un cacciatore di demoni metà uomo e metà demone gestisce un'agenzia speciale."]},
+    {"target": "BAKI", "indizi": ["Sportivo / Arti marziali", "Muscoli deformi e cicatrici sul corpo", "Un giovane lottatore si allena duramente per superare la forza brutale di suo padre."]},
+    {"target": "KENGAN ASHURA", "indizi": ["Arti marziali / Seinen", "Scommesse finanziarie su tornei clandestini", "Grandi corporazioni risolvono le dispute d'affari ingaggiando gladiatori per tornei."]},
+    {"target": "OVERLORD", "indizi": ["Isekai / Dark Fantasy", "Scheletro gigante in abiti da mago supremo", "Un giocatore rimane intrappolati nei panni del suo personaggio scheletrico e conquista il nuovo mondo."]},
+    {"target": "RE:ZERO", "indizi": ["Isekai / Drammatico", "Abilità di rinascere dal punto di controllo dopo la morte", "Un ragazzo calato in un mondo fantasy scopre che ogni volta che muore torna indietro nel tempo."]},
+    {"target": "NO GAME NO LIFE", "indizi": ["Isekai / Giochi", "Mondo guidato dai giochi da tavolo senza violenza", "Due fratelli campioni di e-sport vengono trasportati in un mondo dove ogni disputa si risolve giocando."]},
+    {"target": "TENSEI SHITARA SLIME", "indizi": ["Isekai", "Gelatina blu mutaforma capace di assorbire abilità", "Un impiegato ucciso in strada si risveglia in un mondo magico sotto forma di una pallina gommosa."]},
+    {"target": "THE RISING OF THE SHIELD HERO", "indizi": ["Isekai", "Scudo fisso sul braccio che non può impugnare armi", "Evocato come eroe dello scudo, un ragazzo viene tradito ed accusato ingiustamente."]},
+    {"target": "GOBLIN SLAYER", "indizi": ["Dark Fantasy", "Elmo d'acciaio semplice e pugnale corto", "Un guerriero solitario dedica la sua intera esistenza unicamente allo sterminio dei goblin."]},
+    {"target": "MUSHISHI", "indizi": ["Fantasy / Episodico", "Mantello da viaggiatore e scatola di legno", "Un viaggiatore studia creature ancestrali invisibili agli occhi comuni che influenzano le vite umane."]},
+    {"target": "PLUTO", "indizi": ["Sci-Fi / Mistero", "Detective robotico e corna di fango", "Un detective cyborg indaga sulle morti misteriose dei robot più avanzati del pianeta."]},
+    {"target": "DOROHEDORO", "indizi": ["Dark Fantasy / Cyberpunk", "Testa da lucertola e maschera da gatto", "Un uomo con la testa da rettile ed amnesia caccia gli stregoni per ritrovare il suo vero volto."]},
+    {"target": "ERASED", "indizi": ["Mistero / Drama", "Salto temporale involontario prima dei delitti", "Un mangaka torna indietro di diciotto anni per salvare una compagna di classe da un killer seriale."]},
+    {"target": "ANOHANA", "indizi": ["Drammatico", "Fantasma della bambina con il vestito bianco", "Il fantasma di un'amica d'infanzia appare al leader del vecchio gruppo per esaudire un ultimo desiderio."]},
+    {"target": "YOUR LIE IN APRIL", "indizi": ["Drammatico / Musica", "Pianoforte e violino", "Un giovane pianista traumatizzato ritrova la gioia di suonare grazie all'incontro con una violinista."]},
+    {"target": "NANA", "indizi": ["Drama / Musica", "Chitarra punk e anello con armatura", "Due ragazze con lo stesso nome condividono un appartamento a Tokyo incrociando i propri destini."]},
+    {"target": "INUYASHIKI", "indizi": ["Sci-Fi", "Anziano e ragazzo trasformati in cyborg da un UFO", "Un vecchietto malato riceve un corpo cibernetico e decide di usarlo per salvare vite umane."]},
+    {"target": "SERIAL EXPERIMENTS LAIN", "indizi": ["Sci-Fi / Cyberpunk", "Cavi per computer e rete telefonica Wired", "Una timida adolescente riceve un'e-mail da una compagna morta e si immerge nei segreti della rete."]},
+    {"target": "AKIRA", "indizi": ["Sci-Fi / Cyberpunk", "Moto rossa futuristica ed espansione cerebrale", "Nella Neo-Tokyo del 2019, un giovane motociclista sviluppa poteri psicocinetici devastanti."]},
+    {"target": "GHOST IN THE SHELL", "indizi": ["Sci-Fi / Cyberpunk", "Corpo sintetico e mimetizzazione ottica invisibile", "Il maggiore di una sezione cibernetica della polizia caccia un hacker in grado di violare i cervelli."]},
+    {"target": "PAPRIKA", "indizi": ["Sci-Fi / Mistero", "Dispositivo DC Mini per entrare nei sogni", "Una psichiatra usa una tecnologia sperimentale per navigare negli incubi dei suoi pazienti."]},
+    {"target": "PRINCESS MONONOKE", "indizi": ["Fantasy / Studio Ghibli", "Maschera rossa e lupi giganti", "Un principe colpito da una maledizione si ritrova al centro della guerra tra umani e spiriti."]},
+    {"target": "LA CITTA INCANTATA", "indizi": ["Fantasy / Studio Ghibli", "Bagni termali degli spiriti", "Una bambina deve lavorare nell'albergo degli dei per salvare i genitori trasformati in maiali."]},
+    {"target": "IL CASTELLO ERRANTE DI HOWL", "indizi": ["Fantasy / Studio Ghibli", "Struttura meccanica camminante a vapore", "Una giovane calzolaia trasformata in anziana trova riparo nella dimora mobile di un mago."]},
+    {"target": "KUROKO'S BASKETBALL", "indizi": ["Sportivo / Basket", "Passaggi invisibili e capelli rossi/blu", "Un giocatore ombra privo di presenza fisica fa squadra con un talento americano per vincere."]},
+    {"target": "INITIAL D", "indizi": ["Sportivo / Motori", "Toyota AE86 bianca e nera che fa il drift sui monti", "Il figlio di un venditore di tofu diventa una leggenda delle corse clandestine in montagna."]},
+    {"target": "FOOD WARS!", "indizi": ["Commedia / Cucina", "Piatti di cibo che fanno esplodere i vestiti dall'estasi", "Un giovane cuoco si iscrive nell'accademia culinaria più severa del mondo."]},
+    {"target": "KAGUYA-SAMA: LOVE IS WAR", "indizi": ["Commedia / Romantico", "Consiglio d'istituto del liceo d'élite", "Due studenti geni e superbi usano strategie psicologiche complesse per far confessare l'altro."]},
+    {"target": "OURAN HIGH SCHOOL HOST CLUB", "indizi": ["Commedia / Romantico", "Vaso da otto milioni rotto ed occhiali da vista", "Una ragazza scambiata per un maschio deve lavorare nel club d'intrattenimento del liceo."]},
+    {"target": "THE PROMISED NEVERLAND", "indizi": ["Thriller / Mistero", "Numeri tatuati sul collo ed orfanotrofio recintato", "Tre bambini prodigio scoprono che la loro idilliaca casa d'infanzia è un allevamento per demoni."]}
+]
+
+# --- DATABASE 100 BRAND & MARCHI ---
+QUIZ_BRANDS_DB = [
+    {"target": "COCA-COLA", "indizi": ["Bevande / USA", "Scritta bianca su fondo rosso", "La bibita gassata scura servita nella celebre bottiglia di vetro sagomata."]},
+    {"target": "APPLE", "indizi": ["Elettronica / USA", "Frutto morso sul retro", "La mela morsa che ha lanciato l'iPhone ed i computer Mac."]},
+    {"target": "NIKE", "indizi": ["Abbigliamento sportivo / USA", "Baffo Swoosh e Just Do It", "L'azienda che prende il nome dalla dea della vittoria e produce le Air Jordan."]},
+    {"target": "MCDONALD'S", "indizi": ["Fast Food / USA", "Archi dorati a forma di M", "Il colosso del fast food famoso per il Big Mac e l'Happy Meal."]},
+    {"target": "FERRARI", "indizi": ["Automotive / Italia", "Cavallino rampante su fondo giallo", "Le supercar rosse di Maranello fondate dal celebre Drake."]},
+    {"target": "AMAZON", "indizi": ["E-commerce / USA", "Freccia dal punto A alla Z che forma un sorriso", "Lo store online nato come libreria sul web da Jeff Bezos."]},
+    {"target": "GOOGLE", "indizi": ["Tecnologia / USA", "Scritta colorata blu, rossa, gialla e verde", "Il motore di ricerca web diventato sinonimo di navigazione su internet."]},
+    {"target": "IKEA", "indizi": ["Arredamento / Svezia", "Scritta gialla dentro un rettangolo blu", "I mobili da montare a casa con la brugola e le polpettine al ristorante."]},
+    {"target": "ADIDAS", "indizi": ["Abbigliamento sportivo / Germania", "Tre strisce parallele", "Il marchio tedesco fondato da Adolf Dassler famoso per le tute e le scarpe Superstar."]},
+    {"target": "NUTELLA", "indizi": ["Alimentare / Italia", "Barattolo con noci, bicchiere di latte e pane spalmato", "La crema spalmabile al cacao e nocciole prodotta dalla Ferrero."]},
+    {"target": "MICROSOFT", "indizi": ["Software / USA", "Quattro quadratini di colore rosso, verde, blu e giallo", "La società di Bill Gates che ha creato il sistema operativo Windows."]},
+    {"target": "SAMSUNG", "indizi": ["Elettronica / Corea del Sud", "Scritta bianca dentro un ovale blu", "Il colosso asiatico rivale di Apple famoso per gli smartphone Galaxy."]},
+    {"target": "PLAYSTATION", "indizi": ["Gaming / Giappone", "Lettere P e S intrecciate con i simboli X, Cerchio, Triangolo e Quadrato", "La console da gioco per casa prodotta dalla Sony dagli anni '90."]},
+    {"target": "BARILLA", "indizi": ["Alimentare / Italia", "Ovale rosso su scatola blu di cartone", "Dove c'è pasta c'è casa, il più grande pastificio del mondo."]},
+    {"target": "STARBUCKS", "indizi": ["Ristorazione / USA", "Sirena verde a due code", "La catena di caffetterie famosa per i bicchieroni di Frappuccino con il nome scritto sopra."]},
+    {"target": "DISNEY", "indizi": ["Intrattenimento / USA", "Castello incantato con la firma del fondatore", "Il regno dell'animazione nato dal topo con le orecchie tonde Topolino."]},
+    {"target": "MERCEDES-BENZ", "indizi": ["Automotive / Germania", "Stella a tre punte d'argento", "La casa automobilistica tedesca di vetture di lusso e Frecce d'Argento."]},
+    {"target": "BMW", "indizi": ["Automotive / Germania", "Elica azzurra e bianca", "La casa automobilistica di Monaco di Baviera con la griglia a doppio rene."]},
+    {"target": "LEGO", "indizi": ["Giocattoli / Danimarca", "Mattoncini colorati con i bottoncini incastrabili", "I celebri omini gialli ed i mattoncini di plastica da montare."]},
+    {"target": "NETFLIX", "indizi": ["Streaming / USA", "Grande N rossa con il suono Ta-dum", "La piattaforma che ha reso famoso il binge-watching di serie TV e film."]},
+    {"target": "PEPSI", "indizi": ["Bevande / USA", "Cerchio diviso in due metà rossa e blu con onda bianca", "La storica rivale della cola rossa testimonial nei mondiali di calcio."]},
+    {"target": "PORSCHE", "indizi": ["Automotive / Germania", "Scudo con il cavallo di Stoccarda", "Le sportive di lusso celebri per il mitico modello 911."]},
+    {"target": "GUCCI", "indizi": ["Moda / Italia", "Doppia G intrecciata ed il nastro verde-rosso-verde", "Lo storico marchio di alta moda fiorentino nato dalla pelletteria."]},
+    {"target": "LOUIS VUITTON", "indizi": ["Moda / Francia", "Monogramma LV impresso sulla pelle marrone", "Le borse ed i bauli da viaggio di lusso francesi dal pattern inconfondibile."]},
+    {"target": "ROLEX", "indizi": ["Orologeria / Svizzera", "Corona dorata a cinque punte", "Gli orologi da polso svizzeri di lusso simboli di status come il Submariner."]},
+    {"target": "RED BULL", "indizi": ["Bevande / Austria", "Due tori rossi che si scontrano davanti al sole", "Ti mette le ali, l'energy drink famoso per le sponsorizzazioni negli sport estremi e F1."]},
+    {"target": "RAY-BAN", "indizi": ["Accessori / USA/Italia", "Scritta bianca nell'angolo della lente", "Gli occhiali da sole iconici dei modelli Wayfarer e Aviator da pilota."]},
+    {"target": "NINTENDO", "indizi": ["Gaming / Giappone", "Scritta rossa dentro un rettangolo smussato", "La storica casa di Kyoto che ha creato Mario, Zelda ed il Game Boy."]},
+    {"target": "SPOTIFY", "indizi": ["Musica / Svezia", "Cerchio verde con tre onde sonore nere", "L'applicazione di streaming musicale verde che ha sostituito i lettori MP3."]},
+    {"target": "ZARA", "indizi": ["Abbigliamento / Spagna", "Scritta minimalista nera", "Il colosso del fast fashion fondato dal miliardario Amancio Ortega."]},
+    {"target": "H&M", "indizi": ["Abbigliamento / Svezia", "Lettere H ed M rosse", "Catena svedese di abbigliamento economico presente nei centri commerciali."]},
+    {"target": "LAMBORGHINI", "indizi": ["Automotive / Italia", "Toro dorato scatenato su fondo nero", "Le supercar aggressive di Sant'Agata Bolognese come la Countach ed la Huracán."]},
+    {"target": "PUMA", "indizi": ["Abbigliamento sportivo / Germania", "Felino nero che salta sulla scritta", "Fondata dal fratello del creatore di Adidas, sponsor storici di Usain Bolt."]},
+    {"target": "SUPREME", "indizi": ["Moda Streetwear / USA", "Scritta bianca dentro un rettangolo rosso acceso", "Il marchio di moda urbana famoso per le tirature limitatissime ed il logo su ogni oggetto."]},
+    {"target": "LAVAZZA", "indizi": ["Alimentare / Italia", "Tazzina fumante e Più lo tiri su...", "Il caffè preferito dagli italiani, colosso torinese della miscela."]},
+    {"target": "HEINEKEN", "indizi": ["Bevande / Paesi Bassi", "Stella rossa su etichetta verde", "La birra bionda olandese in bottiglia verde sponsor della Champions League."]},
+    {"target": "NIVEA", "indizi": ["Cosmesi / Germania", "Scritta bianca nel cerchio blu notte", "La storica crema idratante per il corpo nella scatola tonda di metallo blu."]},
+    {"target": "BACI PERUGINA", "indizi": ["Alimentare / Italia", "Incarto d'argento con lettere blu e cartiglio", "I cioccolatini con la nocciola intera che contengono frasi d'amore."]},
+    {"target": "DECATHLON", "indizi": ["Sport / Francia", "Insegna blu con la lettera C deformata a forma di ellisse", "I megastore di articoli sportivi famosi per la tenda da campeggio 2 Seconds."]},
+    {"target": "PRADA", "indizi": ["Moda / Italia", "Triangolo rovesciato di metallo impresso", "Il marchio di lusso milanese diretto da Miuccia Prada famoso per il nylon nero."]},
+    {"target": "CHANEL", "indizi": ["Moda / Francia", "Doppia C incrociata", "La casa di moda parigina famosa per il tubino nero ed il profumo N° 5."]},
+    {"target": "VOLKSWAGEN", "indizi": ["Automotive / Germania", "Lettere V e W sovrapposte dentro un cerchio", "L'auto del popolo che ha creato il Maggiolino ed la Golf."]},
+    {"target": "CONVERSE", "indizi": ["Calzature / USA", "Stella blu dentro un cerchio di stoffa bianca", "Le scarpe da ginnastica in tela con la punta in gomma modello All-Star Chuck Taylor."]},
+    {"target": "CAMPARI", "indizi": ["Bevande / Italia", "Liquore dal colore rosso brillante", "L'aperitivo rosso amaro milanese servito nel celebre bottiglierino con il selz."]},
+    {"target": "KINDER", "indizi": ["Alimentare / Italia", "Scritta con la K nera ed il resto rosso e blu", "La linea della Ferrero dedicata ai bambini con l'uovo con sorpresa e la barretta."]},
+    {"target": "TESLA", "indizi": ["Automotive / USA", "Grande lettera T a forma di scudo o stilo", "La casa automobilistica elettrica guidata da Elon Musk."]},
+    {"target": "BIRRA MORETTI", "indizi": ["Bevande / Italia", "Baffone con il cappello verde ed il boccale in mano", "La birra italiana con il celebre signore baffuto sull'etichetta."]},
+    {"target": "CANON", "indizi": ["Elettronica / Giappone", "Scritta rossa con la lettera C piegata", "Il colosso delle macchine fotografiche reflex e delle stampanti."]},
+    {"target": "GILLETTE", "indizi": ["Cura personale / USA", "Scritta blu con il taglio netto sulla lettera I", "Il meglio di un uomo, marchio leader dei rasoi da barba multilama."]},
+    {"target": "MONSTER ENERGY", "indizi": ["Bevande / USA", "M verde formato da tre artigli graffiati", "L'energy drink nella lattina nera gigante con il graffio verde."]},
+    {"target": "BIC", "indizi": ["Cartoleria / Francia", "Omino giallo con la testa a forma di sfera nera", "Le penne a sfera trasparenti usa e getta ed i famosi accendini."]},
+    {"target": "LEVI'S", "indizi": ["Abbigliamento / USA", "Etichetta rossa sulla tasca posteriore destra", "I jeans storici di tela denim con il modello classico 501."]},
+    {"target": "PLAYBOY", "indizi": ["Editoria / USA", "Coniglietto nero con il papillon", "La rivista per adulti fondata da Hugh Hefner."]},
+    {"target": "VANS", "indizi": ["Calzature / USA", "Onda ricurva bianca sul fianco e suola a nido d'ape", "Le scarpe basse da skateboarder con la linea Off the Wall."]},
+    {"target": "ARMANI", "indizi": ["Moda / Italia", "Aquila stilizzata con le lettere GA", "Lo stilista re della moda milanese noto per l'eleganza sobria delle sue giacche."]},
+    {"target": "VERSACE", "indizi": ["Moda / Italia", "Testa della Medusa greca dorata", "La casa di moda fondata da Gianni famosa per lo stile barocco, audace e colorato."]},
+    {"target": "SWATCH", "indizi": ["Orologeria / Svizzera", "Orologi in plastica colorata ed accessibili", "Gli orologi svizzeri economici e colorati che hanno salvato l'industria negli anni '80."]},
+    {"target": "KFC", "indizi": ["Fast Food / USA", "Volto sorridente del Colonnello Sanders con il farfallino", "Catena di fast food famosa per i secchielli di pollo fritto croccante."]},
+    {"target": "DOMINO'S PIZZA", "indizi": ["Fast Food / USA", "Tassello del domino rosso e blu con tre pallini", "La catena di consegna pizze a domicilio con la scatola quadrata."]},
+    {"target": "PRINGLES", "indizi": ["Alimentare / USA", "Omino con i baffi rossi e papillon (Mr. P)", "Le patatine sfoglia tutte uguali confezionate nel tubo cilindrico di cartone."]},
+    {"target": "CHUPA CHUPS", "indizi": ["Alimentare / Spagna", "Fiore giallo disegnato da Salvador Dalí", "I lecca-lecca colorati sul bastoncino di plastica."]},
+    {"target": "HARIBO", "indizi": ["Alimentare / Germania", "Orsetto giallo con il fiocco rosso", "Candidamente dei piccoli e dei grandi, famosi per gli orsetti gommosi."]},
+    {"target": "TIC TAC", "indizi": ["Alimentare / Italia", "Scatolina di plastica trasparente con il tappo a scatto", "Le famose pastigliette confetti rinfrescanti da due calorie l'una."]},
+    {"target": "UNDER ARMOUR", "indizi": ["Abbigliamento sportivo / USA", "Lettere U ed A incrociate in verticale", "Abbigliamento tecnico sportivo traspirante ed aderente molto usato nelle palestre."]},
+    {"target": "ASICS", "indizi": ["Abbigliamento sportivo / Giappone", "Linee incrociate a forma di strisce di tigre", "Le scarpe da corsa giapponesi amate dai maratoneti."]},
+    {"target": "TIMBERLAND", "indizi": ["Calzature / USA", "Albero stilizzato impresso sul cuoio", "Gli scarponcini gialli in pelle scamosciata impermeabili."]},
+    {"target": "DR. MARTENS", "indizi": ["Calzature / USA/UK", "Cucitura gialla sulla suola con cuscinetto d'aria", "Gli anfibi in pelle rigida a 8 buchi con le fettuccia nera e gialla sul retro."]},
+    {"target": "LACOSTE", "indizi": ["Abbigliamento / Francia", "Coccodrillo verde ricamato sul petto", "Le polo di cotone nate dal famoso tennista francese René."]},
+    {"target": "TOMMY HILFIGER", "indizi": ["Moda / USA", "Rettangolino diviso in due metà bianca e rossa tra due bande blu", "Marchio di moda americana dallo stile classico da college."]},
+    {"target": "CALVIN KLEIN", "indizi": ["Moda / USA", "Lettere CK impresse sull'elastico dei boxer", "Famose per le campagne pubblicitarie di intimo e jeans negli anni '90."]},
+    {"target": "ILLY", "indizi": ["Alimentare / Italia", "Scritta bianca dentro un quadrato rosso acceso", "La storica azienda di caffè triestina famosa per i barattoli cilindrici in argento."]},
+    {"target": "CAFFE BORBONE", "indizi": ["Alimentare / Italia", "Corona dorata su scudo blu", "Marchio napoletano di caffè famoso per le cialde e le capsule della macchinetta."]},
+    {"target": "PERONI", "indizi": ["Bevande / Italia", "Nastro azzurro ed etichetta con stemma", "La birra chiara italiana famosa per la campagna Chiamami Peroni, sarò la tua birra."]},
+    {"target": "SAN PELLEGRINO", "indizi": ["Bevande / Italia", "Stella rossa sulla bottiglia verde di vetro", "L'acqua minerale gassata ed le bibite come l'aranciata famose nel mondo."]},
+    {"target": "APEROL", "indizi": ["Bevande / Italia", "Colore arancione vivo della bottiglia", "Il liquore amaro ingrediente fondamentale dello Spritz."]},
+    {"target": "MARTINI", "indizi": ["Bevande / Italia", "Cerchio rosso attraversato da un rettangolo nero", "Il vermut torinese ingrediente del celebre cocktail shakerato non mescolato."]},
+    {"target": "DUCATI", "indizi": ["Automotive / Italia", "Scudo rosso con la doppia striscia bianca", "Le moto rosse di Borgo Panigale famose per il motore desmodromico."]},
+    {"target": "PIAGGIO", "indizi": ["Automotive / Italia", "Esagono blu con la lettera P", "La casa di Pontedera che ha inventato il mitico scooter Vespa ed il Ciao."]},
+    {"target": "ALFA ROMEO", "indizi": ["Automotive / Italia", "Biscione visconteo ed la croce di Milano", "Le vetture sportive italiane con il celebre calandra a trilobo frontale."]},
+    {"target": "FIAT", "indizi": ["Automotive / Italia", "Quattro lettere su rettangoli inclinati blu o rossi", "La storica Fabbrica Italiana Automobili Torino che ha creato la 500 e la Panda."]},
+    {"target": "PEUGEOT", "indizi": ["Automotive / Francia", "Leone rampante d'argento", "La casa automobilistica francese dal logo felino e la griglia aggressiva."]},
+    {"target": "RENAULT", "indizi": ["Automotive / Francia", "Losanga / Diamante d'argento", "La casa francese automobilistica famosa per la Clio ed i successi in F1."]},
+    {"target": "VOLVO", "indizi": ["Automotive / Svezia", "Cerchio con la freccia rivolta in alto a destra", "Le vetture svedesi storicamente famose come le più sicure al mondo."]},
+    {"target": "JEEP", "indizi": ["Automotive / USA", "Griglia a sette feritoie verticali frontali", "I fuoristrada per eccellenza nati per uso militare nella Seconda Guerra Mondiale."]},
+    {"target": "MASTERCARD", "indizi": ["Finanza / USA", "Due cerchi sovrapposti rosso e giallo", "Ci sono cose che non si possono comprare, per tutto il resto c'è..."]},
+    {"target": "VISA", "indizi": ["Finanza / USA", "Scritta blu con il taglietto giallo sulla V", "Il circuito di carte di credito ed addebito più diffuso al mondo."]},
+    {"target": "PAYPAL", "indizi": ["Servizi Web / USA", "Doppia P blu sovrapposta", "Il sistema di pagamento online sicuro creato tra gli altri da Elon Musk."]},
+    {"target": "TRIPADVISOR", "indizi": ["Servizi Web / USA", "Gufo con un occhio verde ed uno rosso", "Il sito web e l'app di recensioni di ristoranti ed alberghi lasciate dagli utenti."]},
+    {"target": "AIRBNB", "indizi": ["Servizi Web / USA", "Simbolo Bélo rosa a forma di cuore/A rovesciata", "La piattaforma per affittare case ed appartamenti vacanza da privati."]},
+    {"target": "UBER", "indizi": ["Trasporti / USA", "Scritta bianca minimalista su fondo nero", "L'applicazione di trasporto privato di passeggeri tramite autisti con auto propria."]},
+    {"target": "TIKTOK", "indizi": ["Social Network / Cina", "Nota musicale stilizzata con effetto glitch rosso e blu", "La piattaforma social cinese di brevi video verticali musicali ed ironici."]},
+    {"target": "INSTAGRAM", "indizi": ["Social Network / USA", "Fotocamera stilizzata con sfumatura viola, rosa e arancione", "Il social network nato per la condivisione di foto, filtri e Storie."]},
+    {"target": "WHATSAPP", "indizi": ["Messaggistica / USA", "Cornetta telefonica bianca dentro la fumetto verde", "L'applicazione di messaggistica istantanea verde che ha sostituito gli SMS."]},
+    {"target": "TELEGRAM", "indizi": ["Messaggistica / Russia/EAE", "Aeroplanino di carta bianco dentro un cerchio azzurro", "L'app di messaggistica con il logo dell'aeroplanino famosa per i canali ed i bot."]},
+    {"target": "DUOLINGO", "indizi": ["App / USA", "Gufo verde sorridente", "L'applicazione per imparare le lingue straniere con la mascotte pennuta assillante."]},
+    {"target": "NESPRESSO", "indizi": ["Alimentare / Svizzera", "Lettera N stilizzata con capsule colorate", "Le macchinette per il caffè espresso a casa testimonial da George Clooney."]},
+    {"target": "DYSON", "indizi": ["Elettronica / UK", "Design avveniristico grigio e fucsia/viola", "Gli aspirapolvere cicloni senza sacchetto ed i famosi asciugacapelli privi di pale."]},
+    {"target": "BOSE", "indizi": ["Elettronica / USA", "Scritta in corsivo inclinato nero", "Sistemi audio, casse portatili e cuffie con cancellazione del rumore."]},
+    {"target": "DURACELL", "indizi": ["Elettronica / USA", "Coniglietto rosa che suona il tamburo e punta in rame", "Le pile stilo ed ministilo con la parte superiore color rame e la parte inferiore nera."]},
+    {"target": "PAMPERS", "indizi": ["Cura personale / USA", "Cuoricino verde e giallo", "I pannolini per neonati e bambini più famosi del mondo."]}
+]
+
+# --- DATABASE 100 PERSONAGGI STORICI ---
+QUIZ_PERSONAGGI_DB = [
+    {"target": "GIULIO CESARE", "indizi": ["Antichità / Generale e Dictator", "Roma Antica", "Passò il fiume Rubicone dicendo 'Il dado è tratto' prima di venire tradito alle Idi di Marzo."]},
+    {"target": "ALESSANDRO MAGNO", "indizi": ["Antichità / Re e Condottiero", "Macedonia / Grecia", "Giovanissimo re che creò un impero immenso conquistando la Persia fino all'India."]},
+    {"target": "CLEOPATRA", "indizi": ["Antichità / Regina", "Egitto", "L'ultima sovrana dell'Egitto tolemaico, amata da Cesare e Marco Antonio."]},
+    {"target": "NAPOLEONE BONAPARTE", "indizi": ["Età Moderna / Imperatore", "Francia", "Conquistò gran parte d'Europa prima della sconfitta definitiva a Waterloo ed all'esilio a Sant'Elena."]},
+    {"target": "CARLO MAGNO", "indizi": ["Medioevo / Re ed Imperatore", "Regno dei Franchi", "Incoronato la notte di Natale dell'anno 800 come primo sovrano del Sacro Romano Impero."]},
+    {"target": "LEONARDO DA VINCI", "indizi": ["Rinascimento / Pittore ed Inventore", "Italia", "Genio universale autore della Gioconda, dell'Uomo Vitruviano e dell'Ultima Cena."]},
+    {"target": "DANTE ALIGHIERI", "indizi": ["Medioevo / Poeta", "Italia (Firenze)", "Il Sommo Poeta della lingua italiana autore del viaggio nei tre regni dell'Oltretomba."]},
+    {"target": "MARCO POLO", "indizi": ["Medioevo / Esploratore", "Italia (Venezia)", "Mercante veneziano che viaggiò lungo la Via della Seta raccontando la Cina nel libro 'Il Milione'."]},
+    {"target": "CRISTOFORO COLOMBO", "indizi": ["Età Moderna / Navigatore", "Italia (Genova) / Spagna", "Salpò con tre Caravelle nel 1492 sbarcando per errore in un nuovo continente."]},
+    {"target": "GALILEO GALILEI", "indizi": ["Età Moderna / Astronomo e Fisico", "Italia", "Perfezionò il cannocchiale e fu processato dall'Inquisizione mormorando 'Eppur si muove'."]},
+    {"target": "GENGIS KHAN", "indizi": ["Medioevo / Condottiero", "Mongolia", "Il grande leader nomade che unificò le tribù asiatiche creando il più vasto impero terrestre."]},
+    {"target": "SOCRATE", "indizi": ["Antichità / Filosofo", "Grecia (Atene)", "Il padre del metodo maieutico condannato a morte a bere la cicuta per le sue idee."]},
+    {"target": "PLATONE", "indizi": ["Antichità / Filosofo", "Grecia (Atene)", "Allievo di Socrate, fondò l'Accademia e scrisse la teoria delle idee ed il mito della caverna."]},
+    {"target": "ARISTOTELE", "indizi": ["Antichità / Filosofo", "Grecia", "Maestro di Alessandro Magno e padre della logica e delle scienze naturali antiche."]},
+    {"target": "ATTILA", "indizi": ["Antichità / Re degli Unni", "Asia / Europa", "'Dove passa il mio cavallo non cresce più l'erba', il flagello di Dio che terrorizzò Roma."]},
+    {"target": "SPARTACO", "indizi": ["Antichità / Gladiatore", "Roma Antica", "Schiavo della Tracia che guidò la più imponente rivolta di gladiatori contro la Repubblica Romana."]},
+    {"target": "ANNIBALE BARCA", "indizi": ["Antichità / Generale", "Cartagine", "Valicò le Alpi con gli elefanti da guerra mettendo a ferro e fuoco l'Italia contro i Romani."]},
+    {"target": "CICERONE", "indizi": ["Antichità / Oratore e Politico", "Roma Antica", "Il più grande oratore romano celebre per le sue filippiche e le orazioni contro Catilina."]},
+    {"target": "AUGUSTO", "indizi": ["Antichità / Primo Imperatore", "Roma Antica", "Nipote di Cesare, trasformò la Repubblica nell'Impero dicendo di aver lasciato Roma di marmo."]},
+    {"target": "NERONE", "indizi": ["Antichità / Imperatore", "Roma Antica", "L'imperatore stravagante accusato dalla leggenda di aver suonato la cetra mentre Roma bruciava."]},
+    {"target": "GIUSTINIANO", "indizi": ["Antichità / Imperatore", "Impero Romano d'Oriente", "Raccolse tutte le leggi romane nel Corpus Iuris Civilis e fece costruire Santa Sofia."]},
+    {"target": "GIOVANNA D'ARCO", "indizi": ["Medioevo / Eroina e Santa", "Francia", "La 'Pulzella d'Orléans' che guidò l'esercito francese contro gli inglesi prima di essere arsa sul rogo."]},
+    {"target": "FRANCESCO D'ASSISI", "indizi": ["Medioevo / Religioso e Poeta", "Italia", "Il santo poverello che parlava agli animali e scrisse il Cantico delle Creature."]},
+    {"target": "MICHELANGELO BUONARROTI", "indizi": ["Rinascimento / Scultore e Pittore", "Italia", "Scolpì il David di marmo e dipinse l'affresco della Volta della Cappella Sistina."]},
+    {"target": "NICCOLO MACHIAVELLI", "indizi": ["Rinascimento / Scrittore e Politico", "Italia (Firenze)", "Autore del trattato 'Il Principe', famoso per la massima 'Il fine giustifica i mezzi'."]},
+    {"target": "MARTIN LUTERO", "indizi": ["Età Moderna / Teologo", "Germania", "Affisse le sue 95 tesi sulla porta della chiesa di Wittenberg dando vita alla Riforma Protestante."]},
+    {"target": "ENRICO VIII", "indizi": ["Età Moderna / Re", "Inghilterra", "Ebbe sei mogli e staccò la chiesa inglese da Roma fondando la Chiesa Anglicana."]},
+    {"target": "ELISABETTA I", "indizi": ["Età Moderna / Regina", "Inghilterra", "La 'Regina Vergine' che sconfisse l'Invincibile Armata spagnola guidando l'epoca d'oro inglese."]},
+    {"target": "WILLIAM SHAKESPEARE", "indizi": ["Età Moderna / Drammaturgo", "Inghilterra", "Il bardo autore di Romeo e Giulietta, Amleto, Macbeth e del famoso 'Essere o non essere'."]},
+    {"target": "LUIGI XIV", "indizi": ["Età Moderna / Re", "Francia", "Il 'Re Sole' assolutista che fece costruire la reggia di Versailles e disse 'L'État, c'est moi'."]},
+    {"target": "ISAAC NEWTON", "indizi": ["Età Moderna / Fisico e Matematico", "Inghilterra", "Scoprì la legge di gravitazione universale vedendo cadere una mela dall'albero."]},
+    {"target": "VOLTAIRE", "indizi": ["Età Moderna / Filosofo", "Francia", "Uno dei padri dell'Illuminismo famoso per la difesa della libertà di pensiero e della tolleranza."]},
+    {"target": "GEORGE WASHINGTON", "indizi": ["Età Moderna / Generale e Presidente", "Stati Uniti", "Guida della guerra d'indipendenza e primo storico presidente degli Stati Uniti d'America."]},
+    {"target": "ROBESPIERRE", "indizi": ["Età Moderna / Rivoluzionario", "Francia", "Il leader giacobino detto 'L'Incorruttibile' figura chiave del periodo del Terrore e della ghigliottina."]},
+    {"target": "GIACOMO CASANOVA", "indizi": ["Età Moderna / Scrittore ed Avventuriero", "Italia (Venezia)", "Celebre seduttore veneziano le cui memorie sono diventate sinonimo di grande amatore."]},
+    {"target": "MOZART", "indizi": ["Età Moderna / Compositore", "Austria", "Bambino prodigio della musica classica autore del Flauto Magico e delle Nozze di Figaro."]},
+    {"target": "BEETHOVEN", "indizi": ["Età Moderna / Compositore", "Germania", "Scrisse la Nona Sinfonia con l'Inno alla Gioia nonostante la totale sordità negli ultimi anni."]},
+    {"target": "GIUSEPPE GARIBALDI", "indizi": ["Età Contemporanea / Generale", "Italia", "'L'Eroe dei Due Mondi' che guidò la Spedizione dei Mille per unificare l'Italia."]},
+    {"target": "GIUSEPPE MAZZINI", "indizi": ["Età Contemporanea / Politico e Patriota", "Italia", "Fondatore della 'Giovine Italia', teorico del risorgimento e della repubblica."]},
+    {"target": "CAVOUR", "indizi": ["Età Contemporanea / Statista", "Italia (Piemonte)", "Il primo Primo Ministro d'Italia, grande regista diplomatico dell'Unità."]},
+    {"target": "VITTORIO EMANUELE II", "indizi": ["Età Contemporanea / Primo Re", "Italia", "Il sovrano gentiluomo della dinastia Savoia proclamato primo re d'Italia nel 1861."]},
+    {"target": "ABRAHAM LINCOLN", "indizi": ["Età Contemporanea / Presidente", "Stati Uniti", "Guidò l'Unione durante la Guerra di Secessione ed abolì la schiavitù prima di essere assassinato."]},
+    {"target": "KARL MARX", "indizi": ["Età Contemporanea / Filosofo ed Economista", "Germania", "Autore del 'Capitale' e del 'Manifesto del Partito Comunista' con Friedrich Engels."]},
+    {"target": "REGINA VITTORIA", "indizi": ["Età Contemporanea / Regina", "Regno Unito", "Regnò per oltre 63 anni durante l'apice dell'Impero Britannico e della rivoluzione industriale."]},
+    {"target": "CHARLES DARWIN", "indizi": ["Età Contemporanea / Biologo", "Inghilterra", "Formulò la teoria dell'evoluzione delle specie per selezione naturale dopo il viaggio sul Beagle."]},
+    {"target": "ALBERT EINSTEIN", "indizi": ["Età Contemporanea / Fisico", "Germania / USA", "Il fisico dal ciuffo spettinato che formulò la Teoria della Relatività ed la formula E=mc²."]},
+    {"target": "NIKOLA TESLA", "indizi": ["Età Contemporanea / Inventore ed Ingegnere", "Serbia / USA", "Genio della corrente alternata, della radio e dei campi elettromagnetici rivale di Edison."]},
+    {"target": "THOMAS EDISON", "indizi": ["Età Contemporanea / Inventore", "USA", "Registrò oltre mille brevetti tra cui la lampadina ad incandescenza ed il fonografo."]},
+    {"target": "SIGMUND FREUD", "indizi": ["Età Contemporanea / Medico e Psicoanalista", "Austria", "Il padre della psicoanalisi che studiò l'inconscio, il complesso di Edipo e l'interpretazione dei sogni."]},
+    {"target": "MARIE CURIE", "indizi": ["Età Contemporanea / Scienziata", "Polonia / Francia", "Unica donna a vincere due Premi Nobel in due scienze diverse per gli studi sulla radioattività."]},
+    {"target": "WINSTON CHURCHILL", "indizi": ["Età Contemporanea / Primo Ministro", "Regno Unito", "Lo statista dal sigaro che guidò la Gran Bretagna contro il nazismo promettendo 'sangue e lacrime'."]},
+    {"target": "ADOLF HITLER", "indizi": ["Età Contemporanea / Dittatore", "Germania", "Il Führer del Terzo Reich responsabile della Seconda Guerra Mondiale e della Shoah."]},
+    {"target": "BENITO MUSSOLINI", "indizi": ["Età Contemporanea / Dittatore", "Italia", "Il 'Duce' del fascismo che governò l'Italia per un ventennio fino alla caduta nella guerra."]},
+    {"target": "STALIN", "indizi": ["Età Contemporanea / Dittatore", "Unione Sovietica", "Il leader sovietico che guidò l'URSS durante la seconda guerra mondiale con il pugno di ferro."]},
+    {"target": "ROOSEVELT", "indizi": ["Età Contemporanea / Presidente", "USA", "L'unico presidente eletto per quattro mandati, guidò il paese fuori dalla Grande Depressione col New Deal."]},
+    {"target": "MAHATMA GANDHI", "indizi": ["Età Contemporanea / Leader Politico e Spirituale", "India", "Guidò l'India all'indipendenza attraverso la protesta non violenta (Satyagraha)."]},
+    {"target": "NELSON MANDELA", "indizi": ["Età Contemporanea / Leader e Presidente", "Sudafrica", "Simbolo della lotta all'Apartheid, trascorse 27 anni in carcere prima di diventare presidente."]},
+    {"target": "MARTIN LUTHER KING", "indizi": ["Età Contemporanea / Attivista", "USA", "Leader dei diritti civili degli afroamericani celebre per il discorso 'I have a dream'."]},
+    {"target": "JOHN F. KENNEDY", "indizi": ["Età Contemporanea / Presidente", "USA", "Giovane presidente della Guerra Fredda assassinato a Dallas nel novembre 1963."]},
+    {"target": "CHE GUEVARA", "indizi": ["Età Contemporanea / Rivoluzionario", "Argentina / Cuba", "Il medico guerrigliero dalla berretta con la stella, figura simbolo della rivoluzione cubana."]},
+    {"target": "FIDEL CASTRO", "indizi": ["Età Contemporanea / Leader e Dittatore", "Cuba", "Il 'Líder Máximo' che governò Cuba per quasi cinquant'anni affrontando il blocco USA."]},
+    {"target": "MAO ZEDONG", "indizi": ["Età Contemporanea / Leader Politico", "Cina", "Il fondatore della Repubblica Popolare Cinese e del Libretto Rosso."]},
+    {"target": "PAPA GIOVANNI PAOLO II", "indizi": ["Età Contemporanea / Papa", "Polonia / Vaticano", "Il papa polacco viaggiatore che contribuì alla caduta del Muro di Berlino."]},
+    {"target": "MADRE TERESA DI CALCUTTA", "indizi": ["Età Contemporanea / Religiosa", "Albania / India", "La piccola suora con il velo bianco ed azzurro consacrata ai più poveri della terra."]},
+    {"target": "NEIL ARMSTRONG", "indizi": ["Età Contemporanea / Astronauta", "USA", "Il primo uomo a mettere piede sulla Luna nel 1969 dicendo 'Un piccolo passo per un uomo'."]},
+    {"target": "JURIJ GAGARIN", "indizi": ["Età Contemporanea / Cosmonauta", "Unione Sovietica", "Il primo uomo nello spazio a bordo della Vostok 1 nel 1961 dicendo 'La Terra è blu'."]},
+    {"target": "ANNA FRANK", "indizi": ["Età Contemporanea / Scrittrice", "Germania / Olanda", "La ragazzina ebrea che raccontò nel suo diario i due anni passati nascosta in un alloggio segreto."]},
+    {"target": "ROSA PARKS", "indizi": ["Età Contemporanea / Attivista", "USA", "La donna nera che rifiutò di cedere il posto ad un bianco sull'autobus dando vita al boicottaggio."]},
+    {"target": "MALCOLM X", "indizi": ["Età Contemporanea / Attivista", "USA", "Leader radicale afroamericano per i diritti umani ed il nazionalismo nero."]},
+    {"target": "GORBACHEV", "indizi": ["Età Contemporanea / Politico", "Unione Sovietica", "L'ultimo leader sovietico che introdusse la Perestrojka portando alla fine della Guerra Fredda."]},
+    {"target": "STEVE JOBS", "indizi": ["Età Contemporanea / Imprenditore", "USA", "Il co-fondatore di Apple dal dolcevita nero famoso per il discorso 'Stay hungry, stay foolish'."]},
+    {"target": "BILL GATES", "indizi": ["Età Contemporanea / Imprenditore e Filantropo", "USA", "Il fondatore di Microsoft diventato per anni l'uomo più ricco del mondo."]},
+    {"target": "LADY DIANA", "indizi": ["Età Contemporanea / Principessa", "Regno Unito", "La 'Principessa del popolo' amata per la beneficenza e scomparsa tragicamente a Parigi."]},
+    {"target": "RITA LEVI-MONTALCINI", "indizi": ["Età Contemporanea / Scienziata", "Italia", "Premio Nobel per la medicina grazie alla scoperta del fattore di accrescimento nervoso NGF."]},
+    {"target": "ENRICO FERMI", "indizi": ["Età Contemporanea / Fisico", "Italia / USA", "Premio Nobel italiano ideatore del primo reattore nucleare a catena al mondo."]},
+    {"target": "GUGLIELMO MARCONI", "indizi": ["Età Contemporanea / Inventore", "Italia", "Premio Nobel padre della telegrafia senza fili e della radio."]},
+    {"target": "ALESSANDRO VOLTA", "indizi": ["Età Moderna / Fisico", "Italia", "L'inventore della prima pila elettrica il cui nome ha dato origine all'unità di misura della tensione."]},
+    {"target": "ANTONIO MEUCCI", "indizi": ["Età Contemporanea / Inventore", "Italia / USA", "L'inventore italiano del telettrofono riconosciuto ufficialmente come il vero padre del telefono."]},
+    {"target": "LUCIANO PAVAROTTI", "indizi": ["Età Contemporanea / Tenore", "Italia", "Il grande tenore emiliano famoso nel mondo per l'interpretazione del 'Nessun dorma'."]},
+    {"target": "FEDERICO FELLINI", "indizi": ["Età Contemporanea / Regista", "Italia", "Maestro del cinema italiano vincitore di cinque premi Oscar per capolavori come 'La dolce vita'."]},
+    {"target": "CHARLIE CHAPLIN", "indizi": ["Età Contemporanea / Attore e Regista", "Inghilterra / USA", "Il creatore della maschera comica del vagabondo Charlot con la bombetta ed il bastone."]},
+    {"target": "MARILYN MONROE", "indizi": ["Età Contemporanea / Attrice", "USA", "L'icona bionda di Hollywood per eccellenza famosa per il vestito bianco sollevato dal vento."]},
+    {"target": "ELVIS PRESLEY", "indizi": ["Età Contemporanea / Cantante", "USA", "'Il Re del Rock 'n' Roll' dalle movenze di bacino sfrenate ed i costumi vistosi di Las Vegas."]},
+    {"target": "MICHAEL JACKSON", "indizi": ["Età Contemporanea / Cantante", "USA", "'Il Re del Pop' celebre per il guanto unico glitterato, il passo del Moonwalk ed il disco Thriller."]},
+    {"target": "FREDDIE MERCURY", "indizi": ["Età Contemporanea / Cantante", "Regno Unito", "L'inimitabile frontman dei Queen dalla voce estesa ed i baffi al Live Aid 1985."]},
+    {"target": "BOB MARLEY", "indizi": ["Età Contemporanea / Cantante", "Giamaica", "Il re della musica Reggae ed il movimento rastafariano famoso per canzoni di pace come 'One Love'."]},
+    {"target": "JOHN LENNON", "indizi": ["Età Contemporanea / Cantante", "Regno Unito", "Membro fondatore dei Beatles ed autore dell'inno pacifista 'Imagine' ucciso a New York nel 1980."]},
+    {"target": "PABLO PICASSO", "indizi": ["Età Contemporanea / Pittore", "Spagna / Francia", "Il padre del Cubismo autore della grande tela di protesta 'Guernica'."]},
+    {"target": "SALVADOR DALI", "indizi": ["Età Contemporanea / Pittore", "Spagna", "Il maestro del Surrealismo dai lunghi baffi all'insù famoso per gli orologi molli."]},
+    {"target": "VINCENT VAN GOGH", "indizi": ["Età Contemporanea / Pittore", "Olanda / Francia", "Il pittore maledetto che si tagliò l'orecchio autore della 'Notte stellata' e dei 'Girasoli'."]},
+    {"target": "FRIDA KAHLO", "indizi": ["Età Contemporanea / Pittrice", "Messico", "Pittrice messicana dal sopracciglio marcato nota per i toccanti ed intensi autoritratti."]},
+    {"target": "ANDY WARHOL", "indizi": ["Età Contemporanea / Artista", "USA", "Il fondatore della Pop Art celebre per le serigrafie delle lattine di zuppa Campbell e di Marilyn."]},
+    {"target": "MARCO AURELIO", "indizi": ["Antichità / Imperatore e Filosofo", "Roma Antica", "L'imperatore filosofo stoico autore dei 'Pensieri a se stesso'."]},
+    {"target": "TOMMASO D'AQUINO", "indizi": ["Medioevo / Teologo", "Italia", "Il dottore angelico autore della Summa Theologiae e colonna della filosofia scolastica."]},
+    {"target": "MARCO ANTONIO", "indizi": ["Antichità / Generale e Politico", "Roma Antica", "Luogotenente di Cesare legato sentimentalmente a Cleopatra e sconfitto ad Azio."]},
+    {"target": "RASPUTIN", "indizi": ["Età Contemporanea / Mistico", "Russia", "Il monaco siberiano ipnotista che influenzò la corte degli ultimi Romanov prima di venire assassinato."]},
+    {"target": "SOLIMANO IL MAGNIFICO", "indizi": ["Età Moderna / Sultano", "Impero Ottomano", "Portò l'Impero Ottomano all'apice dell'espansione e dello splendore culturale nel '500."]},
+    {"target": "NOSTRADAMUS", "indizi": ["Età Moderna / Astrologo e Medico", "Francia", "Famoso per le sue oscure quartine in cui avrebbe previsto i grandi eventi del futuro."]},
+    {"target": "POCAHONTAS", "indizi": ["Età Moderna / Nativa Americana", "USA", "La figlia del capo tribù Powhatan che favorì la pace con i coloni inglesi in Virginia."]},
+    {"target": "JESSE OWENS", "indizi": ["Età Contemporanea / Atleta", "USA", "L'atleta nero che vinse quattro ori olimpici a Berlino 1936 davanti agli occhi di Hitler."]}
+]
+
+# --- DATABASE 100 CANZONI ---
+QUIZ_CANZONI_DB = [
+    {"target": "NEL BLU DIPINTO DI BLU", "indizi": ["1958 / Pop-Melodico", "Domenico Modugno", "'Penso che un sogno così non ritorni mai più, mi dipingevo le mani e il viso di blu...'"]},
+    {"target": "ALBACHIARA", "indizi": ["1979 / Rock d'autore", "Vasco Rossi", "'Respiri piano per non far rumore, ti addormenti di sera e ti svegli col sole...'"]},
+    {"target": "LA CANZONE DEL SOLE", "indizi": ["1971 / Cantautorato", "Lucio Battisti", "'Le bionde trecce, gli occhi azzurri e poi... le tue calzette rosse...'"]},
+    {"target": "L'ANNO CHE VERRA", "indizi": ["1979 / Cantautorato", "Lucio Dalla", "'Caro amico ti scrivo, così mi distraggo un po' e siccome sei molto lontano più forte ti scriverò...'"]},
+    {"target": "AZZURRO", "indizi": ["1968 / Pop-Varietà", "Adriano Celentano", "'Cerco l'estate tutto l'anno e all'improvviso eccola qua...'"]},
+    {"target": "CENTRO DI GRAVITA PERMANENTE", "indizi": ["1981 / Pop-Elettronico", "Franco Battiato", "'Cerco un [...] che non mi faccia mai cambiare idea sulle cose sulla gente...'"]},
+    {"target": "IL CIELO IN UNA STANZA", "indizi": ["1960 / Classico-Pop", "Mina", "'Quando sei qui con me questa stanza non ha più pareti ma alberi, alberi infiniti...'"]},
+    {"target": "RIMMEL", "indizi": ["1975 / Cantautorato", "Francesco De Gregori", "'E qualcosa rimane fra le pagine chiare e le pagine scure...'"]},
+    {"target": "IL MIO CANTO LIBERO", "indizi": ["1972 / Cantautorato", "Lucio Battisti", "'In un mondo che prigioniero è, respiriamo liberi io e te...'"]},
+    {"target": "A MANO A MANO", "indizi": ["1978 / Cantautorato", "Rino Gaetano / Riccardo Cocciante", "'E [...] ti accorgerai che il vento ti soffia sul viso e ti ruba un sorriso...'"]},
+    {"target": "LA GUERRA DI PIERO", "indizi": ["1964 / Cantautorato Folk", "Fabrizio De André", "'Dormi sepolto in un campo di grano, non è la rosa non è il tulipano...'"]},
+    {"target": "CERTE NOTTI", "indizi": ["1995 / Rock", "Ligabue", "'E [...] la macchina è calda e dove si va con qualcuno le prendi...'"]},
+    {"target": "SEI BELLISSIMA", "indizi": ["1975 / Pop-Rock", "Loredana Bertè", "'E poi mi diceva [...] e poi mi diceva sempre [...]'"]},
+    {"target": "CARUSO", "indizi": ["1986 / Cantautorato", "Lucio Dalla", "'Te voglio bene assai, ma tanto tanto bene sai...'"]},
+    {"target": "LA DONNA CANNONE", "indizi": ["1983 / Cantautorato", "Francesco De Gregori", "'E con le mani amore, per le mani ti prenderò e nello specchio dei tuoi occhi mi guarderò...'"]},
+    {"target": "SALLY", "indizi": ["1996 / Rock d'autore", "Vasco Rossi", "'Cammina per la strada senza nemmeno guardare per terra...'"]},
+    {"target": "50 SPECIAL", "indizi": ["1999 / Pop-Rock", "Lùnapop", "'Ma quanto è bello andare in giro con le ali sotto i piedi se ho una [...] che mi toglie i problemi...'"]},
+    {"target": "UN'EMOZIONE DA POCO", "indizi": ["1978 / Pop-Rock", "Anna Oxa", "'C'è una ragione che cresce tra noi, è una storia che si fa più grande di noi...'"]},
+    {"target": "GIANNA", "indizi": ["1978 / Pop-Folk", "Rino Gaetano", "'Sosteneva tesi e illusioni, un po' per forza e un po' per amore...'"]},
+    {"target": "SI PUO DARE DI PIU", "indizi": ["1987 / Pop-Melodico", "Morandi, Tozzi, Ruggeri", "'Perché lo fa il mio cuore, lo fa il tuo cuore, [...] senza chiedere niente in cambio...'"]},
+    {"target": "TANTI AUGURI", "indizi": ["1978 / Pop-Disco", "Raffaella Carrà", "'Com'è bello far l'amore da Trieste in giù, l'importante è farlo sempre con chi vuoi tu...'"]},
+    {"target": "MARACAIBO", "indizi": ["1981 / Pop-Disco", "Lu Colombo", "'Mare forza nove, fuggire sì ma dove? Zaza, il piccolo bar...'"]},
+    {"target": "I GIARDINI DI MARZO", "indizi": ["1972 / Cantautorato", "Lucio Battisti", "'Il carretto passava e quell'uomo gridava gelati...'"]},
+    {"target": "C'ERA UN RAGAZZO CHE COME ME AMAVA I BEATLES E I ROLLING STONES", "indizi": ["1966 / Folk-Pop", "Gianni Morandi", "'Nel petto un cuore più non ha, ma due medaglie o tre...'"]},
+    {"target": "L'ITALIANO", "indizi": ["1983 / Pop", "Toto Cutugno", "'Lasciatemi cantare con la chitarra in mano, lasciatemi cantare una canzone piano piano...'"]},
+    {"target": "LA DESCRIZIONE DI UN ATTIMO", "indizi": ["2000 / Indie-Pop", "Tiromancino", "'La [...] è un punto fra due millenni...'"]},
+    {"target": "DESTINAZIONE PARADISO", "indizi": ["1995 / Pop-Rock", "Gianluca Grignani", "'In viaggio da solo, senza un bagaglio, con un biglietto di sola andata per la [...]'"]},
+    {"target": "TI AMO", "indizi": ["1977 / Pop-Melodico", "Umberto Tozzi", "'Un soldo, ti amo, in aria, ti amo, se viene testa vuol dire che basta...'"]},
+    {"target": "PICCOLA STELLA SENZA CIELO", "indizi": ["1990 / Rock", "Ligabue", "'Ti mostrerai [...] ti mostrerai per quello che sei...'"]},
+    {"target": "UN'ESTATE ITALIANA", "indizi": ["1989 / Pop-Rock", "Gianna Nannini & Edoardo Bennato", "'Inseguendo un gol, sotto il cielo di un'estate italiana...'"]},
+    {"target": "FUORI DAL TUNNEL", "indizi": ["2003 / Hip-Hop/Rap", "Caparezza", "'La mia festa non è come la tua festa, io non ho il privè con la bottiglia in testa...'"]},
+    {"target": "APPLAUSI PER FIBRA", "indizi": ["2006 / Rap", "Fabri Fibra", "'Fate [...] a [...] [...] t'ama o t'odia non ci sono vie di mezzo...'"]},
+    {"target": "VORREI CANTARE COME BIAGIO", "indizi": ["2004 / Indie-Pop", "Simone Cristicchi", "'E vendere trecentomila copie ed essere un grande artista...'"]},
+    {"target": "GENTE DI MARE", "indizi": ["1987 / Pop", "Tozzi e Raf", "'E noi che siamo [...] a noi che cosa ci importa di più...'"]},
+    {"target": "LAURA NON C'E", "indizi": ["1997 / Pop-Rock", "Nek", "'E se c'è non è così, se c'è è solo nella mia testa...'"]},
+    {"target": "ZITTI E BUONI", "indizi": ["2021 / Rock", "Måneskin", "'Parla, la gente purtroppo parla, non sa di che cazzo parla...'"]},
+    {"target": "BRIVIDI", "indizi": ["2022 / Pop", "Mahmood & Blanco", "'E ti vorrei amare, ma sbaglio sempre, e mi vengono i [...] [...] [...]'"]},
+    {"target": "CENERE", "indizi": ["2023 / Trap-Pop", "Lazza", "'Aiutami a sparire come [...] rinacerò ti giuro dalle [...]'"]},
+    {"target": "TANGO", "indizi": ["2023 / Pop", "Tananai", "'E ci fermiamo qui in un bar di Kiev, le bombe cadono giù...'"]},
+    {"target": "PASTELLO BIANCO", "indizi": ["2020 / Indie-Pop", "Pinguini Tattici Nucleari", "'E ho lasciato la mia felpa sul tuo divano per avere una scusa e tornare da te...'"]},
+    {"target": "L'ESSENZIALE", "indizi": ["2013 / Pop", "Marco Mengoni", "'Mentre il mondo cade a pezzi io compongo nuovi spazi e desideri che appartengono anche a te...'"]},
+    {"target": "MUSICA LEGGERISSIMA", "indizi": ["2021 / Indie-Pop", "Colapesce Dimartino", "'Metti un po' di [...] perché ho voglia di niente e non allineo i pensieri...'"]},
+    {"target": "ROMA-BANGKOK", "indizi": ["2015 / Pop-Reggaeton", "Baby K feat. Giusy Ferreri", "'Amo le labbra rosse su una pelle chiara, le cose stonate...'"]},
+    {"target": "OCCIDENTALI'S KARMA", "indizi": ["2017 / Pop", "Francesco Gabbani", "'L'evoluzione brancola, la scimmia nuda balla [...]'"]},
+    {"target": "DOVE E QUANDO", "indizi": ["2019 / Pop-Summer", "Benji & Fede", "'Dimmi dove e quando, da stasera non arrivo in ritardo...'"]},
+    {"target": "MAMBO SALENTINO", "indizi": ["2019 / Pop-Rap", "Boomdabash feat. Alessandra Amoroso", "'Balliamo tutta la notte sotto questo cielo azzurro...'"]},
+    {"target": "LA MUSICA NON C'E", "indizi": ["2017 / Indie-Pop", "Coez", "'Vorrei portarti al mare, anzi portarti il mare...'"]},
+    {"target": "INFINITO", "indizi": ["2001 / Pop", "Raf", "'Dimmi se ti ricordi di me, dell'amore che c'era tra noi...'"]},
+    {"target": "LA VASCA", "indizi": ["2000 / Pop", "Alex Britti", "'Apro la rubrica trovo quattro amici ed un compleanno...'"]},
+    {"target": "SERE NERE", "indizi": ["2003 / Pop-R&B", "Tiziano Ferro", "'Ripenso a quelle cose che ci siamo detti, a tutte quelle [...] [...]'"]},
+    {"target": "BOHEMIAN RHAPSODY", "indizi": ["1975 / Rock", "Queen", "'Is this the real life? Is this just fantasy? Caught in a landslide...'"]},
+    {"target": "IMAGINE", "indizi": ["1971 / Pop-Rock", "John Lennon", "'Imagine all the people living life in peace...'"]},
+    {"target": "THRILLER", "indizi": ["1982 / Pop-Funk", "Michael Jackson", "'Cause this is [...], [...] night, and no one's gonna save you from the beast about to strike...'"]},
+    {"target": "SMELLS LIKE TEEN SPIRIT", "indizi": ["1991 / Grunge", "Nirvana", "'With the lights out, it's less dangerous, here we are now, entertain us...'"]},
+    {"target": "LIKE A PRAYER", "indizi": ["1989 / Pop", "Madonna", "'Life is a mystery, everyone must stand alone...'"]},
+    {"target": "HOTEL CALIFORNIA", "indizi": ["1976 / Rock", "Eagles", "'Welcome to the [...], such a lovely place, such a lovely face...'"]},
+    {"target": "SWEET CHILD O' MINE", "indizi": ["1987 / Hard Rock", "Guns N' Roses", "'She's got eyes of the bluest skies as if they thought of rain...'"]},
+    {"target": "WONDERWALL", "indizi": ["1995 / Britpop", "Oasis", "'Because maybe, you're gonna be the one that saves me, and after all you're my [...]'"]},
+    {"target": "SHAPE OF YOU", "indizi": ["2017 / Pop", "Ed Sheeran", "'The club isn't the best place to find a lover so the bar is where I go...'"]},
+    {"target": "BLINDING LIGHTS", "indizi": ["2019 / Synth-Pop", "The Weeknd", "'I'm blinded by the lights, no I can't sleep until I feel your touch...'"]},
+    {"target": "HALLELUJAH", "indizi": ["1984 / Folk-Rock", "Leonard Cohen / Jeff Buckley", "'I've heard there was a secret chord that David played and it pleased the Lord...'"]},
+    {"target": "BILLIE JEAN", "indizi": ["1982 / Pop-Disco", "Michael Jackson", "'[...] [...] is not my lover, she's just a girl who claims that I am the one...'"]},
+    {"target": "STAYIN' ALIVE", "indizi": ["1977 / Disco", "Bee Gees", "'Ah, ha, ha, ha, [...] [...] [...] [...]'"]},
+    {"target": "DANCING QUEEN", "indizi": ["1976 / Pop-Disco", "ABBA", "'You can dance, you can jive, having the time of your life...'"]},
+    {"target": "YESTERDAY", "indizi": ["1965 / Pop-Folk", "The Beatles", "'[...], all my troubles seemed so far away, now it looks as though they're here to stay...'"]},
+    {"target": "LET IT BE", "indizi": ["1970 / Pop-Rock", "The Beatles", "'When I find myself in times of trouble, Mother Mary comes to me...'"]},
+    {"target": "HEY JUDE", "indizi": ["1968 / Rock", "The Beatles", "'[...], don't make it bad, take a sad song and make it better...'"]},
+    {"target": "SATISFACTION", "indizi": ["1965 / Rock", "The Rolling Stones", "'I can't get no [...], cause I try and I try and I try...'"]},
+    {"target": "ANOTHER BRICK IN THE WALL", "indizi": ["1979 / Progressive Rock", "Pink Floyd", "'We don't need no education, we don't need no thought control...'"]},
+    {"target": "WISH YOU WERE HERE", "indizi": ["1975 / Rock", "Pink Floyd", "'How I wish, how I wish you were here, we're just two lost souls swimming in a fish bowl...'"]},
+    {"target": "EYE OF THE TIGER", "indizi": ["1982 / Hard Rock", "Survivor", "'It's the [...], it's the thrill of the fight, rising up to the challenge of our rival...'"]},
+    {"target": "LIVIN' ON A PRAYER", "indizi": ["1986 / Rock", "Bon Jovi", "'Tommy used to work on the docks, union's been on strike, he's down on his luck...'"]},
+    {"target": "IN THE END", "indizi": ["2000 / Nu Metal", "Linkin Park", "'I tried so hard and got so far, but in the end it doesn't even matter...'"]},
+    {"target": "SEVEN NATION ARMY", "indizi": ["2003 / Garage Rock", "The White Stripes", "'I'm gonna fight 'em all, a [...] [...] [...] couldn't hold me back...'"]},
+    {"target": "TOXIC", "indizi": ["2003 / Dance-Pop", "Britney Spears", "'With a taste of your lips I'm on a ride, you're toxic I'm slippin' under...'"]},
+    {"target": "ROLLING IN THE DEEP", "indizi": ["2010 / Soul-Pop", "Adele", "'There's a fire starting in my heart, reaching a fever pitch and it's bringing me out the dark...'"]},
+    {"target": "UPTOWN FUNK", "indizi": ["2014 / Funk-Pop", "Mark Ronson feat. Bruno Mars", "'Don't believe me, just watch, come on!'"]},
+    {"target": "DESPACITO", "indizi": ["2017 / Reggaeton", "Luis Fonsi feat. Daddy Yankee", "'Quiero respirar tu cuello [...] dejar que te diga cosas al oído...'"]},
+    {"target": "GANGNAM STYLE", "indizi": ["2012 / K-Pop", "PSY", "'Oppa is [...] [...]!'"]},
+    {"target": "BAD GUY", "indizi": ["2019 / Electropop", "Billie Eilish", "'So you're a tough guy, like it really rough guy... I'm the [...] [...]'"]},
+    {"target": "FELICITA", "indizi": ["1982 / Pop", "Al Bano & Romina Power", "'E tenere la mano, andare lontano, la [...] è un bicchiere di vino con un panino...'"]},
+    {"target": "IL GATTO E LA VOLPE", "indizi": ["1977 / Rock-Folk", "Edoardo Bennato", "'Quanta fretta, ma dove vai? Se ci fermiamo un momento ti pentirai...'"]},
+    {"target": "PESCATORE", "indizi": ["1980 / Cantautorato", "Pierangelo Bertoli & Fiorella Mannoia", "'Getta le tue reti, buona pesca ci sarà...'"]},
+    {"target": "PICCOLA KATY", "indizi": ["1968 / Pop", "Pooh", "'[...] [...] vai via, la porta è socchiusa, la strada è deserta...'"]},
+    {"target": "SAMARCANDA", "indizi": ["1977 / Folk-Pop", "Roberto Vecchioni", "'Ridi, ridi, cavallo, ridi, che la bella morte è arrivata qua...'"]},
+    {"target": "PIAZZA GRANDE", "indizi": ["1972 / Cantautorato", "Lucio Dalla", "'Ci vorrebbe anche il mare che dorme nelle mie vene...'"]},
+    {"target": "IN ALTO MARE", "indizi": ["1980 / Pop-Funk", "Loredana Bertè", "'Fiaba, la mia vita è una fiaba, io non cerco un tesoro...'"]},
+    {"target": "SPLENDIDO SPLENDENTE", "indizi": ["1979 / Pop-Disco", "Donatella Rettore", "'Sei bellissima, sei fantastica, con la chirurgia plastica...'"]},
+    {"target": "SOTTO QUESTO SOLE", "indizi": ["1990 / Pop", "Francesco Baccini & Ladri di Biciclette", "'[...] [...] [...] bello pedalare, sì ma con la bici giusta...'"]},
+    {"target": "MALEDETTA PRIMAVERA", "indizi": ["1981 / Pop-Melodico", "Loretta Goggi", "'Che fa se per errore mi abbandono a un momento d'amore... che importa se è una [...] [...]'"]},
+    {"target": "SERVI DELLA GLEBA", "indizi": ["1992 / Pop-Rock Satirico", "Elio e le Storie Tese", "'Ahi, ahi, ahi, la mia testa... [...] a testa alta, verso il centro sociale...'"]},
+    {"target": "VIENI A BALLARE IN PUGLIA", "indizi": ["2008 / Hip-Hop", "Caparezza", "'[...] [...] [...] [...] dove la notte è calda e l'atmosfera è tesa...'"]},
+    {"target": "LA PRIMA COSA BELLA", "indizi": ["1970 / Pop-Melodico", "Ricchi e Poveri / Nicola Di Bari", "'Prendo la chitarra e suono per te, il tempo di imparare e ti suonerò...'"]},
+    {"target": "TUTTA MIA LA CITTA", "indizi": ["1969 / Beat-Pop", "Equipe 84", "'Un passo avanti a me, il vuoto intorno a me...'"]},
+    {"target": "SAPORE DI SALE", "indizi": ["1963 / Cantautorato", "Gino Paoli", "'[...] [...] [...], sapore di mare, che hai sulla pelle, che hai sulle labbra...'"]},
+    {"target": "STESSA SPIAGGIA STESSO MARE", "indizi": ["1963 / Twist-Pop", "Piero Focaccia / Mina", "'[...] [...] [...] [...] per poterti rivedere, per dirti che sono sempre quel ragazzo che ti amava tanto...'"]},
+    {"target": "C'E CHI DICE NO", "indizi": ["1987 / Rock", "Vasco Rossi", "'C'è chi dice no, c'è chi dice no, io non ci sono più...'"]},
+    {"target": "BUONANOTTE FIORELLINO", "indizi": ["1975 / Cantautorato Folk", "Francesco De Gregori", "'[...] [...] buonanotte tra le stelle e la stanza, per poterti far sognare...'"]},
+    {"target": "I MASCHI", "indizi": ["1987 / Rock", "Gianna Nannini", "'[...] [...] innamorati dentro ai bar, i maschi con le braccia conserte...'"]},
+    {"target": "NOSTALGIA CANAGLIA", "indizi": ["1987 / Pop", "Al Bano & Romina Power", "'Che cos'è questo vuoto che sento... è un ricordo che torna nel tempo...'"]}
+]
+
 # --- FLASK KEEP ALIVE ---
 app = Flask(__name__)
 
@@ -948,7 +1286,9 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🎲 Casuale", callback_data=f"start_qmulti_ALL_{owner_id}"), InlineKeyboardButton("⚽ Calcio", callback_data=f"start_qmulti_CALCIO_{owner_id}")],
             [InlineKeyboardButton("🏎️ Formula 1", callback_data=f"start_qmulti_F1_{owner_id}"), InlineKeyboardButton("🦸 Marvel & DC", callback_data=f"start_qmulti_MARVEL_{owner_id}")],
             [InlineKeyboardButton("🎬 Cinema", callback_data=f"start_qmulti_CINEMA_{owner_id}"), InlineKeyboardButton("📺 Serie TV", callback_data=f"start_qmulti_SERIE_{owner_id}")],
-            [InlineKeyboardButton("🌍 Città", callback_data=f"start_qmulti_CITTA_{owner_id}"), InlineKeyboardButton("🏆 Sportivi", callback_data=f"start_qmulti_SPORT_{owner_id}")],
+            [InlineKeyboardButton("🗺️ Paesi", callback_data=f"start_qmulti_PAESI_{owner_id}"), InlineKeyboardButton("🏮 Anime", callback_data=f"start_qmulti_ANIME_{owner_id}")],
+            [InlineKeyboardButton("🏷️ Brand", callback_data=f"start_qmulti_BRANDS_{owner_id}"), InlineKeyboardButton("📜 Personaggi", callback_data=f"start_qmulti_PERSONAGGI_{owner_id}")],
+            [InlineKeyboardButton("🎵 Canzoni", callback_data=f"start_qmulti_CANZONI_{owner_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -960,9 +1300,10 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         keyboard = [
             [InlineKeyboardButton("⚽ Calcio", callback_data=f"start_qcalcio_{owner_id}"), InlineKeyboardButton("🎬 Cinema", callback_data=f"start_qcinema_{owner_id}")],
-            [InlineKeyboardButton("📺 Serie TV", callback_data=f"start_qserie_{owner_id}"), InlineKeyboardButton("🌍 Città", callback_data=f"start_qcitta_{owner_id}")],
-            [InlineKeyboardButton("🏆 Sportivi", callback_data=f"start_qsport_{owner_id}"), InlineKeyboardButton("🏎️ Formula 1", callback_data=f"start_qf1_{owner_id}")],
-            [InlineKeyboardButton("🦸 Marvel & DC", callback_data=f"start_qmarvel_{owner_id}")],
+            [InlineKeyboardButton("📺 Serie TV", callback_data=f"start_qserie_{owner_id}"), InlineKeyboardButton("🏎️ Formula 1", callback_data=f"start_qf1_{owner_id}")],
+            [InlineKeyboardButton("🦸 Marvel & DC", callback_data=f"start_qmarvel_{owner_id}"), InlineKeyboardButton("🗺️ Paesi", callback_data=f"start_qpaesi_{owner_id}")],
+            [InlineKeyboardButton("🏮 Anime", callback_data=f"start_qanime_{owner_id}"), InlineKeyboardButton("🏷️ Brand", callback_data=f"start_qbrands_{owner_id}")],
+            [InlineKeyboardButton("📜 Personaggi", callback_data=f"start_qpersonaggi_{owner_id}"), InlineKeyboardButton("🎵 Canzoni", callback_data=f"start_qcanzoni_{owner_id}")],
             back_button
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -1432,1121 +1773,4 @@ async def handle_highlow_callback(update: Update, context: ContextTypes.DEFAULT_
         while new_val == old_val: new_val = random.randint(1, 12)
 
         choice = query.data
-        won = (choice == "hl_guess_high" and new_val > old_val) or (choice == "hl_guess_low" and new_val < old_val)
-
-        if won:
-            game["val"] = new_val
-            prossimo_id = game["target_id"] if user.id == game["sfidante_id"] else game["sfidante_id"]
-            prossimo_nome = game["target_name"] if user.id == game["sfidante_id"] else game["sfidante_name"]
-            game["turno_id"] = prossimo_id
-
-            keyboard = [[
-                InlineKeyboardButton("📈 PIÙ ALTO", callback_data="hl_guess_high"),
-                InlineKeyboardButton("📉 PIÙ BASSO", callback_data="hl_guess_low")
-            ]]
-
-            await query.edit_message_text(
-                f"✅ <b>GIUSTO! Era {new_val}!</b>\n"
-                f"😅 <b>{user.first_name}</b> si salva!\n\n"
-                f"🎯 Nuovo numero: <b>{new_val}</b>\n"
-                f"👉 Tocca a <b>{prossimo_nome}</b>: Più Alto o Più Basso?",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="HTML"
-            )
-        else:
-            PENITENZE_ATTIVE[user.id] = 1
-            await query.edit_message_text(
-                f"💥 <b>ERRATO! Era {new_val}!</b>\n"
-                f"💀 <b>{user.first_name} HA SBAGLIATO E PERDE IL DUELLO!</b>\n\n"
-                f"⚠️ Per parlare devi scrivere esattamente:\n👉 <code>{FRASE_PENITENZA}</code>",
-                parse_mode="HTML"
-            )
-            del HIGHLOW_DUELS[chat_id]
-
-# --- GAME: GHIGLIOTTINA 1v1 ---
-async def start_ghigliottina_prep(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    parts = query.data.split("_")
-    owner_id = int(parts[3]) if len(parts) > 3 else query.from_user.id
-
-    if not await verify_user_lock(query, owner_id): return
-
-    await query.edit_message_text(
-        "🪓 <b>GHIGLIOTTINA EXPRESS 1v1</b>\n\n"
-        "Scrivi in chat il nome della tua vittima per sfidarla alla Ghigliottina:\n\n"
-        "👉 <code>sfidoghigliottina @username</code>",
-        parse_mode="HTML"
-    )
-
-async def handle_ghigliottina_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    chat_id = query.message.chat_id
-    user = query.from_user
-
-    if chat_id not in GHIGLIOTTINA_DUELS:
-        await query.answer("⚠️ Sfida Ghigliottina non attiva.", show_alert=True)
-        return
-
-    duel = GHIGLIOTTINA_DUELS[chat_id]
-
-    if query.data == "ghig_accetta":
-        if user.username and user.username.lower() != duel["target_username"]:
-            await query.answer("❌ Solo lo sfidato può accettare!", show_alert=True)
-            return
-
-        item = random.choice(GHIGLIOTTINA_DB)
-        duel["target_id"] = user.id
-        duel["target_name"] = user.first_name
-        duel["word"] = item["target"]
-        duel["indizi"] = item["indizi"]
-        duel["active"] = True
-
-        indizi_formatted = " • ".join([f"<b>{word}</b>" for word in item["indizi"]])
-
-        msg = await query.edit_message_text(
-            f"🪓 <b>GHIGLIOTTINA EXPRESS 1v1 INIZIATA!</b>\n\n"
-            f"⚔️ <b>{duel['sfidante_name']}</b> vs <b>{duel['target_name']}</b>\n\n"
-            f"📌 <b>Le 5 Parole Indizio:</b>\n{indizi_formatted}\n\n"
-            f"⏱️ <i>Avete 75 secondi! Il primo dei due che scrive la parola legame in chat vince <b>+💳 40 $SDG</b>!</i>",
-            parse_mode="HTML"
-        )
-        asyncio.create_task(run_ghigliottina_timeout(context.bot, chat_id, msg.message_id, item["target"]))
-
-    elif query.data == "ghig_rifiuta":
-        await query.edit_message_text("🐔 Sfida Ghigliottina rifiutata!")
-        del GHIGLIOTTINA_DUELS[chat_id]
-
-async def run_ghigliottina_timeout(bot, chat_id: int, msg_id: int):
-    await asyncio.sleep(75)
-    if chat_id in GHIGLIOTTINA_DUELS and GHIGLIOTTINA_DUELS[chat_id].get("active"):
-        target_word = GHIGLIOTTINA_DUELS[chat_id]["word"]
-        del GHIGLIOTTINA_DUELS[chat_id]
-        try:
-            await bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=msg_id,
-                text=f"⏰ <b>TEMPO SCADUTO ALLA GHIGLIOTTINA!</b>\n\nNessuno dei due sfidanti ha indovinato. La parola legame era: <b>{target_word}</b>!",
-                parse_mode="HTML"
-            )
-        except Exception: pass
-
-# --- GAME: QUIZ 1v1 DUEL ---
-async def start_quiz1v1_prep(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    parts = query.data.split("_")
-    owner_id = int(parts[3]) if len(parts) > 3 else query.from_user.id
-
-    if not await verify_user_lock(query, owner_id): return
-
-    await query.edit_message_text(
-        "⚔️ <b>DUELLO QUIZ 1v1 (A 5 ROUND)</b>\n\n"
-        "Scrivi in chat il nome della tua vittima per sfidarla al quiz:\n\n"
-        "👉 <code>sfidoquiz @username</code>",
-        parse_mode="HTML"
-    )
-
-async def handle_quiz1v1_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    chat_id = query.message.chat_id
-    user = query.from_user
-
-    if chat_id not in QUIZ_DUELS_1V1:
-        await query.answer("⚠️ Duello Quiz non attivo.", show_alert=True)
-        return
-
-    duel = QUIZ_DUELS_1V1[chat_id]
-
-    if query.data.startswith("q1v1_cat_"):
-        if user.id != duel["sfidante_id"]:
-            await query.answer("❌ Solo lo sfidante può scegliere la categoria!", show_alert=True)
-            return
-
-        cat_choice = query.data.split("_")[2]
-        duel["category"] = cat_choice
-
-        keyboard = [
-            [InlineKeyboardButton("🎯 Accetta Duello Quiz", callback_data="q1v1_accetta")],
-            [InlineKeyboardButton("🐔 Rifiuta", callback_data="q1v1_rifiuta")]
-        ]
-
-        await query.edit_message_text(
-            f"⚔️ <b>DUELLO QUIZ 1v1 (A 5 ROUND)</b>\n\n"
-            f"<b>{duel['sfidante_name']}</b> ha sfidato <b>@{duel['target_username']}</b> in Categoria <b>{cat_choice}</b>!\n\n"
-            f"@{duel['target_username']}, accetti la sfida?",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
-
-    elif query.data == "q1v1_accetta":
-        if user.username and user.username.lower() != duel["target_username"]:
-            await query.answer("❌ Solo lo sfidato può accettare!", show_alert=True)
-            return
-
-        duel["target_id"] = user.id
-        duel["target_name"] = user.first_name
-        duel["round"] = 1
-        duel["p1_score"] = 0
-        duel["p2_score"] = 0
-        duel["active"] = True
-
-        await launch_quiz1v1_round(context.bot, chat_id)
-
-    elif query.data == "q1v1_rifiuta":
-        await query.edit_message_text("🐔 Duello Quiz rifiutato!")
-        del QUIZ_DUELS_1V1[chat_id]
-
-async def launch_quiz1v1_round(bot, chat_id: int):
-    if chat_id not in QUIZ_DUELS_1V1: return
-    duel = QUIZ_DUELS_1V1[chat_id]
-
-    cat = duel["category"]
-    db_map = {
-        "CALCIO": QUIZ_CALCIO_DB, "CINEMA": QUIZ_CINEMA_DB,
-        "SERIE": QUIZ_SERIE_DB, "CITTA": QUIZ_CITTA_DB,
-        "SPORT": QUIZ_SPORTIVI_DB, "F1": QUIZ_FORMULA1_DB,
-        "MARVEL": QUIZ_MARVEL_DB
-    }
-    
-    selected_db = db_map.get(cat, QUIZ_CALCIO_DB)
-    item = random.choice(selected_db)
-
-    duel["current_target"] = item["target"]
-    duel["current_indizi"] = item["indizi"]
-
-    msg = await bot.send_message(
-        chat_id=chat_id,
-        text=f"⚔️ <b>DUELLO QUIZ 1v1 — ROUND {duel['round']}/5</b>\n"
-             f"👤 <b>{duel['sfidante_name']}</b> ({duel['p1_score']}) vs <b>{duel['target_name']}</b> ({duel['p2_score']})\n\n"
-             f"🏷️ <b>CATEGORIA: {cat}</b>\n\n"
-             f"<b>1° Indizio:</b> {item['indizi'][0]}\n\n"
-             f"⏱️ <i>Avete 75 secondi per rispondere prima del prossimo round!</i>",
-        parse_mode="HTML"
-    )
-    duel["msg_id"] = msg.message_id
-    asyncio.create_task(run_quiz1v1_round_timer(bot, chat_id, duel['round'], msg.message_id, item["indizi"], item["target"]))
-
-async def run_quiz1v1_round_timer(bot, chat_id: int, round_num: int, msg_id: int, indizi: list, target: str):
-    await asyncio.sleep(25)
-    if chat_id in QUIZ_DUELS_1V1 and QUIZ_DUELS_1V1[chat_id].get("round") == round_num and QUIZ_DUELS_1V1[chat_id].get("msg_id") == msg_id:
-        duel = QUIZ_DUELS_1V1[chat_id]
-        hints_text = f"• <b>Indizio 1:</b> {indizi[0]}\n• <b>Indizio 2:</b> {indizi[1]}"
-        try:
-            await bot.edit_message_text(
-                chat_id=chat_id, message_id=msg_id,
-                text=f"⚔️ <b>DUELLO QUIZ 1v1 — ROUND {round_num}/5</b>\n"
-                     f"👤 <b>{duel['sfidante_name']}</b> ({duel['p1_score']}) vs <b>{duel['target_name']}</b> ({duel['p2_score']})\n\n"
-                     f"{hints_text}",
-                parse_mode="HTML"
-            )
-        except Exception: pass
-
-    await asyncio.sleep(25)
-    if chat_id in QUIZ_DUELS_1V1 and QUIZ_DUELS_1V1[chat_id].get("round") == round_num and QUIZ_DUELS_1V1[chat_id].get("msg_id") == msg_id:
-        duel = QUIZ_DUELS_1V1[chat_id]
-        hints_text = f"• <b>Indizio 1:</b> {indizi[0]}\n• <b>Indizio 2:</b> {indizi[1]}\n• <b>Indizio 3:</b> {indizi[2]}"
-        try:
-            await bot.edit_message_text(
-                chat_id=chat_id, message_id=msg_id,
-                text=f"⚔️ <b>DUELLO QUIZ 1v1 — ROUND {round_num}/5</b>\n"
-                     f"👤 <b>{duel['sfidante_name']}</b> ({duel['p1_score']}) vs <b>{duel['target_name']}</b> ({duel['p2_score']})\n\n"
-                     f"{hints_text}",
-                parse_mode="HTML"
-            )
-        except Exception: pass
-
-    await asyncio.sleep(25)
-    if chat_id in QUIZ_DUELS_1V1 and QUIZ_DUELS_1V1[chat_id].get("round") == round_num and QUIZ_DUELS_1V1[chat_id].get("msg_id") == msg_id:
-        duel = QUIZ_DUELS_1V1[chat_id]
-        await bot.send_message(
-            chat_id=chat_id,
-            text=f"⏰ <b>ROUND {round_num} SCADUTO!</b> Nessuno dei due ha indovinato. La risposta era: <b>{target}</b>.",
-            parse_mode="HTML"
-        )
-        if duel["round"] < 5 and duel["p1_score"] < 3 and duel["p2_score"] < 3:
-            duel["round"] += 1
-            await launch_quiz1v1_round(bot, chat_id)
-        else:
-            await conclude_quiz1v1_duel(bot, chat_id)
-
-async def conclude_quiz1v1_duel(bot, chat_id: int):
-    if chat_id not in QUIZ_DUELS_1V1: return
-    duel = QUIZ_DUELS_1V1[chat_id]
-
-    p1_s = duel["p1_score"]
-    p2_s = duel["p2_score"]
-
-    if p1_s > p2_s:
-        winner_name = duel["sfidante_name"]
-        winner_id = duel["sfidante_id"]
-    elif p2_s > p1_s:
-        winner_name = duel["target_name"]
-        winner_id = duel["target_id"]
-    else:
-        winner_name = None
-
-    if winner_name:
-        add_user_coins(chat_id, winner_id, 50)
-        text = f"🏆 <b>DUELLO QUIZ CONCLUSO!</b>\n\n🥇 <b>{winner_name}</b> vince il duello ({p1_s} a {p2_s}) e guadagna <b>+💳 50 $SDG</b>!"
-    else:
-        text = f"⚖️ <b>DUELLO QUIZ FINITO IN PAREGGIO!</b> ({p1_s} a {p2_s}). Nessun premio assegnato."
-
-    del QUIZ_DUELS_1V1[chat_id]
-    await bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
-
-# --- GAME: QUIZ MULTIPLAYER PER CATEGORIA ---
-async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    parts = query.data.split("_")
-    cat_choice = parts[2] if len(parts) > 2 else "ALL"
-    owner_id = int(parts[3]) if len(parts) > 3 else query.from_user.id
-
-    if not await verify_user_lock(query, owner_id): return
-    chat_id = str(query.message.chat_id)
-
-    db_map = [
-        (QUIZ_CALCIO_DB, "⚽ CALCIO", "CALCIO"),
-        (QUIZ_CINEMA_DB, "🎬 CINEMA", "CINEMA"),
-        (QUIZ_SERIE_DB, "📺 SERIE TV", "SERIE"),
-        (QUIZ_CITTA_DB, "🌍 CITTA", "CITTA"),
-        (QUIZ_SPORTIVI_DB, "🏆 SPORTIVI", "SPORT"),
-        (QUIZ_FORMULA1_DB, "🏎️ FORMULA 1", "F1"),
-        (QUIZ_MARVEL_DB, "🦸 MARVEL & DC", "MARVEL")
-    ]
-    
-    if cat_choice == "ALL":
-        selected_db, cat_name, _ = random.choice(db_map)
-    else:
-        filtered = [item for item in db_map if item[2] == cat_choice]
-        selected_db, cat_name, _ = filtered[0] if filtered else db_map[0]
-
-    item = random.choice(selected_db)
-
-    msg = await query.edit_message_text(
-        f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n"
-        f"🏷️ <b>CATEGORIA: {cat_name}</b>\n\n"
-        f"Il primo che risponde in chat vince +💳 15 $SDG!\n\n"
-        f"<b>1° Indizio:</b> {item['indizi'][0]}\n\n"
-        f"⏱️ <i>Avete 75 secondi per indovinare!</i>",
-        parse_mode="HTML"
-    )
-
-    QUIZ_GAMES[chat_id] = {
-        "multi": True, "target": item["target"],
-        "indizi": item["indizi"], "step": 1,
-        "created_at": datetime.now(),
-        "msg_id": msg.message_id,
-        "cat_name": cat_name
-    }
-
-    asyncio.create_task(run_quiz_multi_timer(context.bot, chat_id, msg.message_id, item["indizi"], cat_name, item["target"], owner_id))
-
-async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list, cat_name: str, target: str, owner_id: int):
-    await asyncio.sleep(25)
-    if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and QUIZ_GAMES[chat_id].get("msg_id") == msg_id:
-        QUIZ_GAMES[chat_id]["step"] = 2
-        hints_text = f"• <b>Indizio 1:</b> {indizi[0]}\n• <b>Indizio 2:</b> {indizi[1]}"
-        try:
-            await bot.edit_message_text(
-                chat_id=int(chat_id), message_id=msg_id,
-                text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n🏷️ <b>CATEGORIA: {cat_name}</b>\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
-                parse_mode="HTML"
-            )
-        except Exception: pass
-
-    await asyncio.sleep(25)
-    if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and QUIZ_GAMES[chat_id].get("msg_id") == msg_id:
-        QUIZ_GAMES[chat_id]["step"] = 3
-        hints_text = f"• <b>Indizio 1:</b> {indizi[0]}\n• <b>Indizio 2:</b> {indizi[1]}\n• <b>Indizio 3:</b> {indizi[2]}"
-        try:
-            await bot.edit_message_text(
-                chat_id=int(chat_id), message_id=msg_id,
-                text=f"🌐 <b>QUIZ MULTIPLAYER APERTO A TUTTI</b>\n🏷️ <b>CATEGORIA: {cat_name}</b>\n\nIl primo che risponde in chat vince +💳 15 $SDG!\n\n{hints_text}",
-                parse_mode="HTML"
-            )
-        except Exception: pass
-
-    await asyncio.sleep(25)
-    if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and QUIZ_GAMES[chat_id].get("msg_id") == msg_id:
-        del QUIZ_GAMES[chat_id]
-        end_keyboard = [
-            [InlineKeyboardButton("🌐 Altro Quiz Multi", callback_data=f"hub_qmulti_{owner_id}")],
-            [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
-        ]
-        try:
-            await bot.edit_message_text(
-                chat_id=int(chat_id), message_id=msg_id,
-                text=f"⏰ <b>TEMPO SCADUTO!</b>\n\nNessuno ha indovinato in tempo. La risposta corretta era: <b>{target}</b>!",
-                reply_markup=InlineKeyboardMarkup(end_keyboard),
-                parse_mode="HTML"
-            )
-        except Exception: pass
-
-# --- TIMEOUT QUIZ GENERALI ---
-async def quiz_timeout_check(context: ContextTypes.DEFAULT_TYPE):
-    now = datetime.now()
-    to_delete = [k for k, q in QUIZ_GAMES.items() if q.get("created_at") and (now - q["created_at"]).total_seconds() > 180]
-    for k in to_delete: del QUIZ_GAMES[k]
-
-# --- CLASSIFICA RICCONI ---
-async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, owner_id: int = None):
-    query = update.callback_query
-    chat_id = query.message.chat_id if query else update.effective_chat.id
-    current_user_id = query.from_user.id if query else update.effective_user.id
-
-    if query and owner_id and not await verify_user_lock(query, owner_id): return
-
-    prefix = f"{chat_id}_"
-    chat_users = []
-
-    for key, data in USER_DATA.items():
-        if key.startswith(prefix):
-            uid = key.split("_")[1]
-            coins = data.get("coins", 0)
-            chat_users.append((uid, coins))
-
-    chat_users.sort(key=lambda x: x[1], reverse=True)
-    text = "🏆 <b>CLASSIFICA RICCONI $SDG</b> 💰\n\n"
-    medals = ["🥇", "🥈", "🥉"]
-
-    for idx, (uid, coins) in enumerate(chat_users[:10], start=1):
-        rank_icon = medals[idx-1] if idx <= 3 else f"{idx}."
-        try:
-            member = await context.bot.get_chat_member(chat_id, int(uid))
-            raw_name = member.user.first_name
-            name = get_formatted_name(chat_id, int(uid), raw_name)
-        except Exception:
-            name = f"Giocatore {uid[-4:]}"
-
-        text += f"{rank_icon} <b>{name}</b> — <code>💳 {coins} $SDG</code>\n"
-
-    keyboard = [[InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{current_user_id}")]]
-
-    if query:
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-    else:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-
-# --- DAILY ---
-async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    parts = query.data.split("_")
-    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
-
-    if not await verify_user_lock(query, owner_id): return
-
-    chat_id = query.message.chat_id
-    user_id = query.from_user.id
-    key = get_user_key(chat_id, user_id)
-    today = str(date.today())
-
-    if key not in USER_DATA: USER_DATA[key] = {"coins": 50, "last_daily": ""}
-
-    if USER_DATA[key].get("last_daily") == today:
-        await query.answer("❌ Bonus giornaliero già riscosso oggi!", show_alert=True)
-    else:
-        USER_DATA[key]["last_daily"] = today
-        add_user_coins(chat_id, user_id, 50)
-        await query.answer("🎉 Hai riscosso +💳 50 $SDG!", show_alert=True)
-        await backup_to_telegram(context)
-        await hub_callback(update, context)
-
-async def block_direct_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🚫 <b>I giochi si avviano solo dall'HUB!</b>\nUsa /sdrogocomm per accedere.", parse_mode="HTML")
-
-# --- GAME: BLACKJACK ---
-async def start_bj_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    parts = query.data.split("_")
-    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
-
-    if not await verify_user_lock(query, owner_id): return
-    user = query.from_user
-    chat_id = query.message.chat_id
-
-    if get_user_coins(chat_id, user.id) < 10:
-        await query.answer("❌ Servono 10 $SDG per giocare a Blackjack!", show_alert=True)
-        return
-
-    add_user_coins(chat_id, user.id, -10)
-    cards = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11]
-    player_hand = [random.choice(cards), random.choice(cards)]
-    dealer_hand = [random.choice(cards)]
-
-    BLACKJACK_GAMES[f"{chat_id}_{user.id}"] = {
-        "player_id": user.id, "player_hand": player_hand, "dealer_hand": dealer_hand
-    }
-
-    keyboard = [[
-        InlineKeyboardButton("🎴 Carta", callback_data=f"bj_hit_{owner_id}"),
-        InlineKeyboardButton("✋ Stai", callback_data=f"bj_stand_{owner_id}")
-    ]]
-
-    await query.edit_message_text(
-        f"🃏 <b>BLACKJACK 21</b> (Puntata: 10 $SDG)\n\n"
-        f"👤 Giocatore: <b>{user.first_name}</b>\n"
-        f"🎎 Carte: {player_hand} (Totale: <b>{sum(player_hand)}</b>)\n"
-        f"🤖 Banco: [{dealer_hand[0]}, ?]\n\nCosa fai?",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode='HTML'
-    )
-
-async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    parts = query.data.split("_")
-    action = parts[1]
-    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
-
-    if not await verify_user_lock(query, owner_id): return
-    chat_id = query.message.chat_id
-    user_id = query.from_user.id
-    game_key = f"{chat_id}_{user_id}"
-
-    if game_key not in BLACKJACK_GAMES:
-        await query.edit_message_text("❌ Partita terminata.")
-        return
-
-    game = BLACKJACK_GAMES[game_key]
-    cards = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11]
-    end_keyboard = [
-        [InlineKeyboardButton("🔂 Rigioca (10 $SDG)", callback_data=f"start_bj_{owner_id}")],
-        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
-    ]
-
-    if action == "hit":
-        game["player_hand"].append(random.choice(cards))
-        score = sum(game["player_hand"])
-
-        if score > 21:
-            del BLACKJACK_GAMES[game_key]
-            await query.edit_message_text(f"💥 <b>SBALLATO!</b> ({score})\nHai perso 10 $SDG!", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML')
-        else:
-            keyboard = [[InlineKeyboardButton("🎴 Carta", callback_data=f"bj_hit_{owner_id}"), InlineKeyboardButton("✋ Stai", callback_data=f"bj_stand_{owner_id}")]]
-            await query.edit_message_text(f"🃏 <b>BLACKJACK 21</b>\n\nCarte: {game['player_hand']} ({score})\nBanco: [{game['dealer_hand'][0]}, ?]", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
-
-    elif action == "stand":
-        player_score = sum(game["player_hand"])
-        dealer_hand = game["dealer_hand"]
-        while sum(dealer_hand) < 17: dealer_hand.append(random.choice(cards))
-        dealer_score = sum(dealer_hand)
-        del BLACKJACK_GAMES[game_key]
-
-        if dealer_score > 21 or player_score > dealer_score:
-            add_user_coins(chat_id, user_id, 15)
-            await query.edit_message_text(f"🏆 <b>VITTORIA!</b> Tu: {player_score} | Banco: {dealer_score}\nHai vinto <b>+💳 15 $SDG</b>!", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML')
-        elif player_score < dealer_score:
-            await query.edit_message_text(f"❌ <b>SCONFITTA!</b> Tu: {player_score} | Banco: {dealer_score}\nHai perso la puntata.", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML')
-        else:
-            add_user_coins(chat_id, user_id, 10)
-            await query.edit_message_text(f"⚖️ <b>PAREGGIO!</b> Punti: {player_score}\nPuntata di 10 $SDG restituita.", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML')
-
-# --- GAME: WORDLE EXPRESS ---
-async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    parts = query.data.split("_")
-    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
-
-    if not await verify_user_lock(query, owner_id): return
-    user = query.from_user
-    chat_id = query.message.chat_id
-    game_key = f"{chat_id}_{user.id}"
-
-    if get_user_coins(chat_id, user.id) < 10:
-        await query.answer("❌ Servono 10 $SDG per giocare a Wordle!", show_alert=True)
-        return
-
-    add_user_coins(chat_id, user.id, -10)
-    secret_word = random.choice(WORDS)
-
-    WORDLE_GAMES[game_key] = {
-        "player_id": user.id, "secret": secret_word,
-        "attempts": 0, "history": []
-    }
-
-    await query.edit_message_text(
-        "🔠 <b>WORDLE EXPRESS</b> (Puntata: 10 $SDG)\n\n"
-        "Ho scelto una parola di <b>5 lettere</b>!\n"
-        "Scrivila direttamente in chat per tentare (5 tentativi).",
-        parse_mode="HTML"
-    )
-
-# --- GAME: QUIZ SHOW SINGLE PLAYER CON CHIUSURA A TEMPO ---
-async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, db_source, title_name: str):
-    query = update.callback_query
-    await query.answer()
-    
-    parts = query.data.split("_")
-    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
-
-    if not await verify_user_lock(query, owner_id): return
-    chat_id = query.message.chat_id
-    user_id = query.from_user.id
-
-    if get_user_coins(chat_id, user_id) < 5:
-        await query.answer("❌ Servono 5 $SDG per avviare il Quiz!", show_alert=True)
-        return
-
-    add_user_coins(chat_id, user_id, -5)
-    item = random.choice(db_source)
-    
-    msg = await query.edit_message_text(
-        f"🧠 <b>QUIZ {title_name}</b> (Costo: 5 $SDG)\n\n"
-        f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
-        "Indovina la risposta scrivendola in chat!\n\n"
-        f"<b>1° Indizio:</b> {item['indizi'][0]}\n\n"
-        f"⏱️ <i>Hai 75 secondi per indovinare!</i>",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("💡 Chiedi altro indizio (-$SDG)", callback_data=f"quiz_hint_{owner_id}")],
-            [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
-        ]),
-        parse_mode="HTML"
-    )
-
-    quiz_key = f"{chat_id}_{user_id}"
-    QUIZ_GAMES[quiz_key] = {
-        "player_id": user_id, "type": title_name,
-        "target": item["target"], "indizi": item["indizi"], "step": 1,
-        "created_at": datetime.now(), "msg_id": msg.message_id
-    }
-
-    asyncio.create_task(run_quiz_single_timeout(context.bot, chat_id, user_id, msg.message_id, item["target"]))
-
-async def run_quiz_single_timeout(bot, chat_id: int, user_id: int, msg_id: int, target: str):
-    await asyncio.sleep(75)
-    quiz_key = f"{chat_id}_{user_id}"
-    if quiz_key in QUIZ_GAMES and QUIZ_GAMES[quiz_key].get("msg_id") == msg_id:
-        del QUIZ_GAMES[quiz_key]
-        end_keyboard = [[InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user_id}")]]
-        try:
-            await bot.edit_message_text(
-                chat_id=chat_id, message_id=msg_id,
-                text=f"⏰ <b>TEMPO SCADUTO!</b>\n\nNon hai indovinato in tempo. La risposta corretta era: <b>{target}</b>!",
-                reply_markup=InlineKeyboardMarkup(end_keyboard),
-                parse_mode="HTML"
-            )
-        except Exception: pass
-
-async def quiz_more_hint(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    parts = query.data.split("_")
-    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
-
-    if not await verify_user_lock(query, owner_id): return
-    chat_id = str(query.message.chat_id)
-    game_key = f"{chat_id}_{owner_id}"
-
-    if game_key not in QUIZ_GAMES:
-        await query.answer("Nessun quiz attivo.", show_alert=True)
-        return
-
-    q = QUIZ_GAMES[game_key]
-    if q["step"] < len(q["indizi"]):
-        q["step"] += 1
-        hints_text = "\n".join([f"• <b>Indizio {i+1}:</b> {q['indizi'][i]}" for i in range(q["step"])])
-        
-        keyboard = []
-        if q["step"] < len(q["indizi"]):
-            keyboard.append([InlineKeyboardButton("💡 Chiedi altro indizio (-$SDG)", callback_data=f"quiz_hint_{owner_id}")])
-        keyboard.append([InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")])
-
-        await query.edit_message_text(
-            f"🧠 <b>QUIZ {q['type']}</b>\n\nScrivi la risposta in chat!\n\n{hints_text}",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
-
-# --- GAME: ROULETTE RUSSA 1v1 ---
-async def start_roulette_prep(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    parts = query.data.split("_")
-    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
-
-    if not await verify_user_lock(query, owner_id): return
-
-    await query.edit_message_text(
-        "🎯 <b>ROULETTE RUSSA 1v1</b>\n\n"
-        "Scrivi in chat il nome della tua vittima:\n\n"
-        "👉 <code>sfido @username</code>",
-        parse_mode="HTML"
-    )
-
-# --- UTILITIES ---
-async def toggle_troll(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global IS_TROLLING_ACTIVE
-    if not is_admin(update.effective_user.id): return
-    IS_TROLLING_ACTIVE = not IS_TROLLING_ACTIVE
-    await update.message.reply_text(f"Modalità Auto-Troll: {'ATTIVATA 🙉' if IS_TROLLING_ACTIVE else 'DISATTIVATA 🛑'}")
-
-async def clear_penalties(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id): return
-    PENITENZE_ATTIVE.clear()
-    await update.message.reply_text("🧹 Penitenze rimosse!")
-
-async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ACTIVE_DUELS.clear()
-    HIGHLOW_DUELS.clear()
-    BLACKJACK_GAMES.clear()
-    WORDLE_GAMES.clear()
-    MASTERMIND_GAMES.clear()
-    QUIZ_GAMES.clear()
-    QUIZ_DUELS_1V1.clear()
-    GHIGLIOTTINA_DUELS.clear()
-    HEIST_GAMES.clear()
-    await update.message.reply_text("🛠️ Tutti i giochi bloccati sono stati resettati.")
-
-# --- HANDLER MESSAGGI GENERICI ---
-async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.from_user: return
-    
-    user = update.message.from_user
-    chat_id_int = update.message.chat_id
-    chat_id = str(chat_id_int)
-    text = (update.message.text or "").strip()
-    username_lower = user.username.lower() if user.username else ""
-
-    # Handling Penitenze
-    if user.id in PENITENZE_ATTIVE and PENITENZE_ATTIVE[user.id] > 0:
-        if text.lower() != FRASE_PENITENZA:
-            try:
-                await update.message.delete()
-                await context.bot.send_message(chat_id=chat_id, text=f"🚫 Devi scrivere esattamente: `{FRASE_PENITENZA}`", parse_mode="Markdown")
-                return
-            except Exception: pass
-        else:
-            del PENITENZE_ATTIVE[user.id]
-            await update.message.reply_text(f"✅ {user.first_name} riabilitato!")
-            return
-
-    # Handling Tag Persecutore dallo Shop ("frocio hah")
-    persecute_key = f"{chat_id}_{username_lower}"
-    if persecute_key in ACTIVE_PERSECUTE:
-        p_data = ACTIVE_PERSECUTE[persecute_key]
-        if p_data["count"] > 0:
-            p_data["count"] -= 1
-            await update.message.reply_text(p_data["phrase"])
-            if p_data["count"] == 0:
-                del ACTIVE_PERSECUTE[persecute_key]
-
-    # Handling Comandi Titolo e Perseguita
-    if text.lower().startswith("titolo") or text.lower().startswith("/titolo"):
-        await apply_title_command(update, context)
-        return
-    elif text.lower().startswith("perseguita") or text.lower().startswith("/perseguita"):
-        await apply_persecute_command(update, context)
-        return
-
-    # Handling Sfida Ghigliottina 1v1 ("sfidoghigliottina @username")
-    if text.lower().startswith("sfidoghigliottina") or text.lower().startswith("/sfidoghigliottina"):
-        parts = text.split()
-        target_username = None
-        for p in parts:
-            if p.startswith("@"): target_username = p.replace("@", "").lower(); break
-        
-        if not target_username:
-            await update.message.reply_text("❌ Uso: <code>sfidoghigliottina @username</code>", parse_mode="HTML")
-            return
-
-        GHIGLIOTTINA_DUELS[chat_id_int] = {
-            "sfidante_id": user.id, "sfidante_name": user.first_name,
-            "target_username": target_username, "active": False
-        }
-
-        keyboard = [[
-            InlineKeyboardButton("🪓 Accetta Ghigliottina", callback_data="ghig_accetta"),
-            InlineKeyboardButton("🐔 Rifiuta", callback_data="ghig_rifiuta")
-        ]]
-        await update.message.reply_text(
-            f"🪓 <b>GHIGLIOTTINA EXPRESS 1v1</b>\n\n"
-            f"<b>{user.first_name}</b> ha sfidato <b>@{target_username}</b> alla Ghigliottina!\n"
-            f"@{target_username}, rispondi coi bottoni:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
-        return
-
-    # Handling Sfida Duello Quiz 1v1 ("sfidoquiz @username")
-    if text.lower().startswith("sfidoquiz") or text.lower().startswith("/sfidoquiz"):
-        parts = text.split()
-        target_username = None
-        for p in parts:
-            if p.startswith("@"): target_username = p.replace("@", "").lower(); break
-        
-        if not target_username:
-            await update.message.reply_text("❌ Uso: <code>sfidoquiz @username</code>", parse_mode="HTML")
-            return
-
-        QUIZ_DUELS_1V1[chat_id_int] = {
-            "sfidante_id": user.id, "sfidante_name": user.first_name,
-            "target_username": target_username, "active": False
-        }
-
-        keyboard = [
-            [InlineKeyboardButton("⚽ Calcio", callback_data="q1v1_cat_CALCIO"), InlineKeyboardButton("🏎️ F1", callback_data="q1v1_cat_F1")],
-            [InlineKeyboardButton("🦸 Marvel", callback_data="q1v1_cat_MARVEL"), InlineKeyboardButton("🎬 Cinema", callback_data="q1v1_cat_CINEMA")],
-            [InlineKeyboardButton("📺 Serie TV", callback_data="q1v1_cat_SERIE"), InlineKeyboardButton("🌍 Città", callback_data="q1v1_cat_CITTA")]
-        ]
-        await update.message.reply_text(
-            f"⚔️ <b>DUELLO QUIZ 1v1 (A 5 ROUND)</b>\n\n"
-            f"<b>{user.first_name}</b> vuole sfidare <b>@{target_username}</b>!\n"
-            f"<b>{user.first_name}</b>, seleziona prima la categoria del duello:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
-        return
-
-    # Handling Sfida Roulette Russa ("sfido @username")
-    if text.lower().startswith("sfido @") or text.lower().startswith("/sfido @"):
-        target_username = text.split("@")[1].strip().lower()
-        ACTIVE_DUELS[chat_id_int] = {
-            "sfidante_id": user.id, "sfidante_name": user.first_name,
-            "target_username": target_username, "chambers": [False]*6, "current_chamber": 0
-        }
-        ACTIVE_DUELS[chat_id_int]["chambers"][random.randint(0, 5)] = True
-
-        keyboard = [[
-            InlineKeyboardButton("🎯 Accetta Sfida", callback_data="roulette_accetta"),
-            InlineKeyboardButton("🐔 Rifiuta", callback_data="roulette_rifiuta")
-        ]]
-        await update.message.reply_text(
-            f"🔫 <b>ROULETTE RUSSA 1v1</b>\n\n"
-            f"<b>{user.first_name}</b> ha sfidato <b>@{target_username}</b>!\n"
-            f"@{target_username}, rispondi coi bottoni:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
-        return
-
-    # Handling Sfida High/Low 1v1 ("sfido highlow @username")
-    if text.lower().startswith("sfido highlow @") or text.lower().startswith("/sfido highlow @"):
-        target_username = text.split("@")[1].strip().lower()
-        HIGHLOW_DUELS[chat_id_int] = {
-            "sfidante_id": user.id, "sfidante_name": user.first_name,
-            "target_username": target_username, "val": 0, "turno_id": None
-        }
-
-        keyboard = [[
-            InlineKeyboardButton("🎲 Accetta High/Low", callback_data="hl_accetta"),
-            InlineKeyboardButton("🐔 Rifiuta", callback_data="hl_rifiuta")
-        ]]
-        await update.message.reply_text(
-            f"🎲 <b>HIGH / LOW 1v1 (DADO DELLA MORTE)</b>\n\n"
-            f"<b>{user.first_name}</b> ha sfidato <b>@{target_username}</b> a duello sul dado!\n"
-            f"@{target_username}, accetti la sfida?",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
-        return
-
-    text_upper = text.upper()
-
-    # Handling Risposta Ghigliottina 1v1
-    if chat_id_int in GHIGLIOTTINA_DUELS and GHIGLIOTTINA_DUELS[chat_id_int].get("active"):
-        duel = GHIGLIOTTINA_DUELS[chat_id_int]
-        if user.id in [duel["sfidante_id"], duel["target_id"]]:
-            if text_upper == duel["word"]:
-                del GHIGLIOTTINA_DUELS[chat_id_int]
-                add_user_coins(chat_id_int, user.id, 40)
-                await update.message.reply_text(
-                    f"🏆 <b>GHIGLIOTTINA RISOLTA!</b>\n\n"
-                    f"✨ <b>{user.first_name}</b> ha indovinato la parola legame <b>{duel['word']}</b>!\n"
-                    f"Vince il duello e guadagna <b>+💳 40 $SDG</b>!",
-                    parse_mode="HTML"
-                )
-                return
-
-    # Handling Risposta Duello Quiz 1v1
-    if chat_id_int in QUIZ_DUELS_1V1 and QUIZ_DUELS_1V1[chat_id_int].get("active"):
-        duel = QUIZ_DUELS_1V1[chat_id_int]
-        if user.id in [duel["sfidante_id"], duel["target_id"]]:
-            if text_upper == duel["current_target"]:
-                if user.id == duel["sfidante_id"]:
-                    duel["p1_score"] += 1
-                else:
-                    duel["p2_score"] += 1
-
-                await update.message.reply_text(
-                    f"🎯 <b>RISPOSTA CORRETTA!</b> <b>{user.first_name}</b> indovina <b>{duel['current_target']}</b> e prende il punto del Round {duel['round']}!",
-                    parse_mode="HTML"
-                )
-
-                if duel["round"] < 5 and duel["p1_score"] < 3 and duel["p2_score"] < 3:
-                    duel["round"] += 1
-                    await launch_quiz1v1_round(context.bot, chat_id_int)
-                else:
-                    await conclude_quiz1v1_duel(context.bot, chat_id_int)
-                return
-
-    # Handling Mastermind Express
-    mm_key = f"{chat_id}_{user.id}"
-    if mm_key in MASTERMIND_GAMES:
-        mm = MASTERMIND_GAMES[mm_key]
-        if len(text) == 3 and text.isdigit():
-            mm["attempts"] += 1
-            secret = mm["secret"]
-            
-            c_hits = sum(1 for i in range(3) if text[i] == secret[i])
-            p_hits = sum(1 for i in range(3) if text[i] != secret[i] and text[i] in secret)
-            
-            res_str = f"🎯 {c_hits} Centrati | 🔄 {p_hits} Presenti | ❌ {3 - (c_hits + p_hits)} Assenti"
-            mm["history"].append(f"<code>{text}</code> -> {res_str}")
-            res_text = "\n".join(mm["history"])
-
-            end_keyboard = [
-                [InlineKeyboardButton("🔂 Rigioca (10 $SDG)", callback_data=f"start_mm_{user.id}")],
-                [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user.id}")]
-            ]
-
-            if c_hits == 3:
-                del MASTERMIND_GAMES[mm_key]
-                reward = 30 if mm["attempts"] <= 3 else 15
-                add_user_coins(chat_id_int, user.id, reward)
-                await update.message.reply_text(f"🎉 <b>ESATTO!</b> Codice segreto: <b>{secret}</b>!\nVinti <b>+💳 {reward} $SDG</b>!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
-            elif mm["attempts"] >= 5:
-                del MASTERMIND_GAMES[mm_key]
-                await update.message.reply_text(f"💥 <b>GAME OVER!</b> Il codice era <b>{secret}</b>.\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
-            else:
-                await update.message.reply_text(f"🔐 <b>MASTERMIND ({mm['attempts']}/5)</b>\n\n{res_text}", parse_mode="HTML")
-            return
-
-    # Handling Quiz Multiplayer
-    if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi"):
-        q = QUIZ_GAMES[chat_id]
-        if text_upper == q["target"]:
-            del QUIZ_GAMES[chat_id]
-            add_user_coins(chat_id_int, user.id, 15)
-            end_keyboard = [
-                [InlineKeyboardButton("🌐 Altro Quiz Multiplayer", callback_data=f"hub_qmulti_{user.id}")],
-                [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user.id}")]
-            ]
-            await update.message.reply_text(
-                f"🎉 <b>QUIZ MULTIPLAYER RISOLTO!</b>\n\n"
-                f"🏆 <b>{user.first_name}</b> è stato il più veloce ed ha indovinato <b>{q['target']}</b>!\n"
-                f"Guadagni <b>+💳 15 $SDG</b>!",
-                reply_markup=InlineKeyboardMarkup(end_keyboard),
-                parse_mode="HTML"
-            )
-            return
-
-    # Handling Quiz Single Player
-    quiz_key = f"{chat_id}_{user.id}"
-    if quiz_key in QUIZ_GAMES:
-        q = QUIZ_GAMES[quiz_key]
-        if text_upper == q["target"]:
-            del QUIZ_GAMES[quiz_key]
-            steps_used = q["step"]
-            reward = 20 if steps_used == 1 else (10 if steps_used == 2 else 6)
-            add_user_coins(chat_id_int, user.id, reward)
-            
-            end_keyboard = [
-                [InlineKeyboardButton("🧠 Altro Quiz", callback_data=f"hub_quiz_{user.id}")],
-                [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user.id}")]
-            ]
-            await update.message.reply_text(
-                f"🎉 <b>CORRETTO!</b> <b>{user.first_name}</b> ha indovinato <b>{q['target']}</b>!\nGuadagni <b>+💳 {reward} $SDG</b>!",
-                reply_markup=InlineKeyboardMarkup(end_keyboard),
-                parse_mode="HTML"
-            )
-            return
-
-    # Handling Wordle
-    game_key = f"{chat_id}_{user.id}"
-    if game_key in WORDLE_GAMES:
-        game = WORDLE_GAMES[game_key]
-        if len(text_upper) == 5:
-            game["attempts"] += 1
-            secret = game["secret"]
-            
-            secret_letters = list(secret)
-            res_colors = ["⬛"] * 5
-            
-            for i in range(5):
-                if text_upper[i] == secret[i]:
-                    res_colors[i] = "🟩"
-                    secret_letters[i] = None
-                    
-            for i in range(5):
-                if res_colors[i] != "🟩" and text_upper[i] in secret_letters:
-                    res_colors[i] = "🟨"
-                    secret_letters[secret_letters.index(text_upper[i])] = None
-
-            letters_row = "  ".join(list(text_upper))
-            colors_row = " ".join(res_colors)
-            
-            game["history"].append(f"<code>{letters_row}</code>\n{colors_row}")
-            res_text = "\n\n".join(game["history"])
-
-            end_keyboard = [
-                [InlineKeyboardButton("🔂 Rigioca (10 $SDG)", callback_data=f"start_wordle_{user.id}")],
-                [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user.id}")]
-            ]
-
-            if text_upper == secret:
-                del WORDLE_GAMES[game_key]
-                add_user_coins(chat_id_int, user.id, 20)
-                await update.message.reply_text(f"🎉 <b>ESATTO!</b> Parola: <b>{secret}</b>!\nVinti <b>+💳 20 $SDG</b>!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
-            elif game["attempts"] >= 5:
-                del WORDLE_GAMES[game_key]
-                await update.message.reply_text(f"💥 <b>GAME OVER!</b> La parola era <b>{secret}</b>.\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
-            else:
-                await update.message.reply_text(f"🔠 <b>WORDLE EXPRESS ({game['attempts']}/5)</b>\n\n{res_text}", parse_mode="HTML")
-            return
-
-    # Auto-Troll
-    if IS_TROLLING_ACTIVE and username_lower in TARGET_MAP:
-        if random.random() < 0.85:
-            try: await context.bot.set_message_reaction(chat_id=chat_id, message_id=update.message.message_id, reaction=TARGET_MAP[username_lower])
-            except Exception: pass
-
-# --- CALLBACK ROULETTE ---
-async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    chat_id = query.message.chat_id
-    user = query.from_user
-
-    if chat_id not in ACTIVE_DUELS:
-        await query.answer("⚠️ Sfida non attiva.", show_alert=True)
-        return
-
-    duel = ACTIVE_DUELS[chat_id]
-
-    if query.data == "roulette_accetta":
-        if user.username and user.username.lower() != duel["target_username"]:
-            await query.answer("❌ Solo lo sfidato può accettare!", show_alert=True)
-            return
-
-        duel["target_id"] = user.id
-        duel["target_name"] = user.first_name
-        duel["turno_id"] = random.choice([duel["sfidante_id"], user.id])
-
-        keyboard = [[InlineKeyboardButton("🔫 SPARA!", callback_data="roulette_spara")]]
-        await query.edit_message_text(
-            f"✅ <b>Sfida Accettata!</b> Tamburo caricato (1 proiettile).\n\n"
-            f"🎲 Comincia: <b>{user.first_name}</b>!",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
-
-    elif query.data == "roulette_rifiuta":
-        await query.edit_message_text("🐔 Sfida rifiutata!")
-        del ACTIVE_DUELS[chat_id]
-
-    elif query.data == "roulette_spara":
-        if user.id != duel["turno_id"]:
-            await query.answer("✋ Non è il tuo turno!", show_alert=True)
-            return
-
-        current_idx = duel["current_chamber"]
-        is_bullet = duel["chambers"][current_idx]
-        duel["current_chamber"] += 1
-
-        if is_bullet:
-            PENITENZE_ATTIVE[user.id] = 1
-            await query.edit_message_text(
-                f"💥 <b>BAM!</b> 💀 <b>{user.first_name} è morto!</b>\n\n"
-                f"⚠️ Per parlare devi scrivere esattamente:\n👉 <code>{FRASE_PENITENZA}</code>",
-                parse_mode="HTML"
-            )
-            del ACTIVE_DUELS[chat_id]
-        else:
-            prossimo_id = duel["target_id"] if user.id == duel["sfidante_id"] else duel["sfidante_id"]
-            duel["turno_id"] = prossimo_id
-            keyboard = [[InlineKeyboardButton("🔫 SPARA!", callback_data="roulette_spara")]]
-            await query.edit_message_text(
-                f"*Click!* 😅 Camera vuota! Si salva <b>{user.first_name}</b>!\n\n👉 Tocca all'altro sfidante!",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="HTML"
-            )
-
-# --- MAIN ASYNC ---
-async def main_async():
-    if not TELEGRAM_TOKEN: return
-    load_db()
-
-    flask_thread = Thread(target=run_flask, daemon=True)
-    flask_thread.start()
-
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
-
-    await auto_restore_from_telegram(application.bot)
-
-    if application.job_queue:
-        application.job_queue.run_repeating(quiz_timeout_check, interval=60)
-
-    # Registrazione Comandi
-    application.add_handler(CommandHandler("sdrogocomm", show_hub))
-    application.add_handler(CommandHandler("topricconi", show_leaderboard))
-    application.add_handler(CommandHandler("troll", toggle_troll))
-    application.add_handler(CommandHandler("pen", clear_penalties))
-    application.add_handler(CommandHandler("resetduello", reset_duello))
-
-    for cmd in ["roulette", "blackjack", "slot", "highlow", "wordle", "quiz", "shop", "heist"]:
-        application.add_handler(CommandHandler(cmd, block_direct_command))
-
-    # Callbacks HUB, Shop & Games
-    application.add_handler(CallbackQueryHandler(hub_callback, pattern="^hub_"))
-    application.add_handler(CallbackQueryHandler(shop_buy_callback, pattern="^buy_"))
-    application.add_handler(CallbackQueryHandler(handle_heist_callback, pattern="^heist_"))
-    application.add_handler(CallbackQueryHandler(claim_daily_callback, pattern="^claim_daily_"))
-    application.add_handler(CallbackQueryHandler(start_bj_from_hub, pattern="^start_bj_"))
-    application.add_handler(CallbackQueryHandler(handle_bj_callback, pattern="^bj_"))
-    application.add_handler(CallbackQueryHandler(start_slot_from_hub, pattern="^start_slot_"))
-    application.add_handler(CallbackQueryHandler(start_wordle_from_hub, pattern="^start_wordle_"))
-    application.add_handler(CallbackQueryHandler(start_mastermind_from_hub, pattern="^start_mm_"))
-    
-    # Category Quizzes Single
-    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_CALCIO_DB, "CALCIO"), pattern="^start_qcalcio_"))
-    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_CINEMA_DB, "CINEMA"), pattern="^start_qcinema_"))
-    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_SERIE_DB, "SERIE TV"), pattern="^start_qserie_"))
-    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_CITTA_DB, "CITTA"), pattern="^start_qcitta_"))
-    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_SPORTIVI_DB, "SPORTIVI"), pattern="^start_qsport_"))
-    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_FORMULA1_DB, "FORMULA 1"), pattern="^start_qf1_"))
-    application.add_handler(CallbackQueryHandler(lambda u, c: start_quiz_generic(u, c, QUIZ_MARVEL_DB, "MARVEL & DC"), pattern="^start_qmarvel_"))
-    
-    # Callbacks Multi & Duelli
-    application.add_handler(CallbackQueryHandler(start_quiz_multiplayer, pattern="^start_qmulti_"))
-    application.add_handler(CallbackQueryHandler(quiz_more_hint, pattern="^quiz_hint_"))
-    application.add_handler(CallbackQueryHandler(start_roulette_prep, pattern="^start_roulette_"))
-    application.add_handler(CallbackQueryHandler(start_highlow_prep, pattern="^start_highlow_"))
-    application.add_handler(CallbackQueryHandler(start_ghigliottina_prep, pattern="^start_ghigliottina_prep_"))
-    application.add_handler(CallbackQueryHandler(start_quiz1v1_prep, pattern="^start_quiz1v1_prep_"))
-    
-    application.add_handler(CallbackQueryHandler(gestione_bottoni_roulette, pattern="^roulette_"))
-    application.add_handler(CallbackQueryHandler(handle_highlow_callback, pattern="^hl_"))
-    application.add_handler(CallbackQueryHandler(handle_ghigliottina_callback, pattern="^ghig_"))
-    application.add_handler(CallbackQueryHandler(handle_quiz1v1_callback, pattern="^q1v1_"))
-
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
-
-    print("SdrogoBot v5.2 pronto all'uso!", flush=True)
-
-    await application.initialize()
-    await application.start()
-    await application.updater.start_polling(drop_pending_updates=True)
-    await asyncio.Event().wait()
-
-if __name__ == '__main__':
-    try: asyncio.run(main_async())
-    except (KeyboardInterrupt, SystemExit): pass
+        won = (choice == "hl_guess_high" and new_val > old_val) or (choice
