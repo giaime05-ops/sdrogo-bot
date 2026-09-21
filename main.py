@@ -53,7 +53,7 @@ TARGET_MAP = {
     "marco_palestra": "🖕", "albe960": "🥱", "alessioaynonnt": "🐳"
 }
 
-IS_TROLLING_ACTIVE = True
+IS_TROLLING_ACTIVE = False
 FRASE_PENITENZA = "sono un perdente"
 
 # --- DATABASE 100 PAROLE WORDLE (5 LETTERE) ---
