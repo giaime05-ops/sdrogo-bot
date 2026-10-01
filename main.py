@@ -2827,6 +2827,14 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
                 parse_mode="HTML"
             )
 
+# --- SISTEMA DI DEBUG ED ERRORI ---
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logging.error(msg="Eccezione non gestita durante l'update:", exc_info=context.error)
+    print(f"🚨 ERRORE FATALE CRASH: {context.error}", flush=True)
+
+async def catch_all_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"🔥 RICEVUTO UN CLICK! Pulsante: {update.callback_query.data} da utente {update.effective_user.first_name}", flush=True)
+
 # --- MAIN ASYNC ---
 async def main_async():
     if not TELEGRAM_TOKEN: return
@@ -2837,10 +2845,16 @@ async def main_async():
 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
+    # Registra il gestore degli errori per vedere i crash silenziosi
+    application.add_error_handler(error_handler)
+
     await auto_restore_from_telegram(application.bot)
 
     if application.job_queue:
         application.job_queue.run_repeating(quiz_timeout_check, interval=60)
+
+    # Registra il logger dei pulsanti nel gruppo -1 (si attiva prima di tutto senza bloccare l'app)
+    application.add_handler(CallbackQueryHandler(catch_all_callbacks), group=-1)
 
     # Registrazione Comandi
     application.add_handler(CommandHandler("sdrogocomm", show_hub))
