@@ -49,7 +49,7 @@ ACTIVE_PERSECUTE = {}   # {chat_id_username: {"count": 15, "phrase": "frocio hah
 USER_INVENTORIES = {}  # {chat_id_userid: {"titles": 0, "persecutes": 0, "stars": 0}}
 
 TARGET_MAP = {
-    "ma1coi7": "🤡"
+    "ma1col7": "🤡"
 }
 
 IS_TROLLING_ACTIVE = False
