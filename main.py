@@ -15,6 +15,12 @@ from telegram.ext import (
     filters, 
     ContextTypes
 )
+from database_quiz import (
+    WORDS, GHIGLIOTTINA_DB, CATEGORIE_QUIZ,
+    QUIZ_CALCIO_DB, QUIZ_CINEMA_DB, QUIZ_SERIE_DB, QUIZ_FORMULA1_DB,
+    QUIZ_MARVEL_DB, QUIZ_PAESI_DB, QUIZ_ANIME_DB, QUIZ_BRANDS_DB,
+    QUIZ_PERSONAGGI_DB, QUIZ_CANZONI_DB,
+)
 
 # --- CONFIGURAZIONE LOGGING ---
 logging.basicConfig(
