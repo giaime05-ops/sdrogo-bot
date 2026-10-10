@@ -9,7 +9,7 @@ from config import FRASE_PENITENZA
 from database_quiz import GHIGLIOTTINA_DB, CATEGORIE_QUIZ
 from state import (
     ACTIVE_DUELS, HIGHLOW_DUELS, GHIGLIOTTINA_DUELS, QUIZ_DUELS_1V1,
-    PENITENZE_ATTIVE,
+    PENITENZE_ATTIVE, TIC_TAC_TOE_GAMES,
 )
 from storage import get_user_coins, add_user_coins
 from utils import verify_user_lock
@@ -89,7 +89,7 @@ async def handle_challenge_config_callback(update: Update, context: ContextTypes
         del PENDING_CHALLENGES[user_id]
 
         if game == "dice":
-            HIGHLOW_DUELS[chat_id] = { # Riusiamo il dizionario o ne creiamo uno dedicato
+            HIGHLOW_DUELS[chat_id] = {
                 "sfidante_id": user.id, "sfidante_name": user.first_name,
                 "target_username": target, "bet": bet, "rounds": rounds, "active": False,
                 "p1_wins": 0, "p2_wins": 0, "current_round": 1
@@ -297,6 +297,48 @@ async def update_ttt_board(query, game, status_text, finished=False):
     
     text = f"❌⭕ <b>TRIS 1v1</b>\n👤 ❌ {game['sfidante_name']} vs ⭕ {game['target_name']}\n\n{status_text}"
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None, parse_mode="HTML")
+
+
+# --- SUPPORT FUNZIONI QUIZ 1v1 (Richieste da system.py) ---
+async def launch_quiz1v1_round(bot, chat_id: int):
+    if chat_id not in QUIZ_DUELS_1V1: return
+    duel = QUIZ_DUELS_1V1[chat_id]
+    cat = duel["category"]
+    selected_db = CATEGORIE_QUIZ.get(cat, CATEGORIE_QUIZ["CALCIO"])[1]
+    item = random.choice(selected_db)
+    duel["current_target"] = item["target"]
+    duel["current_indizi"] = item["indizi"]
+    msg = await bot.send_message(
+        chat_id=chat_id,
+        text=f"⚔️ <b>DUELLO QUIZ 1v1 — ROUND {duel['round']}/5</b>\n"
+             f"👤 <b>{duel['sfidante_name']}</b> ({duel['p1_score']}) vs <b>{duel['target_name']}</b> ({duel['p2_score']})\n\n"
+             f"🏷️ <b>CATEGORIA: {cat}</b>\n\n"
+             f"<b>1° Indizio:</b> {item['indizi'][0]}\n\n"
+             f"⏱️ <i>Avete 75 secondi per rispondere!</i>",
+        parse_mode="HTML"
+    )
+    duel["msg_id"] = msg.message_id
+
+async def conclude_quiz1v1_duel(bot, chat_id: int):
+    if chat_id not in QUIZ_DUELS_1V1: return
+    duel = QUIZ_DUELS_1V1[chat_id]
+    p1_s, p2_s = duel["p1_score"], duel["p2_score"]
+    if p1_s > p2_s:
+        winner_name, winner_id = duel["sfidante_name"], duel["sfidante_id"]
+    elif p2_s > p1_s:
+        winner_name, winner_id = duel["target_name"], duel["target_id"]
+    else:
+        winner_name = None
+
+    if winner_name:
+        montepremi = duel.get("bet", 50) * 2
+        add_user_coins(chat_id, winner_id, montepremi)
+        text = f"🏆 <b>DUELLO QUIZ CONCLUSO!</b>\n\n🥇 <b>{winner_name}</b> vince il duello ({p1_s} a {p2_s}) e guadagna <b>+💳 {montepremi} $SDG</b>!"
+    else:
+        text = f"⚖️ <b>DUELLO QUIZ FINITO IN PAREGGIO!</b> ({p1_s} a {p2_s})."
+
+    del QUIZ_DUELS_1V1[chat_id]
+    await bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
 
 
 # --- REGISTRAZIONE HANDLER ---
