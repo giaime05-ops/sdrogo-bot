@@ -30,7 +30,10 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     elif update.callback_query:
-        await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        try:
+            await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        except Exception:
+            pass
 
 async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -58,16 +61,6 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if action == "main":
         await show_hub(update, context)
-    # ... (il resto delle azioni rimane identico)
-
-    chat_id = query.message.chat_id
-    user_id = query.from_user.id
-    coins = get_user_coins(chat_id, user_id)
-
-    back_button = [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
-
-    if action == "main":
-        await show_hub(update, context)
 
     elif action == "single":
         text = (
@@ -82,7 +75,10 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🔠 Wordle", callback_data=f"start_wordle_{owner_id}"), InlineKeyboardButton("🔐 Mastermind", callback_data=f"start_mm_{owner_id}")],
             back_button
         ]
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        try:
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        except Exception:
+            pass
 
     elif action == "multi":
         text = (
@@ -102,7 +98,10 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🌐 Quiz Multi (Scegli Categoria)", callback_data=f"hub_qmulti_{owner_id}")],
             back_button
         ]
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        try:
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        except Exception:
+            pass
 
     elif action == "qmulti":
         text = "🌐 <b>QUIZ MULTIPLAYER PER CATEGORIA</b>\n\nScegli la categoria da lanciare in chat di gruppo:"
@@ -115,7 +114,10 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🎵 Canzoni", callback_data=f"start_qmulti_CANZONI_{owner_id}")],
             back_button
         ]
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        try:
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        except Exception:
+            pass
 
     elif action == "quiz":
         text = (
@@ -130,7 +132,10 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("📜 Personaggi", callback_data=f"start_qpersonaggi_{owner_id}"), InlineKeyboardButton("🎵 Canzoni", callback_data=f"start_qcanzoni_{owner_id}")],
             back_button
         ]
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        try:
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        except Exception:
+            pass
 
     elif action == "shop":
         inv_key = f"{chat_id}_{user_id}"
@@ -149,7 +154,10 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🏢 Avvia SDROGO HEIST (350 $SDG)", callback_data=f"buy_heist_{owner_id}")],
             back_button
         ]
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        try:
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        except Exception:
+            pass
 
     elif action == "wallet":
         text = (
@@ -163,7 +171,10 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🎁 Riscuoti Daily (+50 $SDG)", callback_data=f"claim_daily_{owner_id}")],
             back_button
         ]
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        try:
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        except Exception:
+            pass
 
     elif action == "lead":
         await show_leaderboard_menu(update, context, owner_id)
@@ -182,7 +193,10 @@ async def show_leaderboard_menu(update: Update, context: ContextTypes.DEFAULT_TY
         [InlineKeyboardButton("⚔️ Re dei Duelli", callback_data=f"hub_leadcat_duels_{owner_id}")],
         [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
     ]
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    try:
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    except Exception:
+        pass
 
 async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, owner_id: int = None, category: str = "coins"):
     query = update.callback_query
@@ -239,7 +253,14 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
         [InlineKeyboardButton("🔙 Scegli altra Classifica", callback_data=f"hub_lead_{current_user_id}")],
         [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{current_user_id}")]
     ]
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    if query:
+        try:
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        except Exception:
+            pass
+    else:
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -291,12 +312,15 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         add_user_coins(chat_id, user_id, -100)
         USER_INVENTORIES[inv_key]["titles"] += 1
-        await query.edit_message_text(
-            "✅ <b>TITOLO UMILIANTE ACQUISTATO!</b>\n\n"
-            "Per assegnarlo per 24 ORE a una vittima, scrivi in chat:\n"
-            "👉 <code>titolo @username</code> (oppure rispondi al suo messaggio con <code>titolo</code>)",
-            parse_mode="HTML"
-        )
+        try:
+            await query.edit_message_text(
+                "✅ <b>TITOLO UMILIANTE ACQUISTATO!</b>\n\n"
+                "Per assegnarlo per 24 ORE a una vittima, scrivi in chat:\n"
+                "👉 <code>titolo @username</code> (oppure rispondi al suo messaggio con <code>titolo</code>)",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
 
     elif item_type == "persecute":
         if coins < 120:
@@ -304,12 +328,15 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         add_user_coins(chat_id, user_id, -120)
         USER_INVENTORIES[inv_key]["persecutes"] += 1
-        await query.edit_message_text(
-            "✅ <b>TAG PERSECUTORE ACQUISTATO!</b>\n\n"
-            "Per perseguitare una vittima per 15 messaggi, scrivi in chat:\n"
-            "👉 <code>perseguita @username</code>",
-            parse_mode="HTML"
-        )
+        try:
+            await query.edit_message_text(
+                "✅ <b>TAG PERSECUTORE ACQUISTATO!</b>\n\n"
+                "Per perseguitare una vittima per 15 messaggi, scrivi in chat:\n"
+                "👉 <code>perseguita @username</code>",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
 
     elif item_type == "heist":
         if coins < 350:
@@ -330,7 +357,10 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("🏢 <b>LA RAPINA È INIZIATA!</b> Controlla la tua chat PRIVATA con SdrogoBot per giocare!", parse_mode="HTML")
         except Exception:
             add_user_coins(chat_id, user_id, 350)
-            await query.edit_message_text("❌ Devi prima avviare il bot in chat PRIVATA per giocare a Sdrogo Heist!", parse_mode="HTML")
+            try:
+                await query.edit_message_text("❌ Devi prima avviare il bot in chat PRIVATA per giocare a Sdrogo Heist!", parse_mode="HTML")
+            except Exception:
+                pass
 
 async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
