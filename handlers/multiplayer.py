@@ -9,7 +9,7 @@ from config import FRASE_PENITENZA
 from database_quiz import GHIGLIOTTINA_DB, CATEGORIE_QUIZ
 from state import (
     ACTIVE_DUELS, HIGHLOW_DUELS, GHIGLIOTTINA_DUELS, QUIZ_DUELS_1V1,
-    PENITENZE_ATTIVE, TIC_TAC_TOE_GAMES, DICE_GAMES,
+    PENITENZE_ATTIVE,
 )
 from storage import get_user_coins, add_user_coins
 from utils import verify_user_lock
