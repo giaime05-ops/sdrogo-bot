@@ -39,10 +39,26 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     parts = data.split("_")
     action = parts[1]
-    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
+
+    # Gestione sicura degli ID proprietari ed etichette testuali
+    if action == "leadcat":
+        cat = parts[2]
+        owner_id = int(parts[3])
+    else:
+        owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
     if not await verify_user_lock(query, owner_id):
         return
+
+    chat_id = query.message.chat_id
+    user_id = query.from_user.id
+    coins = get_user_coins(chat_id, user_id)
+
+    back_button = [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
+
+    if action == "main":
+        await show_hub(update, context)
+    # ... (il resto delle azioni rimane identico)
 
     chat_id = query.message.chat_id
     user_id = query.from_user.id
