@@ -16,3 +16,5 @@ ACTIVE_PERSECUTE = {}
 USER_INVENTORIES = {}
 
 FLAGS = {"troll": False}
+TIC_TAC_TOE_GAMES = {}
+DAILY_DONATIONS = set()
