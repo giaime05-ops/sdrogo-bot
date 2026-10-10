@@ -66,13 +66,16 @@ def get_user_data_dict(chat_id: int, user_id: int) -> dict:
             "last_daily": "",
             "quizzes_won": 0,
             "casino_wins": 0,
-            "duels_wins": 0
+            "duels_wins": 0,
+            "net_profit": 0,
+            "duels_played": 0,
+            "single_played": 0
         }
         if str(chat_id) != str(BACKUP_CHAT_ID):
             save_db()
     else:
         changed = False
-        for stat in ["quizzes_won", "casino_wins", "duels_wins"]:
+        for stat in ["quizzes_won", "casino_wins", "duels_wins", "net_profit", "duels_played", "single_played"]:
             if stat not in USER_DATA[key]:
                 USER_DATA[key][stat] = 0
                 changed = True
