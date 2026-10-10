@@ -302,7 +302,7 @@ async def handle_dice_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 res_text += "⚖️ <b>Round pari!</b>"
 
             wins_needed = (game["rounds"] // 2) + 1
-            if game["p1_wins"] >= wins_needed or game["p2_wins"] >= wins_needed or game["current_round'] >= game['rounds']:
+            if game["p1_wins"] >= wins_needed or game["p2_wins"] >= wins_needed or game["current_round"] >= game['rounds']:
                 winner_id = game["sfidante_id"] if game["p1_wins"] > game["p2_wins"] else (game["target_id"] if game["p2_wins"] > game["p1_wins"] else None)
                 montepremi = game["bet"] * 2
                 if winner_id:
