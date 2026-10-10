@@ -160,10 +160,36 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
     elif action == "wallet":
+        user_key = get_user_key(chat_id, user_id)
+        u_data = USER_DATA.get(user_key, {})
+        q_wins = u_data.get("quizzes_won", 0)
+        c_wins = u_data.get("casino_wins", 0)
+        d_wins = u_data.get("duels_wins", 0)
+        net_profit = u_data.get("net_profit", 0)
+        
+        # Calcolo Win Rate Single Player & Duelli
+        single_played = u_data.get("single_played", 0)
+        single_won = u_data.get("single_won", c_wins)
+        wr_single = int((single_won / single_played * 100)) if single_played > 0 else 0
+
+        duels_played = u_data.get("duels_played", 0)
+        duels_won = d_wins
+        wr_duels = int((duels_won / duels_played * 100)) if duels_played > 0 else 0
+
+        profit_str = f"+{net_profit}" if net_profit >= 0 else str(net_profit)
+
         text = (
             "💳 <b>PORTAFOGLIO & PROFILO</b>\n\n"
             f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
-            f"💰 Saldo attuale: <code>💳 {coins} $SDG</code>\n\n"
+            f"💰 Saldo attuale: <code>💳 {coins} $SDG</code>\n"
+            f"📈 Profitto Netto: <code>{profit_str} $SDG</code>\n\n"
+            "📊 <b>STORICO & STATISTICHE:</b>\n"
+            f"🧠 Quiz Vinti: <b>{q_wins}</b>\n"
+            f"🎰 Vittorie Casinò: <b>{c_wins}</b>\n"
+            f"⚔️ Duelli Vinti: <b>{d_wins}</b>\n\n"
+            "🎯 <b>PERFORMANCE:</b>\n"
+            f"• Win Rate Single Player: <b>{wr_single}%</b>\n"
+            f"• Win Rate Duelli: <b>{wr_duels}%</b>\n\n"
             "🎁 <b>Bonus Daily:</b> Riscuoti 50 $SDG ogni 24 ore.\n"
             "💸 <i>Usa /dona @username per trasferire 5 $SDG a un amico!</i>"
         )
