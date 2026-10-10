@@ -9,10 +9,33 @@ from config import FRASE_PENITENZA
 from database_quiz import GHIGLIOTTINA_DB, CATEGORIE_QUIZ
 from state import (
     ACTIVE_DUELS, HIGHLOW_DUELS, GHIGLIOTTINA_DUELS, QUIZ_DUELS_1V1,
-    PENITENZE_ATTIVE, TIC_TAC_TOE_GAMES,
+    PENITENZE_ATTIVE, TIC_TAC_TOE_GAMES, USER_DATA
 )
-from storage import get_user_coins, add_user_coins
+from storage import get_user_coins, add_user_coins, get_user_key, save_db
 from utils import verify_user_lock
+
+# --- FUNZIONE DI SUPPORTO STATISTICHE MULTIPLAYER ---
+def record_duel_result(chat_id: int, winner_id: int, loser_id: int, bet_amount: int):
+    """Aggiorna le statistiche, le partite giocate, vinte, il win rate duelli e il profitto netto."""
+    for uid, won in [(winner_id, True), (loser_id, False)]:
+        if not uid:
+            continue
+        key = get_user_key(chat_id, uid)
+        if key not in USER_DATA:
+            USER_DATA[key] = {"coins": 50, "last_daily": "", "quizzes_won": 0, "casino_wins": 0, "duels_wins": 0, "net_profit": 0, "duels_played": 0, "duels_won_count": 0}
+        
+        u_data = USER_DATA[key]
+        u_data["duels_played"] = u_data.get("duels_played", 0) + 1
+        
+        if won:
+            u_data["duels_wins"] = u_data.get("duels_wins", 0) + 1
+            u_data["duels_won_count"] = u_data.get("duels_won_count", 0) + 1
+            u_data["net_profit"] = u_data.get("net_profit", 0) + bet_amount
+            add_user_coins(chat_id, uid, bet_amount * 2)
+        else:
+            u_data["net_profit"] = u_data.get("net_profit", 0) - bet_amount
+            # Le monete della puntata erano già state sottratte all'inizio
+    save_db()
 
 # --- SUPPORTO PUNTATE E ROUND MULTIPLAYER (UNIFICATO) ---
 PENDING_CHALLENGES = {}  # {user_id: {"game": str, "target_username": str, "chat_id": int, "bet": int, "rounds": int}}
@@ -259,8 +282,9 @@ async def play_dice_round(bot, chat_id: int):
         winner_id = game["sfidante_id"] if game["p1_wins"] > game["p2_wins"] else (game["target_id"] if game["p2_wins"] > game["p1_wins"] else None)
         montepremi = game["bet"] * 2
         if winner_id:
+            loser_id = game["target_id"] if winner_id == game["sfidante_id"] else game["sfidante_id"]
             w_name = game["sfidante_name"] if winner_id == game["sfidante_id"] else game["target_name"]
-            add_user_coins(chat_id, winner_id, montepremi)
+            record_duel_result(chat_id, winner_id, loser_id, game["bet"])
             msg = f"👑 <b>VITTORIA FINALE! {w_name}</b> vince <b>+💳 {montepremi} $SDG</b>!"
         else:
             add_user_coins(chat_id, game["sfidante_id"], game["bet"])
@@ -303,7 +327,8 @@ async def handle_ttt_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             montepremi = game["bet"] * 2
             if winner:
                 w_id = game["sfidante_id"] if winner == "X" else game["target_id"]
-                add_user_coins(chat_id, w_id, montepremi)
+                l_id = game["target_id"] if winner == "X" else game["sfidante_id"]
+                record_duel_result(chat_id, w_id, l_id, game["bet"])
                 end_text = f"🏆 <b>TRIS VINTO!</b> Montepremi: +💳 {montepremi} $SDG"
             else:
                 add_user_coins(chat_id, game["sfidante_id"], game["bet"])
@@ -356,7 +381,8 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
         if is_bullet:
             montepremi = duel["bet"] * 2
             winner_id = duel["target_id"] if user.id == duel["sfidante_id"] else duel["sfidante_id"]
-            add_user_coins(chat_id, winner_id, montepremi)
+            loser_id = duel["sfidante_id"] if user.id == duel["sfidante_id"] else duel["target_id"]
+            record_duel_result(chat_id, winner_id, loser_id, duel["bet"])
             await query.edit_message_text(f"💥 <b>BAM! {user.first_name} è morto!</b> L'altro vince {montepremi} $SDG!", parse_mode="HTML")
             del ACTIVE_DUELS[chat_id]
         else:
@@ -452,7 +478,8 @@ async def conclude_quiz1v1_duel(bot, chat_id: int):
     duel = QUIZ_DUELS_1V1[chat_id]
     montepremi = duel["bet"] * 2
     w_id = duel["sfidante_id"] if duel["p1_score"] > duel["p2_score"] else duel["target_id"]
-    add_user_coins(chat_id, w_id, montepremi)
+    l_id = duel["target_id"] if duel["p1_score"] > duel["p2_score"] else duel["sfidante_id"]
+    record_duel_result(chat_id, w_id, l_id, duel["bet"])
     del QUIZ_DUELS_1V1[chat_id]
     await bot.send_message(chat_id=chat_id, text=f"🏆 Quiz 1v1 terminato! +💳 {montepremi} $SDG al vincitore.", parse_mode="HTML")
 
