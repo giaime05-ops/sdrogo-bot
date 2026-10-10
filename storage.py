@@ -58,19 +58,42 @@ async def backup_to_telegram(context: ContextTypes.DEFAULT_TYPE):
 def get_user_key(chat_id: int, user_id: int) -> str:
     return f"{chat_id}_{user_id}"
 
-def get_user_coins(chat_id: int, user_id: int) -> int:
+def get_user_data_dict(chat_id: int, user_id: int) -> dict:
     key = get_user_key(chat_id, user_id)
     if key not in USER_DATA:
-        USER_DATA[key] = {"coins": 50, "last_daily": ""}
+        USER_DATA[key] = {
+            "coins": 50,
+            "last_daily": "",
+            "quizzes_won": 0,
+            "casino_wins": 0,
+            "duels_wins": 0
+        }
         if str(chat_id) != str(BACKUP_CHAT_ID):
             save_db()
-    return USER_DATA[key].get("coins", 50)
+    else:
+        changed = False
+        for stat in ["quizzes_won", "casino_wins", "duels_wins"]:
+            if stat not in USER_DATA[key]:
+                USER_DATA[key][stat] = 0
+                changed = True
+        if changed and str(chat_id) != str(BACKUP_CHAT_ID):
+            save_db()
+    return USER_DATA[key]
+
+def get_user_coins(chat_id: int, user_id: int) -> int:
+    data = get_user_data_dict(chat_id, user_id)
+    return data.get("coins", 50)
 
 def add_user_coins(chat_id: int, user_id: int, amount: int):
     if str(chat_id) == str(BACKUP_CHAT_ID):
         return
-    key = get_user_key(chat_id, user_id)
-    if key not in USER_DATA:
-        USER_DATA[key] = {"coins": 50, "last_daily": ""}
-    USER_DATA[key]["coins"] = max(0, USER_DATA[key].get("coins", 50) + amount)
+    data = get_user_data_dict(chat_id, user_id)
+    data["coins"] = max(0, data.get("coins", 50) + amount)
+    save_db()
+
+def add_user_stat(chat_id: int, user_id: int, stat_name: str, amount: int = 1):
+    if str(chat_id) == str(BACKUP_CHAT_ID):
+        return
+    data = get_user_data_dict(chat_id, user_id)
+    data[stat_name] = data.get(stat_name, 0) + amount
     save_db()
