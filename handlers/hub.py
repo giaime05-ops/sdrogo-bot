@@ -24,7 +24,7 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🕹️ Single Player", callback_data=f"hub_single_{user.id}"), InlineKeyboardButton("⚔️ Multiplayer", callback_data=f"hub_multi_{user.id}")],
         [InlineKeyboardButton("🧠 Quiz Show", callback_data=f"hub_quiz_{user.id}"), InlineKeyboardButton("🛒 SdrogoShop", callback_data=f"hub_shop_{user.id}")],
-        [InlineKeyboardButton("💳 Portafoglio", callback_data=f"hub_wallet_{user.id}"), InlineKeyboardButton("🏆 Classifica", callback_data=f"hub_lead_{user.id}")]
+        [InlineKeyboardButton("💳 Portafoglio", callback_data=f"hub_wallet_{user.id}"), InlineKeyboardButton("🏆 Classifiche", callback_data=f"hub_lead_{user.id}")]
     ]
     
     if update.message:
@@ -150,9 +150,25 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
     elif action == "lead":
-        await show_leaderboard(update, context, owner_id)
+        await show_leaderboard_menu(update, context, owner_id)
 
-async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, owner_id: int = None):
+    elif action.startswith("leadcat_"):
+        cat = action.split("_")[1]
+        await show_leaderboard(update, context, owner_id, category=cat)
+
+async def show_leaderboard_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, owner_id: int):
+    query = update.callback_query
+    text = "🏆 <b>CENTRO CLASSIFICHE D'ÉLITE</b> 👑\n\n<i>Scegli quale categoria vuoi consultare:</i>"
+    keyboard = [
+        [InlineKeyboardButton("🪙 Re dei Ricconi ($SDG)", callback_data=f"hub_leadcat_coins_{owner_id}")],
+        [InlineKeyboardButton("🧠 Re dei Quiz", callback_data=f"hub_leadcat_quizzes_{owner_id}")],
+        [InlineKeyboardButton("🎰 Re del Casinò", callback_data=f"hub_leadcat_casino_{owner_id}")],
+        [InlineKeyboardButton("⚔️ Re dei Duelli", callback_data=f"hub_leadcat_duels_{owner_id}")],
+        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
+    ]
+    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, owner_id: int = None, category: str = "coins"):
     query = update.callback_query
     chat_id = query.message.chat_id if query else update.effective_chat.id
     current_user_id = query.from_user.id if query else update.effective_user.id
@@ -165,14 +181,34 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
     for key, data in USER_DATA.items():
         if key.startswith(prefix):
             uid = key.split("_")[1]
-            coins = data.get("coins", 0)
-            chat_users.append((uid, coins))
+            if category == "coins":
+                val = data.get("coins", 0)
+                title_name = "🪙 CLASSIFICA RICCONI $SDG"
+                unit = "$SDG"
+            elif category == "quizzes":
+                val = data.get("quizzes_won", 0)
+                title_name = "🧠 RE DEI QUIZ"
+                unit = "Quiz vinti"
+            elif category == "casino":
+                val = data.get("casino_wins", 0)
+                title_name = "🎰 RE DEL CASINÒ"
+                unit = "Vittorie"
+            elif category == "duels":
+                val = data.get("duels_wins", 0)
+                title_name = "⚔️ RE DEI DUELLI"
+                unit = "Duelli vinti"
+            else:
+                val = data.get("coins", 0)
+                title_name = "🏆 CLASSIFICA"
+                unit = "$SDG"
+
+            chat_users.append((uid, val))
 
     chat_users.sort(key=lambda x: x[1], reverse=True)
-    text = "🏆 <b>CLASSIFICA RICCONI $SDG</b> 💰\n\n"
+    text = f"🏆 <b>{title_name}</b> 👑\n\n"
     medals = ["🥇", "🥈", "🥉"]
 
-    for idx, (uid, coins) in enumerate(chat_users[:10], start=1):
+    for idx, (uid, val) in enumerate(chat_users[:10], start=1):
         rank_icon = medals[idx-1] if idx <= 3 else f"{idx}."
         try:
             member = await context.bot.get_chat_member(chat_id, int(uid))
@@ -181,14 +217,13 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
         except Exception:
             name = f"Giocatore {uid[-4:]}"
 
-        text += f"{rank_icon} <b>{name}</b> — <code>💳 {coins} $SDG</code>\n"
+        text += f"{rank_icon} <b>{name}</b> — <code>{val} {unit}</code>\n"
 
-    keyboard = [[InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{current_user_id}")]]
-
-    if query:
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-    else:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    keyboard = [
+        [InlineKeyboardButton("🔙 Scegli altra Classifica", callback_data=f"hub_lead_{current_user_id}")],
+        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{current_user_id}")]
+    ]
+    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
