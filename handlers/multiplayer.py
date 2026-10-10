@@ -16,7 +16,6 @@ from utils import verify_user_lock
 
 # --- FUNZIONE DI SUPPORTO STATISTICHE MULTIPLAYER ---
 def record_duel_result(chat_id: int, winner_id: int, loser_id: int, bet_amount: int):
-    """Aggiorna le statistiche, le partite giocate, vinte, il win rate duelli e il profitto netto."""
     for uid, won in [(winner_id, True), (loser_id, False)]:
         if not uid:
             continue
@@ -34,11 +33,10 @@ def record_duel_result(chat_id: int, winner_id: int, loser_id: int, bet_amount: 
             add_user_coins(chat_id, uid, bet_amount * 2)
         else:
             u_data["net_profit"] = u_data.get("net_profit", 0) - bet_amount
-            # Le monete della puntata erano già state sottratte all'inizio
     save_db()
 
 # --- SUPPORTO PUNTATE E ROUND MULTIPLAYER (UNIFICATO) ---
-PENDING_CHALLENGES = {}  # {user_id: {"game": str, "target_username": str, "chat_id": int, "bet": int, "rounds": int}}
+PENDING_CHALLENGES = {} 
 
 async def setup_challenge_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, game_type: str, target_username: str, chat_id: int, user):
     PENDING_CHALLENGES[user.id] = {
@@ -113,15 +111,16 @@ async def handle_challenge_config_callback(update: Update, context: ContextTypes
         user = query.from_user
         del PENDING_CHALLENGES[user_id]
 
-        # 1. DADI
+        # 1. DADI (Con turno interattivo tramite pulsante)
         if game == "dice":
             HIGHLOW_DUELS[chat_id] = {
                 "sfidante_id": user.id, "sfidante_name": user.first_name,
                 "target_username": target, "bet": bet, "rounds": rounds, "active": False,
-                "p1_wins": 0, "p2_wins": 0, "current_round": 1
+                "p1_wins": 0, "p2_wins": 0, "current_round": 1,
+                "p1_val": None, "p2_val": None, "turno_id": None
             }
             keyboard = [[InlineKeyboardButton("🎲 Accetta Dadi", callback_data="dice_accetta"), InlineKeyboardButton("🐔 Rifiuta", callback_data="dice_rifiuta")]]
-            await query.edit_message_text(f"🎲 <b>SFIDA A DADI 1v1</b>\n\n<b>{user.first_name}</b> sfida <b>@{target}</b>!\n💰 Puntata: <code>💳 {bet} $SDG</code> | 🔄 Partite: <b>{rounds}</b>\n\n@{target}, accetti?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            await query.edit_message_text(f"🎲 <b>SFIDA A DADI 1v1 INTERATTIVA</b>\n\n<b>{user.first_name}</b> sfida <b>@{target}</b>!\n💰 Puntata: <code>💳 {bet} $SDG</code> | 🔄 Partite: <b>{rounds}</b>\n\n@{target}, accetti?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
         # 2. TRIS
         elif game == "ttt":
@@ -228,10 +227,9 @@ async def start_quiz1v1_prep(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.edit_message_text("⚔️ <b>DUELLO QUIZ 1v1</b>\n\nScrivi in chat il comando:\n👉 <code>sfidoquiz @username</code>", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 
-# --- CALLBACKS GIOCHI 1v1 ---
+# --- CALLBACKS GIOCHI 1v1 (DADI INTERATTIVO) ---
 async def handle_dice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
     chat_id = query.message.chat_id
     user = query.from_user
 
@@ -241,6 +239,7 @@ async def handle_dice_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     game = HIGHLOW_DUELS[chat_id]
 
     if query.data == "dice_accetta":
+        await query.answer()
         if user.username and user.username.lower() != game["target_username"]:
             await query.answer("❌ Solo lo sfidato può accettare!", show_alert=True)
             return
@@ -251,50 +250,81 @@ async def handle_dice_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         game["target_id"] = user.id
         game["target_name"] = user.first_name
         game["active"] = True
+        game["turno_id"] = game["sfidante_id"] # Inizia lo sfidante
 
         add_user_coins(chat_id, game["sfidante_id"], -game["bet"])
         add_user_coins(chat_id, game["target_id"], -game["bet"])
 
-        await query.edit_message_text(f"🎲 <b>DUELLO DADI INIZIATO!</b> Montepremi: <code>💳 {game['bet']*2} $SDG</code>", parse_mode="HTML")
-        await play_dice_round(context.bot, chat_id)
+        keyboard = [[InlineKeyboardButton("🎲 Lancia il Dado", callback_data="dice_roll")]]
+        await query.edit_message_text(
+            f"🎲 <b>DUELLO DADI INIZIATO!</b> Montepremi: <code>💳 {game['bet']*2} $SDG</code>\n\n"
+            f"Turno di <b>{game['sfidante_name']}</b>:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
+        )
     elif query.data == "dice_rifiuta":
+        await query.answer()
         await query.edit_message_text("🐔 Sfida rifiutata!")
         del HIGHLOW_DUELS[chat_id]
 
-async def play_dice_round(bot, chat_id: int):
-    if chat_id not in HIGHLOW_DUELS: return
-    game = HIGHLOW_DUELS[chat_id]
-    rnd = game["current_round"]
+    elif query.data == "dice_roll":
+        if user.id != game.get("turno_id"):
+            await query.answer("⏳ Non è il tuo turno di lanciare!", show_alert=True)
+            return
+        await query.answer()
 
-    await bot.send_message(chat_id=chat_id, text=f"🎲 <b>ROUND {rnd} / {game['rounds']}</b>", parse_mode="HTML")
-    d1 = await bot.send_dice(chat_id=chat_id, emoji="🎲")
-    v1 = d1.dice.value
-    await asyncio.sleep(3)
-    d2 = await bot.send_dice(chat_id=chat_id, emoji="🎲")
-    v2 = d2.dice.value
-    await asyncio.sleep(3)
+        # Invia il dado nativo di Telegram in chat
+        dice_msg = await context.bot.send_dice(chat_id=chat_id, emoji="🎲")
+        val = dice_msg.dice.value
+        await asyncio.sleep(2)
 
-    if v1 > v2: game["p1_wins"] += 1
-    elif v2 > v1: game["p2_wins"] += 1
-
-    wins_needed = (game["rounds"] // 2) + 1
-    if game["p1_wins"] >= wins_needed or game["p2_wins"] >= wins_needed or game["current_round"] >= game["rounds"]:
-        winner_id = game["sfidante_id"] if game["p1_wins"] > game["p2_wins"] else (game["target_id"] if game["p2_wins"] > game["p1_wins"] else None)
-        montepremi = game["bet"] * 2
-        if winner_id:
-            loser_id = game["target_id"] if winner_id == game["sfidante_id"] else game["sfidante_id"]
-            w_name = game["sfidante_name"] if winner_id == game["sfidante_id"] else game["target_name"]
-            record_duel_result(chat_id, winner_id, loser_id, game["bet"])
-            msg = f"👑 <b>VITTORIA FINALE! {w_name}</b> vince <b>+💳 {montepremi} $SDG</b>!"
+        if user.id == game["sfidante_id"]:
+            game["p1_val"] = val
+            game["turno_id"] = game["target_id"]
+            keyboard = [[InlineKeyboardButton("🎲 Lancia il Dado", callback_data="dice_roll")]]
+            await query.edit_message_text(
+                f"🎲 <b>ROUND {game['current_round']} / {game['rounds']}</b>\n\n"
+                f"👤 {game['sfidante_name']} ha fatto: <b>{val}</b> 🎲\n\n"
+                f"Tocca a <b>{game['target_name']}</b> lanciare!", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
+            )
         else:
-            add_user_coins(chat_id, game["sfidante_id"], game["bet"])
-            add_user_coins(chat_id, game["target_id"], game["bet"])
-            msg = f"⚖️ <b>PAREGGIO!</b> Puntate rimborsate."
-        del HIGHLOW_DUELS[chat_id]
-        await bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML")
-    else:
-        game["current_round"] += 1
-        await play_dice_round(bot, chat_id)
+            game["p2_val"] = val
+            v1 = game["p1_val"]
+            v2 = game["p2_val"]
+            
+            res_text = f"👤 {game['sfidante_name']}: <b>{v1}</b> | 👤 {game['target_name']}: <b>{v2}</b>\n\n"
+
+            if v1 > v2:
+                game["p1_wins"] += 1
+                res_text += f"🏆 <b>Round vinto da {game['sfidante_name']}!</b>"
+            elif v2 > v1:
+                game["p2_wins"] += 1
+                res_text += f"🏆 <b>Round vinto da {game['target_name']}!</b>"
+            else:
+                res_text += "⚖️ <b>Round pari!</b>"
+
+            wins_needed = (game["rounds"] // 2) + 1
+            if game["p1_wins"] >= wins_needed or game["p2_wins"] >= wins_needed or game["current_round'] >= game['rounds']:
+                winner_id = game["sfidante_id"] if game["p1_wins"] > game["p2_wins"] else (game["target_id"] if game["p2_wins"] > game["p1_wins"] else None)
+                montepremi = game["bet"] * 2
+                if winner_id:
+                    loser_id = game["target_id"] if winner_id == game["sfidante_id"] else game["sfidante_id"]
+                    w_name = game["sfidante_name"] if winner_id == game["sfidante_id"] else game["target_name"]
+                    record_duel_result(chat_id, winner_id, loser_id, game["bet"])
+                    msg = res_text + f"\n\n👑 <b>VITTORIA FINALE! {w_name}</b> vince <b>+💳 {montepremi} $SDG</b>!"
+                else:
+                    add_user_coins(chat_id, game["sfidante_id"], game["bet"])
+                    add_user_coins(chat_id, game["target_id"], game["bet"])
+                    msg = res_text + f"\n\n⚖️ <b>PAREGGIO FINALE!</b> Puntate rimborsate."
+                del HIGHLOW_DUELS[chat_id]
+                await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML")
+            else:
+                game["current_round"] += 1
+                game["turno_id"] = game["sfidante_id"]
+                keyboard = [[InlineKeyboardButton("🎲 Lancia il Dado", callback_data="dice_roll")]]
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=res_text + f"\n🔄 <b>Inizia il Round {game['current_round']}!</b>\nTocca a <b>{game['sfidante_name']}</b>:",
+                    reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
+                )
 
 async def handle_ttt_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -487,7 +517,7 @@ async def conclude_quiz1v1_duel(bot, chat_id: int):
 def register(app):
     app.add_handler(CallbackQueryHandler(handle_challenge_config_callback, pattern="^cfg_"))
     app.add_handler(CallbackQueryHandler(start_dice_prep, pattern="^start_dice_"))
-    app.add_handler(CallbackQueryHandler(handle_dice_callback, pattern="^dice_"))
+    app.add_handler(CallbackQueryHandler(handle_dice_callback, pattern="^(dice_)"))
     app.add_handler(CallbackQueryHandler(start_ttt_prep, pattern="^start_ttt_"))
     app.add_handler(CallbackQueryHandler(handle_ttt_callback, pattern="^ttt_"))
     app.add_handler(CallbackQueryHandler(start_roulette_prep, pattern="^start_roulette_"))
