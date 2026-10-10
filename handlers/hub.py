@@ -1,16 +1,5 @@
 """Hub, portafoglio, classifica, daily e SdrogoShop."""
 from datetime import date, datetime, timedelta
-
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
-
-from state import (
-    USER_DATA, USER_INVENTORIES, ACTIVE_TITLES, ACTIVE_PERSECUTE, HEIST_GAMES,
-)
-from storage import get_user_key, get_user_coins, add_user_coins, backup_to_telegram
-from utils import verify_user_lock, get_formatted_name
-
-from datetime import date, datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
 
