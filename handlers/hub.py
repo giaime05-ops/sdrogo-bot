@@ -43,7 +43,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parts = data.split("_")
     action = parts[1]
 
-    # Gestione sicura degli ID proprietari ed etichette testuali
+    # Gestione sicura degli ID proprietari ed etichette testuali delle classifiche
     if action == "leadcat":
         cat = parts[2]
         owner_id = int(parts[3])
@@ -179,8 +179,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "lead":
         await show_leaderboard_menu(update, context, owner_id)
 
-    elif action.startswith("leadcat_"):
-        cat = action.split("_")[1]
+    elif action == "leadcat":
         await show_leaderboard(update, context, owner_id, category=cat)
 
 async def show_leaderboard_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, owner_id: int):
