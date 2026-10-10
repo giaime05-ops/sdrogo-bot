@@ -1,4 +1,3 @@
-"""Hub, portafoglio, classifica, daily e SdrogoShop."""
 from datetime import date, datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
@@ -71,14 +70,17 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "multi":
         text = (
-            "⚔️ <b>GIOCHI MULTIPLAYER</b>\n\n"
+            "⚔️ <b>GIOCHI MULTIPLAYER E SCOMMESSE</b>\n\n"
+            "🎲 <b>Dadi 1v1 con Puntata</b> (`sfidodadi @user`)\n"
+            "❌ <b>Tris 1v1 con Puntata</b> (`sfidotris @user`)\n"
             "🎯 <b>Roulette Russa 1v1</b>\n"
             "🎲 <b>High / Low 1v1</b>\n"
             "🪓 <b>Ghigliottina Express 1v1</b> (`sfidoghigliottina @user`)\n"
             "⚔️ <b>Duello Quiz 1v1</b> (`sfidoquiz @user`)\n"
-            "🌐 <b>Quiz Multiplayer</b> (Aperto a tutto il gruppo)"
+            "🌐 <b>Quiz Multiplayer di Gruppo</b>"
         )
         keyboard = [
+            [InlineKeyboardButton("🎲 Dadi 1v1", callback_data=f"start_dice_{owner_id}"), InlineKeyboardButton("❌ Tris 1v1", callback_data=f"start_ttt_{owner_id}")],
             [InlineKeyboardButton("🎯 Roulette 1v1", callback_data=f"start_roulette_{owner_id}"), InlineKeyboardButton("🎲 High/Low 1v1", callback_data=f"start_highlow_{owner_id}")],
             [InlineKeyboardButton("🪓 Ghigliottina 1v1", callback_data=f"start_ghigliottina_prep_{owner_id}"), InlineKeyboardButton("⚔️ Duello Quiz 1v1", callback_data=f"start_quiz1v1_prep_{owner_id}")],
             [InlineKeyboardButton("🌐 Quiz Multi (Scegli Categoria)", callback_data=f"hub_qmulti_{owner_id}")],
@@ -135,10 +137,11 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "wallet":
         text = (
-            "💳 <b>PORTAFOGLIO</b>\n\n"
+            "💳 <b>PORTAFOGLIO & PROFILO</b>\n\n"
             f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
             f"💰 Saldo attuale: <code>💳 {coins} $SDG</code>\n\n"
-            "🎁 <b>Bonus Daily:</b> Riscuoti 50 $SDG ogni 24 ore."
+            "🎁 <b>Bonus Daily:</b> Riscuoti 50 $SDG ogni 24 ore.\n"
+            "💸 <i>Usa /dona @username per trasferire 5 $SDG a un amico!</i>"
         )
         keyboard = [
             [InlineKeyboardButton("🎁 Riscuoti Daily (+50 $SDG)", callback_data=f"claim_daily_{owner_id}")],
@@ -352,16 +355,7 @@ async def block_direct_command(update: Update, context: ContextTypes.DEFAULT_TYP
 def register(app):
     app.add_handler(CommandHandler("sdrogocomm", show_hub))
     app.add_handler(CommandHandler("topricconi", show_leaderboard))
-    for cmd in ["roulette", "blackjack", "slot", "highlow", "wordle", "quiz", "shop", "heist"]:
-        app.add_handler(CommandHandler(cmd, block_direct_command))
-    app.add_handler(CallbackQueryHandler(hub_callback, pattern="^hub_"))
-    app.add_handler(CallbackQueryHandler(shop_buy_callback, pattern="^buy_"))
-    app.add_handler(CallbackQueryHandler(claim_daily_callback, pattern="^claim_daily_"))
-
-def register(app):
-    app.add_handler(CommandHandler("sdrogocomm", show_hub))
-    app.add_handler(CommandHandler("topricconi", show_leaderboard))
-    for cmd in ["roulette", "blackjack", "slot", "highlow", "wordle", "quiz", "shop", "heist"]:
+    for cmd in ["roulette", "blackjack", "slot", "highlow", "wordle", "quiz", "shop", "heist", "sfidodadi", "sfidotris"]:
         app.add_handler(CommandHandler(cmd, block_direct_command))
     app.add_handler(CallbackQueryHandler(hub_callback, pattern="^hub_"))
     app.add_handler(CallbackQueryHandler(shop_buy_callback, pattern="^buy_"))
