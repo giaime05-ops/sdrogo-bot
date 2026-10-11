@@ -4,7 +4,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 
 from config import TELEGRAM_TOKEN, ADMIN_ID
 from keep_alive import start_flask
-from storage import load_db, auto_restore_from_telegram, get_user_coins, add_user_coins
+from storage import load_db, auto_restore_from_telegram, get_user_coins, add_user_coins, backup_to_telegram
 from handlers import system, hub, games, multiplayer, quiz
 
 logging.basicConfig(
@@ -99,6 +99,12 @@ async def main_async():
     multiplayer.register(application)
     quiz.register(application)
     system.register_text(application)
+
+    # Backup automatico del database ogni ora (fissato nella chat di backup)
+    if application.job_queue:
+        application.job_queue.run_repeating(backup_to_telegram, interval=3600, first=3600)
+    else:
+        print("⚠️ JobQueue non disponibile: installa python-telegram-bot[job-queue] per i backup orari.", flush=True)
 
     print("SdrogoBot v6.4 con Manutenzione Totale stabile operativo!", flush=True)
 
