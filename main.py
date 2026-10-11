@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ApplicationHandlerStop
 
 from config import TELEGRAM_TOKEN, ADMIN_ID
 from keep_alive import start_flask
@@ -82,10 +82,10 @@ async def main_async():
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     await auto_restore_from_telegram(application.bot)
 
-    # Middleware di blocco totale (Priorità massima al gruppo -1)
+    # Middleware di blocco totale con ApplicationHandlerStop nativo
     async def maintenance_middleware(update, context):
         if await check_maintenance(update, context):
-            raise Application.StopPropagation
+            raise ApplicationHandlerStop
 
     application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, maintenance_middleware), group=-1)
     application.add_handler(CallbackQueryHandler(maintenance_middleware), group=-1)
@@ -100,7 +100,7 @@ async def main_async():
     quiz.register(application)
     system.register_text(application)
 
-    print("SdrogoBot v6.3 con Manutenzione Totale operativo!", flush=True)
+    print("SdrogoBot v6.4 con Manutenzione Totale stabile operativo!", flush=True)
 
     await application.initialize()
     await application.start()
