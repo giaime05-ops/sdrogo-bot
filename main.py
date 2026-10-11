@@ -18,7 +18,6 @@ async def maintenance_command(update, context):
     global BOT_MAINTENANCE
     user = update.effective_user
     
-    # Verifica tramite l'ADMIN_ID configurato nelle variabili d'ambiente di Northflank
     if ADMIN_ID and str(user.id) != str(ADMIN_ID):
         await update.message.reply_text("⛔ Non sei autorizzato a usare questo comando.")
         return
@@ -49,24 +48,27 @@ async def check_maintenance(update, context):
     user = update.effective_user
     chat = update.effective_chat
     
-    # Se sei l'admin e stai testando in chat privata, ignora la manutenzione
+    # Se sei l'admin in chat privata, ignora il blocco per i test
     if ADMIN_ID and str(user.id) == str(ADMIN_ID) and chat.type == "private":
         return False
         
-    # Altrimenti blocca l'interazione nei gruppi o per gli altri utenti
-    msg = update.message or (update.callback_query.message if update.callback_query else None)
+    # Se è un click su un bottone (CallbackQuery), bloccalo con un alert popup
+    if update.callback_query:
+        try:
+            await update.callback_query.answer("🛠️ SdrogoBot in Manutenzione! Riprova più tardi.", show_alert=True)
+        except Exception:
+            pass
+        return True
+        
+    # Se è un messaggio testuale, rispondi con l'avviso
+    msg = update.message
     if msg:
-        text = "🛠️ <b>SdrogoBot in Manutenzione!</b> Ritorneremo prestissimo."
-        if update.callback_query:
-            try:
-                await update.callback_query.answer("⚠️ Bot in manutenzione!", show_alert=True)
-            except Exception:
-                pass
-        else:
-            try:
-                await msg.reply_text(text, parse_mode="HTML")
-            except Exception:
-                pass
+        try:
+            await msg.reply_text("🛠️ <b>SdrogoBot in Manutenzione!</b> Il bot è temporaneamente bloccato per aggiornamenti.", parse_mode="HTML")
+        except Exception:
+            pass
+        return True
+        
     return True
 
 async def main_async():
@@ -80,7 +82,7 @@ async def main_async():
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     await auto_restore_from_telegram(application.bot)
 
-    # Middleware di controllo manutenzione
+    # Middleware di blocco totale (Priorità massima al gruppo -1)
     async def maintenance_middleware(update, context):
         if await check_maintenance(update, context):
             raise Application.StopPropagation
@@ -98,7 +100,7 @@ async def main_async():
     quiz.register(application)
     system.register_text(application)
 
-    print("SdrogoBot v6.2 operativo con variabili d'ambiente!", flush=True)
+    print("SdrogoBot v6.3 con Manutenzione Totale operativo!", flush=True)
 
     await application.initialize()
     await application.start()
