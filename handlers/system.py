@@ -1,11 +1,13 @@
 """Admin, gestione errori e router dei messaggi di testo."""
 import logging
 import random
+import time
 from datetime import date
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes,
+    ApplicationHandlerStop, TypeHandler,
 )
 
 from config import FRASE_PENITENZA, TARGET_MAP
@@ -14,14 +16,98 @@ from state import (
     MASTERMIND_GAMES, QUIZ_GAMES, QUIZ_DUELS_1V1, GHIGLIOTTINA_DUELS,
     HEIST_GAMES, PENITENZE_ATTIVE, ACTIVE_PERSECUTE, TIC_TAC_TOE_GAMES, DAILY_DONATIONS,
 )
-from storage import add_user_coins, get_user_coins
+from storage import add_user_coins, get_user_coins, add_user_stat
 from utils import is_admin
 from handlers.hub import apply_title_command, apply_persecute_command
 from handlers.multiplayer import (
-    launch_quiz1v1_round, conclude_quiz1v1_duel, setup_challenge_menu
+    launch_quiz1v1_round, conclude_quiz1v1_duel, setup_challenge_menu, record_duel_result
 )
+from handlers.games import record_single_result
+
+MAINT_TEXT = (
+    "🛠️ <b>SdrogoBot è in manutenzione</b>\n"
+    "HUB e giochi sono sospesi per qualche minuto. Riprova tra poco!"
+)
+MAINT_ALERT = "🛠️ Bot in manutenzione: i giochi sono temporaneamente sospesi. Riprova tra poco!"
+MAINT_COOLDOWN = 20   # secondi tra due avvisi nella stessa chat
+
+# parole in chat (senza "/") che avviano un gioco o un acquisto
+GAME_TRIGGERS = {
+    "sfido", "sfidodadi", "sfidotris", "sfidoroulette", "sfidohighlow",
+    "sfidoghigliottina", "sfidoquiz", "titolo", "perseguita"
+}
+
+CHALLENGES = {
+    "sfidodadi": "dice", "/sfidodadi": "dice",
+    "sfidotris": "ttt", "/sfidotris": "ttt",
+    "sfidoroulette": "roulette", "/sfidoroulette": "roulette",
+    "sfidohighlow": "highlow", "/sfidohighlow": "highlow",
+    "sfidoghigliottina": "ghig", "/sfidoghigliottina": "ghig",
+    "sfidoquiz": "quiz1v1", "/sfidoquiz": "quiz1v1",
+    "sfido": "roulette", "/sfido": "roulette"
+}
+
 
 # --- UTILITIES / ADMIN ---
+async def toggle_maintenance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+    FLAGS["maintenance"] = not FLAGS.get("maintenance", False)
+    await update.message.reply_text(
+        "🛠️ Manutenzione ATTIVATA: HUB e giochi bloccati per tutti tranne te."
+        if FLAGS["maintenance"] else
+        "✅ Manutenzione DISATTIVATA: il bot è di nuovo operativo."
+    )
+
+async def maintenance_gate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not FLAGS.get("maintenance"):
+        return
+    user = update.effective_user
+    if user and is_admin(user.id):
+        return                                   # l'admin passa sempre
+
+    # 1) Bottoni inline: solo popup, nessun messaggio in chat
+    if update.callback_query:
+        await update.callback_query.answer(MAINT_ALERT, show_alert=True)
+        raise ApplicationHandlerStop
+
+    msg = update.effective_message
+    if not msg or not msg.text:
+        return
+
+    text = msg.text.strip().lower()
+    first = text.split()[0]
+
+    # 2) Comandi (/sdrogocomm, /topricconi, ...)
+    if first.startswith("/"):
+        _, _, for_bot = first[1:].partition("@")
+        if for_bot and for_bot != (context.bot.username or "").lower():
+            return                               # comando indirizzato a un altro bot
+    # 3) Parole-trigger dei giochi ("sfidoquiz @x", "titolo @x", ...)
+    elif first not in GAME_TRIGGERS:
+        return                                   # testo normale: NON fare nulla
+
+    # avviso con cooldown per non spammare
+    last = context.bot_data.setdefault("maint_last", {})
+    now = time.time()
+    if now - last.get(msg.chat_id, 0) > MAINT_COOLDOWN:
+        last[msg.chat_id] = now
+        await msg.reply_text(MAINT_TEXT, parse_mode="HTML")
+    raise ApplicationHandlerStop
+
+
+async def ricarica_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user, chat = update.effective_user, update.effective_chat
+    if not is_admin(user.id):
+        return
+    if chat.type != "private":
+        await update.message.reply_text("🔒 /ricarica funziona solo in chat privata col bot.")
+        return
+    add_user_coins(chat.id, user.id, 1000)
+    await update.message.reply_text(
+        f"🧪 Modalità test: +1000 $SDG. Saldo: {get_user_coins(chat.id, user.id)} $SDG"
+    )
+
 async def toggle_troll(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
     FLAGS["troll"] = not FLAGS["troll"]
@@ -130,7 +216,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text(f"✅ {user.first_name} riabilitato!")
             return
 
-    # Handling Tag Persecutore dallo Shop ("frocio hah")
+    # Handling Tag Persecutore
     persecute_key = f"{chat_id}_{username_lower}"
     if persecute_key in ACTIVE_PERSECUTE:
         p_data = ACTIVE_PERSECUTE[persecute_key]
@@ -140,7 +226,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             if p_data["count"] == 0:
                 del ACTIVE_PERSECUTE[persecute_key]
 
-    # Handling Comandi Titolo e Perseguita
+    # Handling Comandi Shop Testuali
     if text.lower().startswith("titolo") or text.lower().startswith("/titolo"):
         await apply_title_command(update, context)
         return
@@ -153,86 +239,17 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         await donate_coins_command(update, context)
         return
 
-    # Handling Sfide con Puntata: /sfidodadi & /sfidotris
-    if text.lower().startswith("sfidodadi") or text.lower().startswith("/sfidodadi"):
-        parts = text.split()
-        target_username = next((p.replace("@", "").lower() for p in parts if p.startswith("@")), None)
-        if not target_username:
-            await update.message.reply_text("❌ Uso: <code>sfidodadi @username</code>", parse_mode="HTML")
+    # Handling Sfide Unificate (Claude Refactor)
+    first = text.lower().split()[0] if text else ""
+    if first in CHALLENGES:
+        target = next((p[1:].lower() for p in text.split() if p.startswith("@") and len(p) > 1), None)
+        if not target:
+            await update.message.reply_text(f"❌ Uso: <code>{first} @username</code>", parse_mode="HTML")
             return
-        await setup_challenge_menu(update, context, "dice", target_username, chat_id_int, user)
-        return
-
-    if text.lower().startswith("sfidotris") or text.lower().startswith("/sfidotris"):
-        parts = text.split()
-        target_username = next((p.replace("@", "").lower() for p in parts if p.startswith("@")), None)
-        if not target_username:
-            await update.message.reply_text("❌ Uso: <code>sfidotris @username</code>", parse_mode="HTML")
+        if target == username_lower:
+            await update.message.reply_text("🤡 Non puoi sfidare te stesso!")
             return
-        await setup_challenge_menu(update, context, "ttt", target_username, chat_id_int, user)
-        return
-
-    # Handling Sfida Ghigliottina 1v1 ("sfidoghigliottina @username")
-    if text.lower().startswith("sfidoghigliottina") or text.lower().startswith("/sfidoghigliottina"):
-        parts = text.split()
-        target_username = next((p.replace("@", "").lower() for p in parts if p.startswith("@")), None)
-        if not target_username:
-            await update.message.reply_text("❌ Uso: <code>sfidoghigliottina @username</code>", parse_mode="HTML")
-            return
-
-        GHIGLIOTTINA_DUELS[chat_id_int] = {
-            "sfidante_id": user.id, "sfidante_name": user.first_name,
-            "target_username": target_username, "active": False
-        }
-        keyboard = [[InlineKeyboardButton("🪓 Accetta Ghigliottina", callback_data="ghig_accetta"), InlineKeyboardButton("🐔 Rifiuta", callback_data="ghig_rifiuta")]]
-        await update.message.reply_text(f"🪓 <b>GHIGLIOTTINA EXPRESS 1v1</b>\n\n<b>{user.first_name}</b> ha sfidato <b>@{target_username}</b> alla Ghigliottina!\n@{target_username}, rispondi coi bottoni:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        return
-
-    # Handling Sfida Duello Quiz 1v1 ("sfidoquiz @username")
-    if text.lower().startswith("sfidoquiz") or text.lower().startswith("/sfidoquiz"):
-        parts = text.split()
-        target_username = next((p.replace("@", "").lower() for p in parts if p.startswith("@")), None)
-        if not target_username:
-            await update.message.reply_text("❌ Uso: <code>sfidoquiz @username</code>", parse_mode="HTML")
-            return
-
-        QUIZ_DUELS_1V1[chat_id_int] = {
-            "sfidante_id": user.id, "sfidante_name": user.first_name,
-            "target_username": target_username, "active": False
-        }
-        keyboard = [
-            [InlineKeyboardButton("⚽ Calcio", callback_data="q1v1_cat_CALCIO"), InlineKeyboardButton("🏎️ F1", callback_data="q1v1_cat_F1")],
-            [InlineKeyboardButton("🦸 Marvel", callback_data="q1v1_cat_MARVEL"), InlineKeyboardButton("🎬 Cinema", callback_data="q1v1_cat_CINEMA")],
-            [InlineKeyboardButton("📺 Serie TV", callback_data="q1v1_cat_SERIE"), InlineKeyboardButton("🗺️ Paesi", callback_data="q1v1_cat_PAESI")],
-            [InlineKeyboardButton("🏮 Anime", callback_data="q1v1_cat_ANIME"), InlineKeyboardButton("🏷️ Brand", callback_data="q1v1_cat_BRANDS")],
-            [InlineKeyboardButton("📜 Personaggi", callback_data="q1v1_cat_PERSONAGGI"), InlineKeyboardButton("🎵 Canzoni", callback_data="q1v1_cat_CANZONI")]
-        ]
-        await update.message.reply_text(f"⚔️ <b>DUELLO QUIZ 1v1</b>\n\n<b>{user.first_name}</b> vuole sfidare <b>@{target_username}</b>!\nSeleziona la categoria:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        return
-
-    # Handling Sfida Roulette Russa ("sfido @username")
-    if text.lower().startswith("sfido @") or text.lower().startswith("/sfido @"):
-        target_username = text.split("@")[1].strip().lower()
-        ACTIVE_DUELS[chat_id_int] = {
-            "sfidante_id": user.id, "sfidante_name": user.first_name,
-            "target_username": target_username, "chambers": [False]*6, "current_chamber": 0
-        }
-        ACTIVE_DUELS[chat_id_int]["chambers"][random.randint(0, 5)] = True
-
-        keyboard = [[InlineKeyboardButton("🎯 Accetta Sfida", callback_data="roulette_accetta"), InlineKeyboardButton("🐔 Rifiuta", callback_data="roulette_rifiuta")]]
-        await update.message.reply_text(f"🔫 <b>ROULETTE RUSSA 1v1</b>\n\n<b>{user.first_name}</b> ha sfidato <b>@{target_username}</b>!\n@{target_username}, rispondi coi bottoni:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        return
-
-    # Handling Sfida High/Low 1v1 ("sfido highlow @username")
-    if text.lower().startswith("sfido highlow @") or text.lower().startswith("/sfido highlow @"):
-        target_username = text.split("@")[1].strip().lower()
-        HIGHLOW_DUELS[chat_id_int] = {
-            "sfidante_id": user.id, "sfidante_name": user.first_name,
-            "target_username": target_username, "val": 0, "turno_id": None
-        }
-
-        keyboard = [[InlineKeyboardButton("🎲 Accetta High/Low", callback_data="hl_accetta"), InlineKeyboardButton("🐔 Rifiuta", callback_data="hl_rifiuta")]]
-        await update.message.reply_text(f"🎲 <b>HIGH / LOW 1v1</b>\n\n<b>{user.first_name}</b> ha sfidato <b>@{target_username}</b>!\n@{target_username}, accetti la sfida?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        await setup_challenge_menu(update, context, CHALLENGES[first], target, chat_id_int, user)
         return
 
     text_upper = text.upper()
@@ -241,9 +258,11 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
     if chat_id_int in GHIGLIOTTINA_DUELS and GHIGLIOTTINA_DUELS[chat_id_int].get("active"):
         duel = GHIGLIOTTINA_DUELS[chat_id_int]
         if user.id in [duel["sfidante_id"], duel["target_id"]] and text_upper == duel["word"]:
+            loser_id = duel["target_id"] if user.id == duel["sfidante_id"] else duel["sfidante_id"]
+            record_duel_result(chat_id_int, user.id, loser_id, duel["bet"])
             del GHIGLIOTTINA_DUELS[chat_id_int]
-            add_user_coins(chat_id_int, user.id, 40)
-            await update.message.reply_text(f"🏆 <b>GHIGLIOTTINA RISOLTA!</b> <b>{user.first_name}</b> indovina <b>{duel['word']}</b> e vince +💳 40 $SDG!", parse_mode="HTML")
+            montepremi = duel["bet"] * 2
+            await update.message.reply_text(f"🏆 <b>GHIGLIOTTINA RISOLTA!</b> <b>{user.first_name}</b> indovina <b>{duel['word']}</b> e vince +💳 {montepremi} $SDG!", parse_mode="HTML")
             return
 
     # Handling Risposta Duello Quiz 1v1
@@ -275,21 +294,25 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             end_keyboard = [[InlineKeyboardButton("🔂 Rigioca", callback_data=f"start_mm_{user.id}"), InlineKeyboardButton("🔙 HUB", callback_data=f"hub_main_{user.id}")] ]
             if c_hits == 3:
                 del MASTERMIND_GAMES[mm_key]
-                reward = 30 if mm["attempts"] <= 3 else 15
+                reward = 35 if mm["attempts"] <= 3 else 20
+                net_profit = reward - 10
+                record_single_result(chat_id_int, user.id, True, net_profit, is_casino=False)
                 add_user_coins(chat_id_int, user.id, reward)
                 await update.message.reply_text(f"🎉 <b>ESATTO!</b> Codice: <b>{secret}</b>! Vinti +💳 {reward} $SDG!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
             elif mm["attempts"] >= 5:
                 del MASTERMIND_GAMES[mm_key]
+                record_single_result(chat_id_int, user.id, False, -10, is_casino=False)
                 await update.message.reply_text(f"💥 <b>GAME OVER!</b> Il codice era {secret}.\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
             else:
                 await update.message.reply_text(f"🔐 <b>MASTERMIND ({mm['attempts']}/5)</b>\n\n{res_text}", parse_mode="HTML")
             return
 
-    # Handling Quiz Multiplayer & Single
+    # Handling Quiz Multiplayer & Single (con statistiche Quizzes Won)
     if chat_id in QUIZ_GAMES and QUIZ_GAMES[chat_id].get("multi") and text_upper == QUIZ_GAMES[chat_id]["target"]:
         q = QUIZ_GAMES[chat_id]
         del QUIZ_GAMES[chat_id]
         add_user_coins(chat_id_int, user.id, 15)
+        add_user_stat(chat_id_int, user.id, "quizzes_won", 1)
         await update.message.reply_text(f"🎉 <b>QUIZ MULTI RISOLTO!</b> <b>{user.first_name}</b> indovina <b>{q['target']}</b> e vince +💳 15 $SDG!", parse_mode="HTML")
         return
 
@@ -299,6 +322,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         del QUIZ_GAMES[quiz_key]
         reward = 20 if q["step"] == 1 else (10 if q["step"] == 2 else 6)
         add_user_coins(chat_id_int, user.id, reward)
+        add_user_stat(chat_id_int, user.id, "quizzes_won", 1)
         await update.message.reply_text(f"🎉 <b>CORRETTO!</b> <b>{user.first_name}</b> indovina <b>{q['target']}</b>! Vinti +💳 {reward} $SDG!", parse_mode="HTML")
         return
 
@@ -324,12 +348,15 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             game["history"].append(f"<code>{letters_row}</code>\n{colors_row}")
             res_text = "\n\n".join(game["history"])
             end_keyboard = [[InlineKeyboardButton("🔂 Rigioca", callback_data=f"start_wordle_{user.id}"), InlineKeyboardButton("🔙 HUB", callback_data=f"hub_main_{user.id}")] ]
+            
             if text_upper == secret:
                 del WORDLE_GAMES[game_key]
+                record_single_result(chat_id_int, user.id, True, 10, is_casino=False)
                 add_user_coins(chat_id_int, user.id, 20)
                 await update.message.reply_text(f"🎉 <b>ESATTO!</b> Parola: <b>{secret}</b>! Vinti +💳 20 $SDG!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
             elif game["attempts"] >= 5:
                 del WORDLE_GAMES[game_key]
+                record_single_result(chat_id_int, user.id, False, -10, is_casino=False)
                 await update.message.reply_text(f"💥 <b>GAME OVER!</b> La parola era {secret}.\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
             else:
                 await update.message.reply_text(f"🔠 <b>WORDLE ({game['attempts']}/5)</b>\n\n{res_text}", parse_mode="HTML")
@@ -344,11 +371,14 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 # --- REGISTRAZIONE HANDLER ---
 def register(app):
     app.add_error_handler(error_handler)
+    app.add_handler(TypeHandler(Update, maintenance_gate), group=-2)
     app.add_handler(CallbackQueryHandler(catch_all_callbacks), group=-1)
     app.add_handler(CommandHandler("troll", toggle_troll))
     app.add_handler(CommandHandler("pen", clear_penalties))
     app.add_handler(CommandHandler("resetduello", reset_duello))
     app.add_handler(CommandHandler("dona", donate_coins_command))
+    app.add_handler(CommandHandler("manutenzione", toggle_maintenance))
+    app.add_handler(CommandHandler("ricarica", ricarica_command))
 
 def register_text(app):
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
