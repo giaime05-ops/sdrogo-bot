@@ -12,16 +12,15 @@ from telegram.ext import (
 
 from config import FRASE_PENITENZA, TARGET_MAP
 from state import (
-    FLAGS, ACTIVE_DUELS, HIGHLOW_DUELS, BLACKJACK_GAMES, WORDLE_GAMES,
+    FLAGS, ACTIVE_DUELS, HIGHLOW_DUELS, DICE_DUELS, BLACKJACK_GAMES, WORDLE_GAMES,
     MASTERMIND_GAMES, QUIZ_GAMES, QUIZ_DUELS_1V1, GHIGLIOTTINA_DUELS,
-    HEIST_GAMES, PENITENZE_ATTIVE, ACTIVE_PERSECUTE, TIC_TAC_TOE_GAMES, DAILY_DONATIONS,
+    HEIST_GAMES, PENITENZE_ATTIVE, ACTIVE_PERSECUTE, TIC_TAC_TOE_GAMES,
+    DAILY_DONATIONS, USER_DATA,
 )
 from storage import add_user_coins, get_user_coins, add_user_stat
 from utils import is_admin
 from handlers.hub import apply_title_command, apply_persecute_command
-from handlers.multiplayer import (
-    launch_quiz1v1_round, conclude_quiz1v1_duel, setup_challenge_menu, record_duel_result
-)
+from handlers.multiplayer import setup_challenge_menu, record_duel_result, quiz1v1_advance
 from handlers.games import record_single_result
 
 MAINT_TEXT = (
@@ -34,17 +33,18 @@ MAINT_COOLDOWN = 20   # secondi tra due avvisi nella stessa chat
 # parole in chat (senza "/") che avviano un gioco o un acquisto
 GAME_TRIGGERS = {
     "sfido", "sfidodadi", "sfidotris", "sfidoroulette", "sfidohighlow",
-    "sfidoghigliottina", "sfidoquiz", "titolo", "perseguita"
+    "sfidoghigliottina", "sfidoquiz", "titolo", "perseguita", "dona"
 }
 
+# Il MessageHandler esclude i comandi (~filters.COMMAND), quindi qui servono solo le parole senza "/"
 CHALLENGES = {
-    "sfidodadi": "dice", "/sfidodadi": "dice",
-    "sfidotris": "ttt", "/sfidotris": "ttt",
-    "sfidoroulette": "roulette", "/sfidoroulette": "roulette",
-    "sfidohighlow": "highlow", "/sfidohighlow": "highlow",
-    "sfidoghigliottina": "ghig", "/sfidoghigliottina": "ghig",
-    "sfidoquiz": "quiz1v1", "/sfidoquiz": "quiz1v1",
-    "sfido": "roulette", "/sfido": "roulette"
+    "sfidodadi": "dice",
+    "sfidotris": "ttt",
+    "sfidoroulette": "roulette",
+    "sfidohighlow": "highlow",
+    "sfidoghigliottina": "ghig",
+    "sfidoquiz": "quiz1v1",
+    "sfido": "roulette",
 }
 
 
@@ -76,6 +76,8 @@ async def maintenance_gate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     text = msg.text.strip().lower()
+    if not text:
+        return
     first = text.split()[0]
 
     # 2) Comandi (/sdrogocomm, /topricconi, ...)
@@ -119,18 +121,21 @@ async def clear_penalties(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🧹 Penitenze rimosse!")
 
 async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id): return
-    ACTIVE_DUELS.clear()
-    HIGHLOW_DUELS.clear()
-    BLACKJACK_GAMES.clear()
-    WORDLE_GAMES.clear()
-    MASTERMIND_GAMES.clear()
-    QUIZ_GAMES.clear()
-    QUIZ_DUELS_1V1.clear()
-    GHIGLIOTTINA_DUELS.clear()
-    HEIST_GAMES.clear()
-    TIC_TAC_TOE_GAMES.clear()
-    await update.message.reply_text("🛠️ Tutti i giochi bloccati sono stati resettati.")
+    if not is_admin(update.effective_user.id):
+        return
+    for d in (HIGHLOW_DUELS, DICE_DUELS, ACTIVE_DUELS, TIC_TAC_TOE_GAMES,
+              GHIGLIOTTINA_DUELS, QUIZ_DUELS_1V1):
+        for cid, g in list(d.items()):
+            if g.get("target_id") and g.get("bet"):      # accettato = puntate già scalate
+                add_user_coins(cid, g["sfidante_id"], g["bet"])
+                add_user_coins(cid, g["target_id"], g["bet"])
+        d.clear()
+    for key, g in list(BLACKJACK_GAMES.items()):
+        cid, uid = key.rsplit("_", 1)
+        add_user_coins(int(cid), int(uid), g["bet"])
+    for d in (BLACKJACK_GAMES, WORDLE_GAMES, MASTERMIND_GAMES, QUIZ_GAMES, HEIST_GAMES):
+        d.clear()
+    await update.message.reply_text("🛠️ Giochi resettati. Puntate di duelli e blackjack rimborsate.")
 
 # --- COMANDO DONAZIONE CREDITI (/dona) ---
 async def donate_coins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -160,8 +165,7 @@ async def donate_coins_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
     target_id = None
     prefix = f"{chat_id}_"
-    from state import USER_DATA
-    for k in USER_DATA.keys():
+    for k in list(USER_DATA.keys()):
         if k.startswith(prefix):
             uid = k.split("_")[1]
             try:
@@ -226,22 +230,24 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             if p_data["count"] == 0:
                 del ACTIVE_PERSECUTE[persecute_key]
 
-    # Handling Comandi Shop Testuali
-    if text.lower().startswith("titolo") or text.lower().startswith("/titolo"):
+    # Prima parola del messaggio: i trigger testuali scattano solo se è la prima parola E c'è un bersaglio
+    first = text.lower().split()[0] if text else ""
+    has_mention = "@" in text
+    has_reply = update.message.reply_to_message is not None
+
+    # Handling Comandi Shop Testuali e Dona
+    if first == "titolo" and (has_mention or has_reply):
         await apply_title_command(update, context)
         return
-    elif text.lower().startswith("perseguita") or text.lower().startswith("/perseguita"):
+    if first == "perseguita" and has_mention:
         await apply_persecute_command(update, context)
         return
-
-    # Handling Comando Dona
-    if text.lower().startswith("/dona") or text.lower().startswith("dona "):
+    if first == "dona" and has_mention:
         await donate_coins_command(update, context)
         return
 
-    # Handling Sfide Unificate (Claude Refactor)
-    first = text.lower().split()[0] if text else ""
-    if first in CHALLENGES:
+    # Handling Sfide Unificate
+    if first in CHALLENGES and (first != "sfido" or has_mention):
         target = next((p[1:].lower() for p in text.split() if p.startswith("@") and len(p) > 1), None)
         if not target:
             await update.message.reply_text(f"❌ Uso: <code>{first} @username</code>", parse_mode="HTML")
@@ -259,8 +265,8 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         duel = GHIGLIOTTINA_DUELS[chat_id_int]
         if user.id in [duel["sfidante_id"], duel["target_id"]] and text_upper == duel["word"]:
             loser_id = duel["target_id"] if user.id == duel["sfidante_id"] else duel["sfidante_id"]
-            record_duel_result(chat_id_int, user.id, loser_id, duel["bet"])
             del GHIGLIOTTINA_DUELS[chat_id_int]
+            record_duel_result(chat_id_int, user.id, loser_id, duel["bet"])
             montepremi = duel["bet"] * 2
             await update.message.reply_text(f"🏆 <b>GHIGLIOTTINA RISOLTA!</b> <b>{user.first_name}</b> indovina <b>{duel['word']}</b> e vince +💳 {montepremi} $SDG!", parse_mode="HTML")
             return
@@ -269,14 +275,11 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
     if chat_id_int in QUIZ_DUELS_1V1 and QUIZ_DUELS_1V1[chat_id_int].get("active"):
         duel = QUIZ_DUELS_1V1[chat_id_int]
         if user.id in [duel["sfidante_id"], duel["target_id"]] and text_upper == duel["current_target"]:
+            duel["msg_id"] = None          # invalida il timer del round appena vinto
             if user.id == duel["sfidante_id"]: duel["p1_score"] += 1
             else: duel["p2_score"] += 1
             await update.message.reply_text(f"🎯 <b>RISPOSTA CORRETTA!</b> <b>{user.first_name}</b> prende il punto del Round {duel['round']}!", parse_mode="HTML")
-            if duel["round"] < 5 and duel["p1_score"] < 3 and duel["p2_score"] < 3:
-                duel["round"] += 1
-                await launch_quiz1v1_round(context.bot, chat_id_int)
-            else:
-                await conclude_quiz1v1_duel(context.bot, chat_id_int)
+            await quiz1v1_advance(context.bot, chat_id_int)
             return
 
     # Handling Mastermind Express
