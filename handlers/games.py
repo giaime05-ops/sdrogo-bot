@@ -8,17 +8,32 @@ from telegram.ext import CallbackQueryHandler, ContextTypes
 from database_quiz import WORDS
 from state import (
     BLACKJACK_GAMES, WORDLE_GAMES, MASTERMIND_GAMES,
-    HEIST_GAMES, USER_INVENTORIES,
+    HEIST_GAMES, USER_INVENTORIES, USER_DATA
 )
-from storage import get_user_coins, add_user_coins
+from storage import get_user_coins, add_user_coins, get_user_key, save_db
 from utils import verify_user_lock
 
+# Funzione di supporto per registrare le statistiche dei giochi single player nel portafoglio
+def record_single_result(chat_id: int, user_id: int, won: bool, profit: int, is_casino: bool = True):
+    key = get_user_key(chat_id, user_id)
+    if key not in USER_DATA:
+        USER_DATA[key] = {"coins": 50, "last_daily": "", "quizzes_won": 0, "casino_wins": 0, "duels_wins": 0, "net_profit": 0, "single_played": 0, "single_won": 0}
+    
+    u = USER_DATA[key]
+    u["single_played"] = u.get("single_played", 0) + 1
+    u["net_profit"] = u.get("net_profit", 0) + profit
+    
+    if won:
+        u["single_won"] = u.get("single_won", 0) + 1
+        if is_casino:
+            u["casino_wins"] = u.get("casino_wins", 0) + 1
+    save_db()
+
 
 # =====================================================================
-# BLACKJACK
+# BLACKJACK CON PUNTATE PERSONALIZZATE
 # =====================================================================
 BJ_CARDS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11]
-
 
 async def start_bj_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -28,56 +43,93 @@ async def start_bj_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
     if not await verify_user_lock(query, owner_id): return
-    user = query.from_user
     chat_id = query.message.chat_id
+    coins = get_user_coins(chat_id, owner_id)
 
-    if get_user_coins(chat_id, user.id) < 10:
-        await query.answer("❌ Servono 10 $SDG per giocare a Blackjack!", show_alert=True)
-        return
-
-    add_user_coins(chat_id, user.id, -10)
-    player_hand = [random.choice(BJ_CARDS), random.choice(BJ_CARDS)]
-    dealer_hand = [random.choice(BJ_CARDS)]
-
-    BLACKJACK_GAMES[f"{chat_id}_{user.id}"] = {
-        "player_id": user.id, "player_hand": player_hand, "dealer_hand": dealer_hand
-    }
-
-    keyboard = [[
-        InlineKeyboardButton("🎴 Carta", callback_data=f"bj_hit_{owner_id}"),
-        InlineKeyboardButton("✋ Stai", callback_data=f"bj_stand_{owner_id}")
-    ]]
-
-    await query.edit_message_text(
-        f"🃏 <b>BLACKJACK 21</b> (Puntata: 10 $SDG)\n\n"
-        f"👤 Giocatore: <b>{user.first_name}</b>\n"
-        f"🎎 Carte: {player_hand} (Totale: <b>{sum(player_hand)}</b>)\n"
-        f"🤖 Banco: [{dealer_hand[0]}, ?]\n\nCosa fai?",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode='HTML'
+    text = (
+        "🃏 <b>BLACKJACK 21 - SCEGLI LA PUNTATA</b> 💰\n\n"
+        f"💳 Saldo disponibile: <b>{coins} $SDG</b>\n\n"
+        "<i>Seleziona quanto vuoi puntare per questa mano:</i>"
     )
+    keyboard = [
+        [InlineKeyboardButton("10 $SDG", callback_data=f"bj_bet_10_{owner_id}"), InlineKeyboardButton("25 $SDG", callback_data=f"bj_bet_25_{owner_id}")],
+        [InlineKeyboardButton("50 $SDG", callback_data=f"bj_bet_50_{owner_id}"), InlineKeyboardButton("100 $SDG", callback_data=f"bj_bet_100_{owner_id}")],
+        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
+    ]
+    try:
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
+    except Exception:
+        pass
 
 
 async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    parts = query.data.split("_")
+    data = query.data
+    parts = data.split("_")
     action = parts[1]
-    owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
+    owner_id = int(parts[-1])
 
     if not await verify_user_lock(query, owner_id): return
     chat_id = query.message.chat_id
     user_id = query.from_user.id
     game_key = f"{chat_id}_{user_id}"
 
+    if action == "bet":
+        bet = int(parts[2])
+        coins = get_user_coins(chat_id, owner_id)
+        if coins < bet:
+            await query.answer("❌ Non hai abbastanza $SDG per questa puntata!", show_alert=True)
+            return
+
+        add_user_coins(chat_id, owner_id, -bet)
+        player_hand = [random.choice(BJ_CARDS), random.choice(BJ_CARDS)]
+        dealer_hand = [random.choice(BJ_CARDS)]
+
+        BLACKJACK_GAMES[game_key] = {
+            "player_id": user_id, "bet": bet, "player_hand": player_hand, "dealer_hand": dealer_hand
+        }
+
+        # Controllo Blackjack Naturale (21 con le prime due carte)
+        if sum(player_hand) == 21:
+            win_amount = int(bet * 2.5)
+            add_user_coins(chat_id, owner_id, win_amount)
+            net_profit = win_amount - bet
+            record_single_result(chat_id, owner_id, True, net_profit)
+            del BLACKJACK_GAMES[game_key]
+            keyboard = [
+                [InlineKeyboardButton("🃏 Gioca Ancora", callback_data=f"start_bj_{owner_id}")],
+                [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
+            ]
+            await query.edit_message_text(
+                f"🃏 <b>BLACKJACK 21</b>\n👤 Carte: {player_hand} (Totale: <b>21</b>)\n🤖 Banco: {dealer_hand}\n\n"
+                f"✨ <b>BLACKJACK NATURALE!</b> Hai vinto <b>+{net_profit} $SDG</b>!",
+                reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML'
+            )
+            return
+
+        keyboard = [[
+            InlineKeyboardButton("🎴 Carta", callback_data=f"bj_hit_{owner_id}"),
+            InlineKeyboardButton("✋ Stai", callback_data=f"bj_stand_{owner_id}")
+        ]]
+        await query.edit_message_text(
+            f"🃏 <b>BLACKJACK 21</b> (Puntata: <code>{bet} $SDG</code>)\n\n"
+            f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
+            f"🎎 Carte: {player_hand} (Totale: <b>{sum(player_hand)}</b>)\n"
+            f"🤖 Banco: [{dealer_hand[0]}, ?]\n\nCosa fai?",
+            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML'
+        )
+        return
+
     if game_key not in BLACKJACK_GAMES:
         await query.edit_message_text("❌ Partita terminata.")
         return
 
     game = BLACKJACK_GAMES[game_key]
+    bet = game["bet"]
     end_keyboard = [
-        [InlineKeyboardButton("🔂 Rigioca (10 $SDG)", callback_data=f"start_bj_{owner_id}")],
+        [InlineKeyboardButton("🔂 Rigioca", callback_data=f"start_bj_{owner_id}")],
         [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
     ]
 
@@ -86,9 +138,15 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         score = sum(game["player_hand"])
 
         if score > 21:
+            while 11 in game["player_hand"] and sum(game["player_hand"]) > 21:
+                game["player_hand"][game["player_hand"].index(11)] = 1
+            score = sum(game["player_hand"])
+
+        if score > 21:
+            record_single_result(chat_id, user_id, False, -bet)
             del BLACKJACK_GAMES[game_key]
             await query.edit_message_text(
-                f"💥 <b>SBALLATO!</b> ({score})\nHai perso 10 $SDG!",
+                f"💥 <b>SBALLATO!</b> ({score})\nHai perso <b>-{bet} $SDG</b>!",
                 reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML'
             )
         else:
@@ -97,7 +155,7 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 InlineKeyboardButton("✋ Stai", callback_data=f"bj_stand_{owner_id}")
             ]]
             await query.edit_message_text(
-                f"🃏 <b>BLACKJACK 21</b>\n\nCarte: {game['player_hand']} ({score})\n"
+                f"🃏 <b>BLACKJACK 21</b> (Puntata: {bet} $SDG)\n\nCarte: {game['player_hand']} ({score})\n"
                 f"Banco: [{game['dealer_hand'][0]}, ?]",
                 reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML'
             )
@@ -111,22 +169,27 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         del BLACKJACK_GAMES[game_key]
 
         if dealer_score > 21 or player_score > dealer_score:
-            add_user_coins(chat_id, user_id, 15)
+            win_amount = bet * 2
+            add_user_coins(chat_id, user_id, win_amount)
+            net_profit = bet
+            record_single_result(chat_id, user_id, True, net_profit)
             await query.edit_message_text(
                 f"🏆 <b>VITTORIA!</b> Tu: {player_score} | Banco: {dealer_score}\n"
-                f"Hai vinto <b>+💳 15 $SDG</b>!",
+                f"Hai vinto <b>+💳 {net_profit} $SDG</b>!",
                 reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML'
             )
         elif player_score < dealer_score:
+            record_single_result(chat_id, user_id, False, -bet)
             await query.edit_message_text(
                 f"❌ <b>SCONFITTA!</b> Tu: {player_score} | Banco: {dealer_score}\n"
-                f"Hai perso la puntata.",
+                f"Hai perso <b>-{bet} $SDG</b>.",
                 reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML'
             )
         else:
-            add_user_coins(chat_id, user_id, 10)
+            add_user_coins(chat_id, user_id, bet)
+            record_single_result(chat_id, user_id, False, 0)
             await query.edit_message_text(
-                f"⚖️ <b>PAREGGIO!</b> Punti: {player_score}\nPuntata di 10 $SDG restituita.",
+                f"⚖️ <b>PAREGGIO!</b> Punti: {player_score}\nPuntata di {bet} $SDG restituita.",
                 reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML'
             )
 
@@ -158,14 +221,14 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
         f"[ {r1} | 🔄 | ❓ ]\n\n<i>Giro rulli in corso...</i>",
         parse_mode="HTML"
     )
-    await asyncio.sleep(0.6)
+    await asyncio.sleep(0.5)
 
     await query.edit_message_text(
         f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n"
         f"[ {r1} | {r2} | 🔄 ]\n\n<i>Giro rulli in corso...</i>",
         parse_mode="HTML"
     )
-    await asyncio.sleep(0.6)
+    await asyncio.sleep(0.5)
 
     text = (
         f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{user.first_name}</b>\n\n"
@@ -180,21 +243,25 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
     if r1 == r2 == r3:
         if r1 == "7️⃣":
             add_user_coins(chat_id, user.id, 150)
-            text += "🔥 <b>JACKPOT SUPREMO 777!</b> 🔥 Hai vinto <b>+💳 150 $SDG</b>!"
+            record_single_result(chat_id, user.id, True, 140)
+            text += "🔥 <b>JACKPOT SUPREMO 777!</b> 🔥 Hai vinto <b>+💳 140 $SDG</b>!"
         else:
             add_user_coins(chat_id, user.id, 30)
-            text += "🎉 <b>TRIPLETTA VINCENTE!</b> Hai vinto <b>+💳 30 $SDG</b>!"
+            record_single_result(chat_id, user.id, True, 20)
+            text += "🎉 <b>TRIPLETTA VINCENTE!</b> Hai vinto <b>+💳 20 $SDG</b>!"
     elif r1 == r2 or r2 == r3 or r1 == r3:
         add_user_coins(chat_id, user.id, 10)
-        text += "✨ <b>DOPPIETTA!</b> Recuperi i tuoi 10 $SDG!"
+        record_single_result(chat_id, user.id, True, 0)
+        text += "✨ <b>DOPPIETTA!</b> Recuperi i tuoi 10 $SDG."
     else:
+        record_single_result(chat_id, user.id, False, -10)
         text += "💸 <b>NESSUNA COMBINAZIONE!</b> Hai perso 10 $SDG."
 
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
 
 
 # =====================================================================
-# WORDLE EXPRESS  (la logica dei tentativi sta in system.py -> text router)
+# WORDLE EXPRESS
 # =====================================================================
 async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -229,7 +296,7 @@ async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 # =====================================================================
-# MASTERMIND EXPRESS  (idem: tentativi gestiti dal text router)
+# MASTERMIND EXPRESS (Con vincita rialzata a 35 $SDG)
 # =====================================================================
 async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -266,7 +333,7 @@ async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAUL
 
 
 # =====================================================================
-# SDROGO HEIST  (l'acquisto del pass sta in hub.py -> shop_buy_callback)
+# SDROGO HEIST
 # =====================================================================
 async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -274,7 +341,7 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
     parts = query.data.split("_")
     stage = parts[1]
-    owner_id = int(parts[-1])          # l'ID utente è SEMPRE l'ultimo elemento
+    owner_id = int(parts[-1])
 
     if query.from_user.id != owner_id:
         return
@@ -425,20 +492,6 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 parse_mode="HTML"
             )
 
-            try:
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=(
-                        f"👑 <b>COLPO DEL SECOLO!</b> 🏢\n\n"
-                        f"<b>{query.from_user.first_name}</b> ha svaligiato il Caveau di Sdrogo Heist "
-                        f"arrivando al 5° Livello!\n"
-                        f"Guadagna <b>💳 600 $SDG</b> e 1 STELLA ⭐ di prestigio in classifica!"
-                    ),
-                    parse_mode="HTML"
-                )
-            except Exception:
-                pass
-
     elif stage == "cashout":
         amount = int(parts[2])
         del HEIST_GAMES[user_id]
@@ -449,9 +502,6 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
         )
 
 
-# =====================================================================
-# REGISTRAZIONE
-# =====================================================================
 def register(app):
     app.add_handler(CallbackQueryHandler(start_bj_from_hub, pattern="^start_bj_"))
     app.add_handler(CallbackQueryHandler(handle_bj_callback, pattern="^bj_"))
