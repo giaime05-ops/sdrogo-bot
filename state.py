@@ -17,4 +17,4 @@ ACTIVE_TITLES = {}
 ACTIVE_PERSECUTE = {}
 USER_INVENTORIES = {}
 
-FLAGS = {"troll": False}
+FLAGS = {"troll": False, "maintenance": False}
