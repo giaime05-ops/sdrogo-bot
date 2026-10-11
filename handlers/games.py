@@ -13,7 +13,7 @@ from state import (
 from storage import get_user_coins, add_user_coins, get_user_key, save_db
 from utils import verify_user_lock
 
-# Funzione di supporto per registrare le statistiche dei giochi single player nel portafoglio
+# --- HELPER STATISTICHE ---
 def record_single_result(chat_id: int, user_id: int, won: bool, profit: int, is_casino: bool = True):
     key = get_user_key(chat_id, user_id)
     if key not in USER_DATA:
@@ -29,9 +29,25 @@ def record_single_result(chat_id: int, user_id: int, won: bool, profit: int, is_
             u["casino_wins"] = u.get("casino_wins", 0) + 1
     save_db()
 
+# --- HELPER BLACKJACK (Calcolo corretto degli assi) ---
+def hand_value(hand: list) -> int:
+    total, aces = sum(hand), hand.count(11)
+    while total > 21 and aces:
+        total -= 10
+        aces -= 1
+    return total
+
+# --- HELPER HEIST (Tastiera casuale anti-farming) ---
+def _choice_keyboard(stage: str, labels: list, user_id: int):
+    win_idx = random.randrange(len(labels))
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(lbl, callback_data=f"heist_{stage}res_{'win' if i == win_idx else 'fail'}_{user_id}")]
+        for i, lbl in enumerate(labels)
+    ])
+
 
 # =====================================================================
-# BLACKJACK CON PUNTATE PERSONALIZZATE
+# BLACKJACK CON PUNTATE PERSONALIZZATE E ASSI CORRETTI
 # =====================================================================
 BJ_CARDS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11]
 
@@ -91,8 +107,8 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "player_id": user_id, "bet": bet, "player_hand": player_hand, "dealer_hand": dealer_hand
         }
 
-        # Controllo Blackjack Naturale (21 con le prime due carte)
-        if sum(player_hand) == 21:
+        # Controllo Blackjack Naturale
+        if hand_value(player_hand) == 21:
             win_amount = int(bet * 2.5)
             add_user_coins(chat_id, owner_id, win_amount)
             net_profit = win_amount - bet
@@ -116,7 +132,7 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.edit_message_text(
             f"🃏 <b>BLACKJACK 21</b> (Puntata: <code>{bet} $SDG</code>)\n\n"
             f"👤 Giocatore: <b>{query.from_user.first_name}</b>\n"
-            f"🎎 Carte: {player_hand} (Totale: <b>{sum(player_hand)}</b>)\n"
+            f"🎎 Carte: {player_hand} (Totale: <b>{hand_value(player_hand)}</b>)\n"
             f"🤖 Banco: [{dealer_hand[0]}, ?]\n\nCosa fai?",
             reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML'
         )
@@ -135,12 +151,7 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if action == "hit":
         game["player_hand"].append(random.choice(BJ_CARDS))
-        score = sum(game["player_hand"])
-
-        if score > 21:
-            while 11 in game["player_hand"] and sum(game["player_hand"]) > 21:
-                game["player_hand"][game["player_hand"].index(11)] = 1
-            score = sum(game["player_hand"])
+        score = hand_value(game["player_hand"])
 
         if score > 21:
             record_single_result(chat_id, user_id, False, -bet)
@@ -161,11 +172,11 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
 
     elif action == "stand":
-        player_score = sum(game["player_hand"])
+        player_score = hand_value(game["player_hand"])
         dealer_hand = game["dealer_hand"]
-        while sum(dealer_hand) < 17:
+        while hand_value(dealer_hand) < 17:
             dealer_hand.append(random.choice(BJ_CARDS))
-        dealer_score = sum(dealer_hand)
+        dealer_score = hand_value(dealer_hand)
         del BLACKJACK_GAMES[game_key]
 
         if dealer_score > 21 or player_score > dealer_score:
@@ -174,14 +185,14 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             net_profit = bet
             record_single_result(chat_id, user_id, True, net_profit)
             await query.edit_message_text(
-                f"🏆 <b>VITTORIA!</b> Tu: {player_score} | Banco: {dealer_score}\n"
+                f"🏆 <b>VITTORIA!</b> Tu: {player_score} | Banco: {dealer_score} ({dealer_hand})\n"
                 f"Hai vinto <b>+💳 {net_profit} $SDG</b>!",
                 reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML'
             )
         elif player_score < dealer_score:
             record_single_result(chat_id, user_id, False, -bet)
             await query.edit_message_text(
-                f"❌ <b>SCONFITTA!</b> Tu: {player_score} | Banco: {dealer_score}\n"
+                f"❌ <b>SCONFITTA!</b> Tu: {player_score} | Banco: {dealer_score} ({dealer_hand})\n"
                 f"Hai perso <b>-{bet} $SDG</b>.",
                 reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode='HTML'
             )
@@ -251,7 +262,7 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
             text += "🎉 <b>TRIPLETTA VINCENTE!</b> Hai vinto <b>+💳 20 $SDG</b>!"
     elif r1 == r2 or r2 == r3 or r1 == r3:
         add_user_coins(chat_id, user.id, 10)
-        record_single_result(chat_id, user.id, True, 0)
+        record_single_result(chat_id, user.id, False, 0)  # La doppietta ora conta come pareggio/non-vittoria statistica
         text += "✨ <b>DOPPIETTA!</b> Recuperi i tuoi 10 $SDG."
     else:
         record_single_result(chat_id, user.id, False, -10)
@@ -261,7 +272,7 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 # =====================================================================
-# WORDLE EXPRESS
+# WORDLE EXPRESS E MASTERMIND (Gestiti nel Text Router in system.py)
 # =====================================================================
 async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -294,10 +305,6 @@ async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TY
         parse_mode="HTML"
     )
 
-
-# =====================================================================
-# MASTERMIND EXPRESS (Con vincita rialzata a 35 $SDG)
-# =====================================================================
 async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -333,7 +340,7 @@ async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAUL
 
 
 # =====================================================================
-# SDROGO HEIST
+# SDROGO HEIST (Mistero Totale e Anti-Farming)
 # =====================================================================
 async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -355,22 +362,17 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
     chat_id = game["chat_id"]
 
     if stage == "lvl1":
-        keyboard = [
-            [InlineKeyboardButton("🔴 Cavo Rosso", callback_data=f"heist_lvl1res_fail_{user_id}")],
-            [InlineKeyboardButton("🔵 Cavo Blu (Corretto)", callback_data=f"heist_lvl1res_win_{user_id}")],
-            [InlineKeyboardButton("🟡 Cavo Giallo", callback_data=f"heist_lvl1res_fail_{user_id}")]
-        ]
-        random.shuffle(keyboard)
+        labels = ["🔴 Cavo Rosso", "🔵 Cavo Blu", "🟡 Cavo Giallo"]
         await query.edit_message_text(
-            "🔓 <b>LIVELLO 1: DISATTIVAZIONE ALLARME</b>\n\nQuale cavo tagli per disattivare l'allarme?",
-            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
+            "🔓 <b>LIVELLO 1: DISATTIVAZIONE ALLARME</b>\n\nQuale cavo decidi di tagliare?",
+            reply_markup=_choice_keyboard("lvl1", labels, user_id), parse_mode="HTML"
         )
 
     elif stage == "lvl1res":
         outcome = parts[2]
         if outcome == "fail":
             del HEIST_GAMES[user_id]
-            await query.edit_message_text("💥 <b>ALLARME SCATTATO!</b> Le guardie ti hanno preso. Fuga fallita!", parse_mode="HTML")
+            await query.edit_message_text("💥 <b>BZZZ! ALLARME SCATTATO!</b> Le guardie ti hanno preso. Fuga fallita!", parse_mode="HTML")
         else:
             game["level"] = 2
             keyboard = [
@@ -378,7 +380,7 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 [InlineKeyboardButton("🔥 RISCHIA IL LIVELLO 2 (Guardia)", callback_data=f"heist_lvl2_{user_id}")]
             ]
             await query.edit_message_text(
-                "✅ <b>LIVELLO 1 SUPERATO!</b>\nPremio accumulato: <code>💳 50 $SDG</code>.\n\nCosa vuoi fare?",
+                "✅ <b>LIVELLO 1 SUPERATO!</b> (Cavo corretto)\nPremio accumulato: <code>💳 50 $SDG</code>.\n\nCosa vuoi fare?",
                 reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
             )
 
@@ -405,22 +407,17 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
             )
 
     elif stage == "lvl3":
-        keyboard = [
-            [InlineKeyboardButton("🚪 Porta A", callback_data=f"heist_lvl3res_fail_{user_id}")],
-            [InlineKeyboardButton("🚪 Porta B", callback_data=f"heist_lvl3res_win_{user_id}")],
-            [InlineKeyboardButton("🚪 Porta C", callback_data=f"heist_lvl3res_fail_{user_id}")]
-        ]
-        random.shuffle(keyboard)
+        labels = ["🚪 Porta A", "🚪 Porta B", "🚪 Porta C"]
         await query.edit_message_text(
             "⚡ <b>LIVELLO 3: CAMPO LASER</b>\n\nTre porte davanti a te. Solo una non ha i laser attivi!",
-            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
+            reply_markup=_choice_keyboard("lvl3", labels, user_id), parse_mode="HTML"
         )
 
     elif stage == "lvl3res":
         outcome = parts[2]
         if outcome == "fail":
             del HEIST_GAMES[user_id]
-            await query.edit_message_text("⚡ <b>COLPITO DAL LASER!</b> L'allarme è scattato. Fuga fallita!", parse_mode="HTML")
+            await query.edit_message_text("⚡ <b>ZAAAP! COLPITO DAL LASER!</b> L'allarme è scattato. Fuga fallita!", parse_mode="HTML")
         else:
             game["level"] = 4
             keyboard = [
@@ -428,27 +425,22 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 [InlineKeyboardButton("🔥 RISCHIA IL LIVELLO 4 (Cassaforte)", callback_data=f"heist_lvl4_{user_id}")]
             ]
             await query.edit_message_text(
-                "⚡ <b>LIVELLO 3 SUPERATO!</b>\nPremio accumulato: <code>💳 180 $SDG</code>.\n\nCosa vuoi fare?",
+                "⚡ <b>LIVELLO 3 SUPERATO!</b> (Percorso sicuro)\nPremio accumulato: <code>💳 180 $SDG</code>.\n\nCosa vuoi fare?",
                 reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
             )
 
     elif stage == "lvl4":
-        keyboard = [
-            [InlineKeyboardButton("🔐 Codice 4-8-1 (Sbagliato)", callback_data=f"heist_lvl4res_fail_{user_id}")],
-            [InlineKeyboardButton("🔐 Codice 7-7-7 (Sbagliato)", callback_data=f"heist_lvl4res_fail_{user_id}")],
-            [InlineKeyboardButton("🔐 Codice 1-2-3 (Corretto)", callback_data=f"heist_lvl4res_win_{user_id}")]
-        ]
-        random.shuffle(keyboard)
+        labels = ["🔐 Codice 4-8-1", "🔐 Codice 7-7-7", "🔐 Codice 1-2-3"]
         await query.edit_message_text(
-            "🔐 <b>LIVELLO 4: LA CASSAFORTE</b>\n\nTrova la combinazione corretta prima che scada il tempo!",
-            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
+            "🔐 <b>LIVELLO 4: LA CASSAFORTE</b>\n\nScegli la combinazione a intuito per sbloccare la porta blindata:",
+            reply_markup=_choice_keyboard("lvl4", labels, user_id), parse_mode="HTML"
         )
 
     elif stage == "lvl4res":
         outcome = parts[2]
         if outcome == "fail":
             del HEIST_GAMES[user_id]
-            await query.edit_message_text("💥 <b>COMBINAZIONE ERRATA!</b> La cassaforte si è bloccata. Fuga fallita!", parse_mode="HTML")
+            await query.edit_message_text("💥 <b>COMBINAZIONE ERRATA!</b> La cassaforte si è sigillata. Fuga fallita!", parse_mode="HTML")
         else:
             game["level"] = 5
             keyboard = [
@@ -456,25 +448,22 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 [InlineKeyboardButton("🔥 SFIDA IL LIVELLO 5 FINALE!", callback_data=f"heist_lvl5_{user_id}")]
             ]
             await query.edit_message_text(
-                "🔐 <b>LIVELLO 4 SUPERATO!</b>\nPremio accumulato: <code>💳 300 $SDG</code>.\n\nSei ad un passo dalla gloria!",
+                "🔐 <b>LIVELLO 4 SUPERATO!</b> (Cassaforte aperta)\nPremio accumulato: <code>💳 300 $SDG</code>.\n\nSei ad un passo dalla gloria!",
                 reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
             )
 
     elif stage == "lvl5":
-        keyboard = [
-            [InlineKeyboardButton("🚁 Elicottero sul Tetto", callback_data=f"heist_lvl5res_win_{user_id}")],
-            [InlineKeyboardButton("🚗 Fuga in Tunnel", callback_data=f"heist_lvl5res_fail_{user_id}")]
-        ]
+        labels = ["🚁 Elicottero sul Tetto", "🚗 Fuga in Tunnel"]
         await query.edit_message_text(
-            "🚁 <b>LIVELLO 5: LA FUGA FINALE</b>\n\nCome scappi col bottino?",
-            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
+            "🚁 <b>LIVELLO 5: LA FUGA FINALE</b>\n\nCome scappi col bottino? Scegli il veicolo giusto:",
+            reply_markup=_choice_keyboard("lvl5", labels, user_id), parse_mode="HTML"
         )
 
     elif stage == "lvl5res":
         outcome = parts[2]
         if outcome == "fail":
             del HEIST_GAMES[user_id]
-            await query.edit_message_text("🚔 <b>LA POLIZIA TI HA CIRCONDATO IN TUNNEL!</b> Fuga fallita all'ultimo secondo!", parse_mode="HTML")
+            await query.edit_message_text("🚔 <b>SCELTA SBAGLIATA!</b> La via era sorvegliata dalla SWAT! Fuga fallita all'ultimo secondo!", parse_mode="HTML")
         else:
             del HEIST_GAMES[user_id]
             add_user_coins(chat_id, user_id, 600)
@@ -500,7 +489,6 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
             f"💰 <b>CASHOUT EFFETTUATO!</b> Ti ritiri dalla rapina incassando <b>+💳 {amount} $SDG</b>!",
             parse_mode="HTML"
         )
-
 
 def register(app):
     app.add_handler(CallbackQueryHandler(start_bj_from_hub, pattern="^start_bj_"))
