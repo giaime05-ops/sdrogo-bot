@@ -5,10 +5,9 @@ from datetime import datetime
 from telegram.ext import ContextTypes
 
 from config import DB_FILE, BACKUP_CHAT_ID
-from state import USER_DATA
+from state import USER_DATA, USER_INVENTORIES
 
 async def auto_restore_from_telegram(bot):
-    global USER_DATA
     if not BACKUP_CHAT_ID: return
     try:
         chat_id = int(BACKUP_CHAT_ID)
@@ -31,15 +30,25 @@ def load_db():
             with open(DB_FILE, "r") as f:
                 data = json.load(f)
             USER_DATA.clear()
-            USER_DATA.update(data)
+            USER_INVENTORIES.clear()
+            if isinstance(data.get("users"), dict):
+                # Nuovo formato: utenti + inventari
+                USER_DATA.update(data["users"])
+                USER_INVENTORIES.update(data.get("inventories", {}))
+            else:
+                # Vecchio formato: il file conteneva solo USER_DATA
+                USER_DATA.update(data)
         except Exception as e:
             logging.error(f"Errore caricamento DB: {e}")
             USER_DATA.clear()
+            USER_INVENTORIES.clear()
 
 def save_db():
     try:
-        with open(DB_FILE, "w") as f:
-            json.dump(USER_DATA, f, indent=2)
+        tmp = DB_FILE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({"users": USER_DATA, "inventories": USER_INVENTORIES}, f, indent=2)
+        os.replace(tmp, DB_FILE)
     except Exception as e:
         logging.error(f"Errore salvataggio DB: {e}")
 
@@ -47,11 +56,19 @@ async def backup_to_telegram(context: ContextTypes.DEFAULT_TYPE):
     if BACKUP_CHAT_ID and os.path.exists(DB_FILE):
         try:
             with open(DB_FILE, "rb") as f:
-                await context.bot.send_document(
+                msg = await context.bot.send_document(
                     chat_id=int(BACKUP_CHAT_ID),
                     document=f,
                     caption=f"Backup DB SdrogoBot - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 )
+            try:
+                await context.bot.pin_chat_message(
+                    chat_id=int(BACKUP_CHAT_ID),
+                    message_id=msg.message_id,
+                    disable_notification=True
+                )
+            except Exception as e:
+                logging.error(f"Errore pin backup: {e}")
         except Exception as e:
             logging.error(f"Errore backup Telegram: {e}")
 
