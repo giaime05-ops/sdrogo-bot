@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 import logging
@@ -6,6 +7,9 @@ from telegram.ext import ContextTypes
 
 from config import DB_FILE, BACKUP_CHAT_ID
 from state import USER_DATA, USER_INVENTORIES
+
+_dirty = False
+
 
 async def auto_restore_from_telegram(bot):
     if not BACKUP_CHAT_ID: return
@@ -43,16 +47,47 @@ def load_db():
             USER_DATA.clear()
             USER_INVENTORIES.clear()
 
+
 def save_db():
+    """Segna il database come modificato. La scrittura vera avviene in flush_db (ogni 5 secondi)."""
+    global _dirty
+    _dirty = True
+
+
+def _write_file(payload: str):
+    tmp = DB_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        f.write(payload)
+    os.replace(tmp, DB_FILE)
+
+
+async def flush_db(context=None):
+    """Scrive il DB su disco se è cambiato. Il JSON viene creato nel loop (snapshot coerente),
+    la scrittura su file avviene in un thread, così il bot non si ferma."""
+    global _dirty
+    if not _dirty:
+        return
+    _dirty = False
     try:
-        tmp = DB_FILE + ".tmp"
-        with open(tmp, "w") as f:
-            json.dump({"users": USER_DATA, "inventories": USER_INVENTORIES}, f, indent=2)
-        os.replace(tmp, DB_FILE)
+        payload = json.dumps({"users": USER_DATA, "inventories": USER_INVENTORIES})
+        await asyncio.to_thread(_write_file, payload)
     except Exception as e:
+        _dirty = True
         logging.error(f"Errore salvataggio DB: {e}")
 
+
+def flush_db_sync():
+    """Scrittura immediata, usata all'arresto del bot."""
+    global _dirty
+    try:
+        _write_file(json.dumps({"users": USER_DATA, "inventories": USER_INVENTORIES}))
+        _dirty = False
+    except Exception as e:
+        logging.error(f"Errore salvataggio DB finale: {e}")
+
+
 async def backup_to_telegram(context: ContextTypes.DEFAULT_TYPE):
+    await flush_db()
     if BACKUP_CHAT_ID and os.path.exists(DB_FILE):
         try:
             with open(DB_FILE, "rb") as f:
