@@ -1,10 +1,8 @@
 """Admin, gestione errori e router dei messaggi di testo."""
 import html
 import logging
-import os
 import random
 import time
-import unicodedata
 from datetime import datetime
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -21,18 +19,22 @@ except Exception:
     _TZ = None
 
 from config import FRASE_PENITENZA, TARGET_MAP
-from database_quiz import WORDS
 from state import (
     FLAGS, ACTIVE_DUELS, HIGHLOW_DUELS, DICE_DUELS, BLACKJACK_GAMES, WORDLE_GAMES,
     MASTERMIND_GAMES, QUIZ_GAMES, QUIZ_DUELS_1V1, GHIGLIOTTINA_DUELS,
     HEIST_GAMES, PENITENZE_ATTIVE, ACTIVE_PERSECUTE, TIC_TAC_TOE_GAMES,
-    DAILY_DONATIONS, USER_DATA,
+    DAILY_DONATIONS, USER_DATA, GAME_STATUS, game_enabled, MAINT_GAME_TEXT,
 )
 from storage import add_user_coins, get_user_coins, add_user_stat
 from utils import is_admin
 from handlers.hub import apply_title_command, apply_persecute_command
-from handlers.multiplayer import setup_challenge_menu, record_duel_result, quiz1v1_advance, rematch_row
-from handlers.games import record_single_result, HEIST_COST, WORDLE_REWARDS, MASTERMIND_REWARDS
+from handlers.multiplayer import (
+    setup_challenge_menu, record_duel_result, quiz1v1_advance, rematch_row, STATUS_KEY,
+)
+from handlers.games import (
+    record_single_result, HEIST_COST, WORDLE_REWARDS, MASTERMIND_REWARDS,
+    WORD_SET, norm_word,
+)
 from handlers.quiz import quiz_reward
 
 MAINT_TEXT = (
@@ -59,39 +61,105 @@ CHALLENGES = {
     "sfido": "roulette",
 }
 
-
-# --- DIZIONARIO WORDLE ---
-# I tentativi vengono validati con un dizionario italiano (file di testo, una parola per riga).
-# Le parole segrete restano quelle di WORDS. Se il file non c'è, si accetta qualsiasi sequenza di 5 lettere.
-DICT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "parole_italiane_5.txt")
-
-
-def _norm(w: str) -> str:
-    """Maiuscolo e senza accenti (è -> E), tenendo solo le lettere A-Z."""
-    w = unicodedata.normalize("NFD", w.strip().upper())
-    return "".join(c for c in w if "A" <= c <= "Z")
-
-
-def _load_dictionary():
-    words = {_norm(str(w)) for w in WORDS}
-    try:
-        with open(DICT_FILE, encoding="utf-8") as f:
-            for line in f:
-                w = _norm(line)
-                if len(w) == 5:
-                    words.add(w)
-        logging.info(f"Dizionario Wordle caricato: {len(words)} parole.")
-        return words, True
-    except OSError:
-        logging.warning(f"Dizionario Wordle non trovato ({DICT_FILE}): accetto qualsiasi parola di 5 lettere.")
-        return words, False
-
-
-WORD_SET, DICT_LOADED = _load_dictionary()
+# Dashboard /admin: (chiave in GAME_STATUS, etichetta)
+ADMIN_GAMES = [
+    ("wordle", "🔠 Wordle"),
+    ("blackjack", "🃏 Blackjack"),
+    ("slot", "🎰 Slot 777"),
+    ("mastermind", "🔐 Mastermind"),
+    ("heist", "🏢 Sdrogo Heist"),
+    ("dice", "🎲 Dadi 1v1"),
+    ("ttt", "❌ Tris 1v1"),
+    ("roulette1v1", "🎯 Roulette 1v1"),
+    ("highlow", "📈 High/Low 1v1"),
+    ("ghig", "🪓 Ghigliottina 1v1"),
+    ("quiz1v1", "⚔️ Quiz 1v1"),
+    ("quizmulti", "🌐 Quiz Multi"),
+]
 
 
 def _today() -> str:
     return str(datetime.now(_TZ).date())
+
+
+# --- DASHBOARD ADMIN (/admin): accendi/spegni i singoli giochi ---
+def _admin_allowed(user_id: int, chat_type: str) -> bool:
+    return is_admin(user_id) and chat_type == "private"
+
+
+def _admin_view():
+    text = (
+        "🛠️ <b>DASHBOARD ADMIN</b>\n\n"
+        "🟢 = attivo | 🔴 = in manutenzione\n"
+        "Tocca un gioco per accenderlo o spegnerlo. "
+        "<i>Le partite già in corso possono sempre finire.</i>"
+    )
+    rows, row = [], []
+    for key, label in ADMIN_GAMES:
+        icon = "🟢" if GAME_STATUS.get(key, True) else "🔴"
+        row.append(InlineKeyboardButton(f"{icon} {label}", callback_data=f"adm_toggle_{key}"))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([
+        InlineKeyboardButton("🟢 Accendi tutti", callback_data="adm_all_1"),
+        InlineKeyboardButton("🔴 Spegni tutti", callback_data="adm_all_0"),
+    ])
+    rows.append([InlineKeyboardButton("✖️ Chiudi", callback_data="adm_close")])
+    return text, InlineKeyboardMarkup(rows)
+
+
+async def admin_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user, chat = update.effective_user, update.effective_chat
+    if not user or not is_admin(user.id):
+        return                                    # i non-admin non ricevono nessuna risposta
+    if chat.type != "private":
+        await update.message.reply_text("🔒 /admin funziona solo in chat privata col bot.")
+        return
+    text, markup = _admin_view()
+    await update.message.reply_text(text, reply_markup=markup, parse_mode="HTML")
+
+
+async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if not _admin_allowed(query.from_user.id, query.message.chat.type):
+        await query.answer("🔒 Area riservata all'admin in chat privata.", show_alert=True)
+        return
+
+    parts = query.data.split("_")        # adm_toggle_wordle | adm_all_1 | adm_close
+    action = parts[1]
+
+    if action == "close":
+        await query.answer()
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+        return
+
+    if action == "toggle":
+        key = parts[2] if len(parts) > 2 else ""
+        if key not in GAME_STATUS:
+            await query.answer("Gioco sconosciuto.", show_alert=True)
+            return
+        GAME_STATUS[key] = not GAME_STATUS[key]
+        await query.answer(f"{key}: {'🟢 acceso' if GAME_STATUS[key] else '🔴 spento'}")
+    elif action == "all":
+        value = parts[2] == "1" if len(parts) > 2 else True
+        for key in GAME_STATUS:
+            GAME_STATUS[key] = value
+        await query.answer("Tutti i giochi " + ("🟢 accesi" if value else "🔴 spenti"))
+    else:
+        await query.answer()
+        return
+
+    text, markup = _admin_view()
+    try:
+        await query.edit_message_text(text, reply_markup=markup, parse_mode="HTML")
+    except Exception:
+        pass
 
 
 # --- UTILITIES / ADMIN ---
@@ -353,6 +421,9 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # Handling Sfide Unificate
     if first in CHALLENGES and (first != "sfido" or has_mention):
+        if not game_enabled(STATUS_KEY[CHALLENGES[first]]):
+            await update.message.reply_text(MAINT_GAME_TEXT)
+            return
         target = next((p[1:].lower() for p in text.split() if p.startswith("@") and len(p) > 1), None)
         if not target:
             await update.message.reply_text(f"❌ Uso: <code>{first} @username</code>", parse_mode="HTML")
@@ -448,11 +519,11 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
     game_key = f"{chat_id}_{user.id}"
     game = WORDLE_GAMES.get(game_key)
     if game and len(text_upper) == 5 and text_upper.isalpha():
-        guess = _norm(text_upper)          # "CITTÀ" -> "CITTA"
+        guess = norm_word(text_upper)          # "CITTÀ" -> "CITTA"
         if len(guess) != 5:
             return
-        if DICT_LOADED and guess not in WORD_SET:
-            await update.message.reply_text("❌ Questa parola non è nel mio dizionario: il tentativo non conta.", parse_mode="HTML")
+        if guess not in WORD_SET:
+            await update.message.reply_text("❌ Questa parola non è nel dizionario italiano: il tentativo non conta.", parse_mode="HTML")
             return
         game["last"] = time.time()
         game["attempts"] += 1
@@ -506,6 +577,8 @@ def register(app):
     app.add_handler(CommandHandler("dona", donate_coins_command))
     app.add_handler(CommandHandler("manutenzione", toggle_maintenance))
     app.add_handler(CommandHandler("ricarica", ricarica_command))
+    app.add_handler(CommandHandler("admin", admin_dashboard))
+    app.add_handler(CallbackQueryHandler(admin_callback, pattern="^adm_"))
 
 def register_text(app):
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
