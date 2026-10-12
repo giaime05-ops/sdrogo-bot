@@ -135,7 +135,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (
             "🕹️ <b>GIOCHI SINGLE PLAYER</b>\n\n"
             "🃏 <b>Blackjack 21</b> — <i>puntata da 10 $SDG</i>\n"
-            "🎰 <b>Slot Machine 777</b> — <i>10 $SDG</i>\n"
+            "🎰 <b>Slot Machine 777</b> — <i>puntata da 10 $SDG</i>\n"
             "🔠 <b>Wordle Express</b> — <i>10 $SDG</i>\n"
             "🔐 <b>Mastermind Express</b> — <i>10 $SDG</i>\n"
             "🏢 <b>Sdrogo Heist</b> — <i>pass acquistabile nello SdrogoShop</i>"
@@ -159,7 +159,8 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🎲 <b>High / Low 1v1</b> (<code>sfidohighlow @user</code>)\n"
             "🪓 <b>Ghigliottina Express 1v1</b> (<code>sfidoghigliottina @user</code>)\n"
             "⚔️ <b>Duello Quiz 1v1</b> (<code>sfidoquiz @user</code>)\n"
-            "🌐 <b>Quiz Multiplayer di Gruppo</b>"
+            "🌐 <b>Quiz Multiplayer di Gruppo</b>\n\n"
+            "<i>A fine partita trovi il tasto 🔁 Rigioca per rifare la sfida con lo stesso avversario.</i>"
         )
         keyboard = [
             [InlineKeyboardButton("🎲 Dadi 1v1", callback_data=f"start_dice_{owner_id}"), InlineKeyboardButton("❌ Tris 1v1", callback_data=f"start_ttt_{owner_id}")],
@@ -350,6 +351,11 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if inv_key not in USER_INVENTORIES:
         USER_INVENTORIES[inv_key] = {"titles": 0, "persecutes": 0, "stars": 0}
 
+    shop_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🛒 Torna allo Shop", callback_data=f"hub_shop_{owner_id}")],
+        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
+    ])
+
     if item_type == "title":
         if coins < 100:
             await query.answer("❌ Servono 100 $SDG per comprare il Titolo Umiliante!", show_alert=True)
@@ -362,6 +368,7 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "✅ <b>TITOLO UMILIANTE ACQUISTATO!</b>\n\n"
                 "Per assegnarlo per 24 ORE a una vittima, scrivi in chat:\n"
                 "👉 <code>titolo @username</code> (oppure rispondi al suo messaggio con <code>titolo</code>)",
+                reply_markup=shop_keyboard,
                 parse_mode="HTML"
             )
         except Exception:
@@ -379,6 +386,7 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "✅ <b>TAG PERSECUTORE ACQUISTATO!</b>\n\n"
                 "Per perseguitare una vittima per 15 messaggi, scrivi in chat:\n"
                 "👉 <code>perseguita @username</code> (oppure rispondi al suo messaggio con <code>perseguita</code>)",
+                reply_markup=shop_keyboard,
                 parse_mode="HTML"
             )
         except Exception:
@@ -410,13 +418,20 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             HEIST_GAMES.pop(user_id, None)
             add_user_coins(chat_id, user_id, HEIST_COST)
             try:
-                await query.edit_message_text("❌ Devi prima avviare il bot in chat PRIVATA per giocare a Sdrogo Heist!")
+                await query.edit_message_text(
+                    "❌ Devi prima avviare il bot in chat PRIVATA per giocare a Sdrogo Heist!",
+                    reply_markup=shop_keyboard
+                )
             except Exception:
                 pass
             return
 
         try:
-            await query.edit_message_text("🏢 <b>LA RAPINA È INIZIATA!</b> Controlla la tua chat PRIVATA con SdrogoBot!", parse_mode="HTML")
+            await query.edit_message_text(
+                "🏢 <b>LA RAPINA È INIZIATA!</b> Controlla la tua chat PRIVATA con SdrogoBot!",
+                reply_markup=shop_keyboard,
+                parse_mode="HTML"
+            )
         except Exception:
             pass
 
