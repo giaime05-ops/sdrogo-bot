@@ -143,6 +143,9 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
     owner_id = int(parts[3]) if len(parts) > 3 else query.from_user.id
 
     if not await verify_user_lock(query, owner_id): return
+    if not game_enabled("quizmulti"):
+      await query.answer(MAINT_GAME_TEXT, show_alert=True)
+      return
     chat_id = str(query.message.chat_id)
 
     if chat_id in QUIZ_GAMES:
