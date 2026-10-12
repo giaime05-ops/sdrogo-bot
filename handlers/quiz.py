@@ -12,7 +12,7 @@ from database_quiz import CATEGORIE_QUIZ
 from state import QUIZ_GAMES
 from storage import get_user_coins, add_user_coins
 from utils import verify_user_lock
-  from state import game_enabled, MAINT_GAME_TEXT
+from state import game_enabled, MAINT_GAME_TEXT
   if not game_enabled("quizmulti"):
       await query.answer(MAINT_GAME_TEXT, show_alert=True)
       return
