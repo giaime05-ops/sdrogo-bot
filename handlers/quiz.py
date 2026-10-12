@@ -9,10 +9,19 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from database_quiz import CATEGORIE_QUIZ
-from state import QUIZ_GAMES
+from state import QUIZ_GAMES, game_enabled, MAINT_GAME_TEXT
 from storage import get_user_coins, add_user_coins
-from utils import verify_user_lock
-from state import game_enabled, MAINT_GAME_TEXT
+from utils import verify_user_lock, serialized
+
+_TASKS = set()
+
+
+def _spawn(coro):
+    """create_task con riferimento forte: i timer non vengono raccolti dal garbage collector."""
+    t = asyncio.create_task(coro)
+    _TASKS.add(t)
+    t.add_done_callback(_TASKS.discard)
+    return t
 
 
 def quiz_reward(step: int) -> int:
@@ -25,6 +34,7 @@ def _hints_text(indizi: list, n: int) -> str:
 
 
 # --- GAME: QUIZ SHOW SINGLE PLAYER CON CHIUSURA A TEMPO ---
+@serialized("user")
 async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, db_source, title_name: str):
     query = update.callback_query
 
@@ -75,7 +85,7 @@ async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE,
         return
 
     QUIZ_GAMES[quiz_key]["msg_id"] = msg.message_id
-    asyncio.create_task(run_quiz_single_timeout(context.bot, chat_id, user_id, msg.message_id, item["target"]))
+    _spawn(run_quiz_single_timeout(context.bot, chat_id, user_id, msg.message_id, item["target"]))
 
 async def run_quiz_single_timeout(bot, chat_id: int, user_id: int, msg_id: int, target: str):
     await asyncio.sleep(75)
@@ -92,6 +102,7 @@ async def run_quiz_single_timeout(bot, chat_id: int, user_id: int, msg_id: int, 
             )
         except Exception: pass
 
+@serialized("user")
 async def quiz_more_hint(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
 
@@ -132,6 +143,7 @@ async def quiz_more_hint(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # --- GAME: QUIZ MULTIPLAYER PER CATEGORIA ---
+@serialized("chat")
 async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
 
@@ -141,8 +153,8 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
 
     if not await verify_user_lock(query, owner_id): return
     if not game_enabled("quizmulti"):
-      await query.answer(MAINT_GAME_TEXT, show_alert=True)
-      return
+        await query.answer(MAINT_GAME_TEXT, show_alert=True)
+        return
     chat_id = str(query.message.chat_id)
 
     if chat_id in QUIZ_GAMES:
@@ -180,7 +192,7 @@ async def start_quiz_multiplayer(update: Update, context: ContextTypes.DEFAULT_T
         return
 
     QUIZ_GAMES[chat_id]["msg_id"] = msg.message_id
-    asyncio.create_task(run_quiz_multi_timer(context.bot, chat_id, msg.message_id, item["indizi"], cat_name, item["target"], owner_id))
+    _spawn(run_quiz_multi_timer(context.bot, chat_id, msg.message_id, item["indizi"], cat_name, item["target"], owner_id))
 
 async def run_quiz_multi_timer(bot, chat_id: str, msg_id: int, indizi: list, cat_name: str, target: str, owner_id: int):
     def still_active() -> bool:
