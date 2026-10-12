@@ -14,6 +14,11 @@ TIC_TAC_TOE_GAMES = {}
 DICE_DUELS = {}
 DAILY_DONATIONS = set()
 
+# Giochi sperimentali del Laboratorio Segreto (solo admin, solo privato)
+AVIATOR_GAMES = {}     # chiave "chat_user" -> volo in corso
+SCRATCH_GAMES = {}     # chiave "chat_user" -> biglietto Gratta e Vinci in corso
+LAB_BUSY = set()       # chiavi "chat_user" con una giocata animata in corso (Roulette)
+
 ACTIVE_TITLES = {}
 ACTIVE_PERSECUTE = {}
 USER_INVENTORIES = {}
