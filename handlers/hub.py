@@ -12,7 +12,7 @@ from state import (
 from storage import (
     get_user_key, get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram,
 )
-from utils import verify_user_lock, get_formatted_name, is_admin
+from utils import verify_user_lock, get_formatted_name, is_admin, serialized
 from handlers.games import HEIST_COST
 
 try:
@@ -103,7 +103,7 @@ async def show_wallet(query, owner_id: int):
         f"• Win Rate Single Player: <b>{wr_single}%</b>\n"
         f"• Win Rate Duelli: <b>{wr_duels}%</b>\n\n"
         "🎁 <b>Bonus Daily:</b> Riscuoti 50 $SDG una volta al giorno (si azzera a mezzanotte).\n"
-        "💸 <i>Usa /dona @username per trasferire 5 $SDG a un amico!</i>"
+        "💸 <i>Usa /dona @username [importo] per regalare da 1 a 50 $SDG a un amico (5 se non indichi l'importo)!</i>"
     )
     keyboard = [
         [InlineKeyboardButton("🎁 Riscuoti Daily (+50 $SDG)", callback_data=f"claim_daily_{owner_id}")],
@@ -143,12 +143,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if action == "labgame":
-        names = {
-            "aviator": "✈️ Aviator",
-            "roulettecasino": "🎡 Roulette Casinò",
-            "mines": "💣 Campo Minato",
-            "scratch": "🎟️ Gratta e Vinci",
-        }
+        names = {"mines": "💣 Campo Minato"}
         await query.answer(f"🚧 {names.get(extra, 'Gioco')}: Work in progress!", show_alert=True)
         return
 
@@ -165,12 +160,13 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "lab":
         text = (
             "🧪 <b>LABORATORIO SEGRETO</b>\n\n"
-            "Giochi in sviluppo, visibili solo a te in chat privata.\n"
-            "<i>Per ora ogni gioco risponde con \"Work in progress\".</i>"
+            "Giochi sperimentali, visibili solo a te in chat privata.\n"
+            "✈️ Aviator • 🎡 Sdrogo Roulette • 🎟️ Gratta e Vinci sono giocabili.\n"
+            "💣 Campo Minato è ancora in sviluppo."
         )
         keyboard = [
-            [InlineKeyboardButton("✈️ Aviator", callback_data=f"hub_labgame_aviator_{owner_id}"), InlineKeyboardButton("🎡 Roulette Casinò", callback_data=f"hub_labgame_roulettecasino_{owner_id}")],
-            [InlineKeyboardButton("💣 Campo Minato", callback_data=f"hub_labgame_mines_{owner_id}"), InlineKeyboardButton("🎟️ Gratta e Vinci", callback_data=f"hub_labgame_scratch_{owner_id}")],
+            [InlineKeyboardButton("✈️ Aviator", callback_data=f"lab_avi_{owner_id}"), InlineKeyboardButton("🎡 Sdrogo Roulette", callback_data=f"lab_roul_{owner_id}")],
+            [InlineKeyboardButton("💣 Campo Minato", callback_data=f"hub_labgame_mines_{owner_id}"), InlineKeyboardButton("🎟️ Gratta e Vinci", callback_data=f"lab_scr_{owner_id}")],
             back_button
         ]
         try:
@@ -358,6 +354,7 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 
+@serialized("user")
 async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     owner_id = int(query.data.split("_")[-1])
@@ -380,6 +377,7 @@ async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await show_wallet(query, owner_id)
 
 
+@serialized("user")
 async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
 
