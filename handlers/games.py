@@ -1,17 +1,20 @@
 """Minigiochi single player: Blackjack, Slot, Wordle, Mastermind, Heist."""
 import asyncio
 import html
+import logging
+import os
 import random
 import time
+import unicodedata
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import RetryAfter
 from telegram.ext import CallbackQueryHandler, ContextTypes
 
-from database_quiz import WORDS
 from state import (
     BLACKJACK_GAMES, WORDLE_GAMES, MASTERMIND_GAMES,
-    HEIST_GAMES, USER_INVENTORIES
+    HEIST_GAMES, USER_INVENTORIES,
+    game_enabled, MAINT_GAME_TEXT,
 )
 from storage import get_user_coins, add_user_coins, get_user_data_dict, save_db
 from utils import verify_user_lock
@@ -20,6 +23,41 @@ from utils import verify_user_lock
 WORDLE_REWARDS = {1: 25, 2: 20, 3: 15, 4: 12, 5: 10}      # in base ai tentativi usati
 MASTERMIND_REWARDS = {1: 50, 2: 50, 3: 50, 4: 30, 5: 30}  # 50 entro il 3° tentativo, 30 al 4° o 5°
 GAME_IDLE_SECS = 300   # Wordle / Mastermind / Blackjack inattivi da 5 minuti vengono chiusi con rimborso
+
+
+# --- DIZIONARIO WORDLE (caricato UNA volta all'avvio) ---
+# File con una parola per riga, nella root del progetto (accanto a main.py).
+WORDLE_DICT_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "parole_italiane.txt"
+)
+
+
+def norm_word(w: str) -> str:
+    """Maiuscolo e senza accenti (è -> E), tenendo solo le lettere A-Z."""
+    w = unicodedata.normalize("NFD", w.strip().upper())
+    return "".join(c for c in w if "A" <= c <= "Z")
+
+
+def _load_wordle_dictionary() -> set:
+    words = set()
+    try:
+        with open(WORDLE_DICT_FILE, encoding="utf-8-sig") as f:
+            for line in f:
+                raw = line.strip()
+                if not raw or not raw.isalpha():      # scarta apostrofi, spazi, trattini, numeri
+                    continue
+                w = norm_word(raw)
+                if len(w) == 5:
+                    words.add(w)
+        logging.info(f"Dizionario Wordle caricato: {len(words)} parole da 5 lettere ({WORDLE_DICT_FILE}).")
+    except OSError as e:
+        logging.error(f"Dizionario Wordle NON trovato ({WORDLE_DICT_FILE}): {e}. Il Wordle resterà non disponibile.")
+    return words
+
+
+WORD_SET = _load_wordle_dictionary()          # validazione tentativi (ricerca O(1))
+WORDLE_WORDS = sorted(WORD_SET)               # elenco per estrarre la parola segreta
+DICT_LOADED = bool(WORD_SET)
 
 
 # --- HELPER STATISTICHE ---
@@ -83,6 +121,9 @@ async def start_bj_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
     if not await verify_user_lock(query, owner_id): return
+    if not game_enabled("blackjack"):
+        await query.answer(MAINT_GAME_TEXT, show_alert=True)
+        return
     await query.answer()
     chat_id = query.message.chat_id
     coins = get_user_coins(chat_id, owner_id)
@@ -117,6 +158,9 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         bet = int(parts[2])
         if bet not in (10, 25, 50, 100):
             await query.answer()
+            return
+        if not game_enabled("blackjack"):
+            await query.answer(MAINT_GAME_TEXT, show_alert=True)
             return
         if recently_started(BLACKJACK_GAMES, game_key, 120):
             await query.answer("⏳ Hai già una mano in corso!", show_alert=True)
@@ -255,6 +299,7 @@ SLOT_BETS = (10, 25, 50, 100)
 SLOT_SYMBOLS = ["🍒", "🍋", "🔔", "💎", "7️⃣"]
 SLOT_TRIPLE_MULT = {"🍒": 3, "🍋": 4, "🔔": 5, "💎": 6, "7️⃣": 10}
 SLOT_PAIR_MULT = {"💎": 2, "7️⃣": 2}      # le altre doppiette valgono x1 (solo rimborso)
+SLOT_REEL_DELAY = 0.6                    # secondi tra l'arresto di un rullo e il successivo
 SLOT_BUSY = set()
 
 
@@ -274,6 +319,9 @@ async def start_slot_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
     if not await verify_user_lock(query, owner_id): return
+    if not game_enabled("slot"):
+        await query.answer(MAINT_GAME_TEXT, show_alert=True)
+        return
     await query.answer()
     coins = get_user_coins(query.message.chat_id, owner_id)
 
@@ -311,6 +359,9 @@ async def handle_slot_bet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     slot_key = f"{chat_id}_{user.id}"
 
+    if not game_enabled("slot"):
+        await query.answer(MAINT_GAME_TEXT, show_alert=True)
+        return
     if slot_key in SLOT_BUSY:
         await query.answer("⏳ I rulli stanno ancora girando!", show_alert=True)
         return
@@ -331,8 +382,15 @@ async def handle_slot_bet(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         name = html.escape(user.first_name or "Giocatore")
         head = f"🎰 <b>SLOT MACHINE 777</b> 🎰\n👤 Player: <b>{name}</b> | Puntata: <code>{bet} $SDG</code>\n\n"
-        await _safe_edit(query, head + f"[ {reels[0]} | {reels[1]} | 🔄 ]\n\n<i>Giro rulli in corso...</i>")
-        await asyncio.sleep(0.8)
+        spin = "\n\n<i>Giro rulli in corso...</i>"
+
+        # I tre rulli si fermano uno alla volta: all'inizio girano tutti, poi si fermano in sequenza
+        await _safe_edit(query, head + "[ 🔄 | 🔄 | 🔄 ]" + spin)
+        await asyncio.sleep(SLOT_REEL_DELAY)
+        await _safe_edit(query, head + f"[ {reels[0]} | 🔄 | 🔄 ]" + spin)
+        await asyncio.sleep(SLOT_REEL_DELAY)
+        await _safe_edit(query, head + f"[ {reels[0]} | {reels[1]} | 🔄 ]" + spin)
+        await asyncio.sleep(SLOT_REEL_DELAY)
 
         text = head + f"[ {reels[0]} | {reels[1]} | {reels[2]} ]\n\n"
         net = payout - bet
@@ -371,6 +429,12 @@ async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TY
     chat_id = query.message.chat_id
     game_key = f"{chat_id}_{user.id}"
 
+    if not game_enabled("wordle"):
+        await query.answer(MAINT_GAME_TEXT, show_alert=True)
+        return
+    if not DICT_LOADED:
+        await query.answer("📚 Dizionario Wordle non disponibile: avvisa l'admin!", show_alert=True)
+        return
     if recently_started(WORDLE_GAMES, game_key):
         await query.answer("⏳ Hai già una partita a Wordle in corso!", show_alert=True)
         return
@@ -382,7 +446,7 @@ async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TY
     add_user_coins(chat_id, user.id, -10)
     WORDLE_GAMES[game_key] = {
         "player_id": user.id, "name": user.first_name or "un giocatore",
-        "secret": random.choice(WORDS),
+        "secret": random.choice(WORDLE_WORDS),
         "attempts": 0, "history": [], "ts": time.time(), "last": time.time()
     }
 
@@ -390,7 +454,7 @@ async def start_wordle_from_hub(update: Update, context: ContextTypes.DEFAULT_TY
     await _safe_edit(
         query,
         "🔠 <b>WORDLE EXPRESS</b> (Puntata: 10 $SDG)\n\n"
-        "Ho scelto una parola di <b>5 lettere</b>!\n"
+        "Ho scelto una parola italiana di <b>5 lettere</b>!\n"
         "Scrivila direttamente in chat per tentare (5 tentativi).\n"
         f"<i>Premi per tentativo (1°→5°): {rewards} $SDG. Se abbandoni per 5 minuti, ti rimborso.</i>"
     )
@@ -406,6 +470,9 @@ async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAUL
     chat_id = query.message.chat_id
     game_key = f"{chat_id}_{user.id}"
 
+    if not game_enabled("mastermind"):
+        await query.answer(MAINT_GAME_TEXT, show_alert=True)
+        return
     if recently_started(MASTERMIND_GAMES, game_key):
         await query.answer("⏳ Hai già una partita a Mastermind in corso!", show_alert=True)
         return
@@ -467,6 +534,8 @@ async def expire_abandoned_games(context: ContextTypes.DEFAULT_TYPE):
 # I cashout sono calibrati sul valore atteso: qualunque strategia (fermarsi prima o
 # arrivare in fondo) rende circa uguale, quindi non esiste un modo di "farmare" il gioco.
 # Il costo del pass deve coincidere con quello scalato in hub.py (shop_buy_callback).
+# L'acquisto del pass (e quindi l'avvio) è controllato in hub.py con GAME_STATUS["heist"]:
+# le rapine già iniziate possono sempre essere concluse.
 HEIST_COST = 150
 HEIST_PRIZES = {2: 175, 3: 230, 4: 300, 5: 500}   # cashout disponibile dopo aver superato il livello (chiave = livello successivo)
 HEIST_FINAL = 1000
