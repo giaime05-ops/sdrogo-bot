@@ -1,8 +1,10 @@
 """Admin, gestione errori e router dei messaggi di testo."""
 import html
 import logging
+import os
 import random
 import time
+import unicodedata
 from datetime import datetime
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -29,8 +31,8 @@ from state import (
 from storage import add_user_coins, get_user_coins, add_user_stat
 from utils import is_admin
 from handlers.hub import apply_title_command, apply_persecute_command
-from handlers.multiplayer import setup_challenge_menu, record_duel_result, quiz1v1_advance
-from handlers.games import record_single_result, HEIST_COST
+from handlers.multiplayer import setup_challenge_menu, record_duel_result, quiz1v1_advance, rematch_row
+from handlers.games import record_single_result, HEIST_COST, WORDLE_REWARDS, MASTERMIND_REWARDS
 from handlers.quiz import quiz_reward
 
 MAINT_TEXT = (
@@ -57,25 +59,39 @@ CHALLENGES = {
     "sfido": "roulette",
 }
 
-# Premi (costo di ingresso: 10 $SDG) in base al numero di tentativi usati
-WORDLE_REWARDS = {1: 25, 2: 20, 3: 15, 4: 12, 5: 10}
-MASTERMIND_REWARDS = {1: 30, 2: 22, 3: 15, 4: 11, 5: 9}
-SINGLE_GAME_TTL = 600   # secondi: oltre, Wordle/Mastermind abbandonati vengono chiusi (nessun rimborso)
 
-WORD_SET = {str(w).upper() for w in WORDS}
+# --- DIZIONARIO WORDLE ---
+# I tentativi vengono validati con un dizionario italiano (file di testo, una parola per riga).
+# Le parole segrete restano quelle di WORDS. Se il file non c'è, si accetta qualsiasi sequenza di 5 lettere.
+DICT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "parole_italiane_5.txt")
+
+
+def _norm(w: str) -> str:
+    """Maiuscolo e senza accenti (è -> E), tenendo solo le lettere A-Z."""
+    w = unicodedata.normalize("NFD", w.strip().upper())
+    return "".join(c for c in w if "A" <= c <= "Z")
+
+
+def _load_dictionary():
+    words = {_norm(str(w)) for w in WORDS}
+    try:
+        with open(DICT_FILE, encoding="utf-8") as f:
+            for line in f:
+                w = _norm(line)
+                if len(w) == 5:
+                    words.add(w)
+        logging.info(f"Dizionario Wordle caricato: {len(words)} parole.")
+        return words, True
+    except OSError:
+        logging.warning(f"Dizionario Wordle non trovato ({DICT_FILE}): accetto qualsiasi parola di 5 lettere.")
+        return words, False
+
+
+WORD_SET, DICT_LOADED = _load_dictionary()
 
 
 def _today() -> str:
     return str(datetime.now(_TZ).date())
-
-
-def _alive(store: dict, key: str):
-    """Restituisce la partita se ancora valida, altrimenti la elimina (abbandonata)."""
-    g = store.get(key)
-    if g and time.time() - g.get("ts", 0) > SINGLE_GAME_TTL:
-        store.pop(key, None)
-        return None
-    return g
 
 
 # --- UTILITIES / ADMIN ---
@@ -357,7 +373,13 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             del GHIGLIOTTINA_DUELS[chat_id_int]
             record_duel_result(chat_id_int, user.id, loser_id, duel["bet"])
             montepremi = duel["bet"] * 2
-            await update.message.reply_text(f"🏆 <b>GHIGLIOTTINA RISOLTA!</b> <b>{uname}</b> indovina <b>{duel['word']}</b> e vince +💳 {montepremi} $SDG!", parse_mode="HTML")
+            end_keyboard = [
+                rematch_row("ghig", duel),
+                [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user.id}")]
+            ]
+            await update.message.reply_text(
+                f"🏆 <b>GHIGLIOTTINA RISOLTA!</b> <b>{uname}</b> indovina <b>{duel['word']}</b> e vince +💳 {montepremi} $SDG!",
+                reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
             return
 
     # Handling Risposta Duello Quiz 1v1
@@ -374,11 +396,12 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # Handling Mastermind Express
     mm_key = f"{chat_id}_{user.id}"
-    mm = _alive(MASTERMIND_GAMES, mm_key)
+    mm = MASTERMIND_GAMES.get(mm_key)
     if mm and len(text) == 3 and text.isdigit():
         if len(set(text)) < 3:
             await update.message.reply_text("❌ Il codice ha <b>3 cifre tutte diverse</b>: questo tentativo non conta.", parse_mode="HTML")
             return
+        mm["last"] = time.time()
         mm["attempts"] += 1
         secret = mm["secret"]
         c_hits = sum(1 for i in range(3) if text[i] == secret[i])
@@ -389,7 +412,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         end_keyboard = [[InlineKeyboardButton("🔂 Rigioca", callback_data=f"start_mm_{user.id}"), InlineKeyboardButton("🔙 HUB", callback_data=f"hub_main_{user.id}")] ]
         if c_hits == 3:
             del MASTERMIND_GAMES[mm_key]
-            reward = MASTERMIND_REWARDS.get(mm["attempts"], 9)
+            reward = MASTERMIND_REWARDS.get(mm["attempts"], MASTERMIND_REWARDS[5])
             net_profit = reward - 10
             record_single_result(chat_id_int, user.id, True, net_profit, is_casino=False)
             add_user_coins(chat_id_int, user.id, reward)
@@ -423,32 +446,36 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # Handling Wordle
     game_key = f"{chat_id}_{user.id}"
-    game = _alive(WORDLE_GAMES, game_key)
+    game = WORDLE_GAMES.get(game_key)
     if game and len(text_upper) == 5 and text_upper.isalpha():
-        if text_upper not in WORD_SET:
+        guess = _norm(text_upper)          # "CITTÀ" -> "CITTA"
+        if len(guess) != 5:
+            return
+        if DICT_LOADED and guess not in WORD_SET:
             await update.message.reply_text("❌ Questa parola non è nel mio dizionario: il tentativo non conta.", parse_mode="HTML")
             return
+        game["last"] = time.time()
         game["attempts"] += 1
         secret = game["secret"]
         secret_letters = list(secret)
         res_colors = ["⬛"] * 5
         for i in range(5):
-            if text_upper[i] == secret[i]:
+            if guess[i] == secret[i]:
                 res_colors[i] = "🟩"
                 secret_letters[i] = None
         for i in range(5):
-            if res_colors[i] != "🟩" and text_upper[i] in secret_letters:
+            if res_colors[i] != "🟩" and guess[i] in secret_letters:
                 res_colors[i] = "🟨"
-                secret_letters[secret_letters.index(text_upper[i])] = None
-        letters_row = "  ".join(list(text_upper))
+                secret_letters[secret_letters.index(guess[i])] = None
+        letters_row = "  ".join(list(guess))
         colors_row = " ".join(res_colors)
         game["history"].append(f"<code>{letters_row}</code>\n{colors_row}")
         res_text = "\n\n".join(game["history"])
         end_keyboard = [[InlineKeyboardButton("🔂 Rigioca", callback_data=f"start_wordle_{user.id}"), InlineKeyboardButton("🔙 HUB", callback_data=f"hub_main_{user.id}")] ]
 
-        if text_upper == secret:
+        if guess == secret:
             del WORDLE_GAMES[game_key]
-            reward = WORDLE_REWARDS.get(game["attempts"], 10)
+            reward = WORDLE_REWARDS.get(game["attempts"], WORDLE_REWARDS[5])
             record_single_result(chat_id_int, user.id, True, reward - 10, is_casino=False)
             add_user_coins(chat_id_int, user.id, reward)
             await update.message.reply_text(f"🎉 <b>ESATTO!</b> Parola: <b>{secret}</b>! Vinti +💳 {reward} $SDG!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
@@ -463,8 +490,10 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
     # Auto-Troll
     if FLAGS["troll"] and username_lower in TARGET_MAP:
         if random.random() < 0.85:
-            try: await context.bot.set_message_reaction(chat_id=chat_id, message_id=update.message.message_id, reaction=TARGET_MAP[username_lower])
-            except Exception: pass
+            try:
+                await context.bot.set_message_reaction(chat_id=chat_id, message_id=update.message.message_id, reaction=TARGET_MAP[username_lower])
+            except Exception as e:
+                logging.warning(f"Auto-troll: reazione non riuscita: {e}")
 
 # --- REGISTRAZIONE HANDLER ---
 def register(app):
