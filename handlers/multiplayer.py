@@ -16,7 +16,7 @@ from state import (
     game_enabled, MAINT_GAME_TEXT,
 )
 from storage import get_user_coins, add_user_coins, get_user_data_dict, save_db
-from utils import verify_user_lock
+from utils import verify_user_lock, serialized
 
 CHALLENGE_TTL = 120   # secondi dopo i quali una sfida mai accettata scade
 ACTIVE_TTL = 900      # secondi di inattività dopo i quali una partita accettata viene chiusa con rimborso
@@ -112,6 +112,7 @@ def rematch_row(game_type: str, g: dict) -> list:
     return [InlineKeyboardButton("🔁 Rigioca", callback_data=data)]
 
 
+@serialized("chat")
 async def handle_rematch_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """rem_{gioco}_{id1}_{id2}_{puntata}_{round}: chi preme diventa lo sfidante, l'altro è lo sfidato."""
     query = update.callback_query
@@ -242,12 +243,13 @@ async def try_accept(query, game, chat_id: int, user, game_type: str) -> bool:
     if get_user_coins(chat_id, user.id) < bet:
         await query.answer("❌ Non hai abbastanza $SDG!", show_alert=True)
         return False
-    await query.answer()
+    # nessun await tra i controlli e queste modifiche: due tap simultanei non possono passare entrambi
     add_user_coins(chat_id, game["sfidante_id"], -bet)
     add_user_coins(chat_id, user.id, -bet)
     game["target_id"] = user.id
     game["target_name"] = nm(user)
     game["ts"] = time.time()
+    await query.answer()
     return True
 
 
@@ -320,6 +322,7 @@ async def show_challenge_config_message(update: Update, context: ContextTypes.DE
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 
+@serialized("chat")
 async def handle_challenge_config_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
@@ -390,7 +393,7 @@ async def handle_challenge_config_callback(update: Update, context: ContextTypes
         if game == "dice":
             DICE_DUELS[chat_id] = {**base, "active": False,
                 "p1_wins": 0, "p2_wins": 0, "current_round": 1,
-                "p1_val": None, "p2_val": None, "turno_id": None}
+                "rolled": {}, "msg_id": None, "resolving": False}
             keyboard = [[InlineKeyboardButton("🎲 Accetta Dadi", callback_data="dice_accetta"), InlineKeyboardButton("🐔 Rifiuta", callback_data="dice_rifiuta")]]
             text = f"🎲 <b>SFIDA A DADI 1v1 INTERATTIVA</b>\n\n<b>{uname}</b> sfida <b>@{t_esc}</b>!\n💰 Puntata: <code>💳 {bet} $SDG</code> | 🔄 Partite: <b>{rounds}</b>\n\n@{t_esc}, accetti?"
 
@@ -466,6 +469,15 @@ async def start_quiz1v1_prep(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 # --- DADI ---
+def _dice_prompt(game: dict, header: str = "") -> str:
+    s, t = game["sfidante_name"], game["target_name"]
+    return (
+        f"{header}🎲 <b>ROUND {game['current_round']} / {game['rounds']}</b>\n"
+        f"📊 Punteggio: {s} ({game['p1_wins']}) - {t} ({game['p2_wins']})\n\n"
+        f"Ognuno lancia il dado <b>una volta</b>: <b>{s}</b> e <b>{t}</b>, toccate il bottone!"
+    )
+
+
 async def handle_dice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     chat_id = query.message.chat_id
@@ -480,14 +492,15 @@ async def handle_dice_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         if not await try_accept(query, game, chat_id, user, "dice"): return
 
         game["active"] = True
-        game["turno_id"] = game["sfidante_id"]
+        game["rolled"] = {}
+        game["resolving"] = False
+        game["msg_id"] = query.message.message_id
 
         keyboard = [[InlineKeyboardButton("🎲 Lancia il Dado", callback_data="dice_roll")]]
         await safe_edit(
             query,
-            f"🎲 <b>DUELLO DADI INIZIATO!</b> Montepremi: <code>💳 {game['bet']*2} $SDG</code>\n\n"
-            f"📊 Punteggio: {game['sfidante_name']} (0) - {game['target_name']} (0)\n"
-            f"Turno di <b>{game['sfidante_name']}</b>:", keyboard
+            _dice_prompt(game, f"🎲 <b>DUELLO DADI INIZIATO!</b> Montepremi: <code>💳 {game['bet']*2} $SDG</code>\n\n"),
+            keyboard
         )
 
     elif query.data == "dice_rifiuta":
@@ -496,93 +509,105 @@ async def handle_dice_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await safe_edit(query, "🐔 Sfida rifiutata!")
 
     elif query.data == "dice_roll":
-        if user.id != game.get("turno_id"):
-            await query.answer("⏳ Non è il tuo turno di lanciare!", show_alert=True)
+        if not game.get("active") or user.id not in (game["sfidante_id"], game.get("target_id")):
+            await query.answer("❌ Non partecipi a questa partita!", show_alert=True)
+            return
+        if query.message.message_id != game.get("msg_id"):
+            await query.answer("⚠️ Questo bottone è di un round passato.", show_alert=True)
+            return
+        if user.id in game["rolled"]:
+            await query.answer("✋ Hai già lanciato in questo round: aspetta l'altro giocatore!", show_alert=True)
             return
         # PRIMA di qualsiasi await: blocca i doppi click (l'handler gira con block=False)
-        game["turno_id"] = None
+        game["rolled"][user.id] = None
         game["ts"] = time.time()
         await query.answer()
-        try:
-            await query.edit_message_reply_markup(reply_markup=None)   # il vecchio bottone sparisce
-        except Exception:
-            pass
-
-        roll_kb = [[InlineKeyboardButton("🎲 Lancia il Dado", callback_data="dice_roll")]]
 
         try:
             dice_msg = await context.bot.send_dice(chat_id=chat_id, emoji="🎲")
             val = dice_msg.dice.value
         except Exception as e:
             logging.error(f"Errore send_dice: {e}")
-            game["turno_id"] = user.id     # il lancio non è avvenuto: restituisce il turno
-            await safe_send(context.bot, chat_id, f"⚠️ Lancio non riuscito. Riprova, <b>{nm(user)}</b>!", roll_kb)
+            game["rolled"].pop(user.id, None)     # il lancio non è avvenuto: può riprovare
+            await safe_send(context.bot, chat_id, f"⚠️ Lancio non riuscito. Riprova, <b>{nm(user)}</b>!")
             return
         await asyncio.sleep(3)             # durata dell'animazione del dado
 
         if DICE_DUELS.get(chat_id) is not game:
             return   # partita chiusa nel frattempo (reset admin o scadenza)
 
-        if user.id == game["sfidante_id"]:
-            game["p1_val"] = val
-            game["turno_id"] = game["target_id"]
-            await safe_send(
-                context.bot, chat_id,
-                f"🎲 <b>ROUND {game['current_round']} / {game['rounds']}</b>\n\n"
-                f"👤 {game['sfidante_name']} ha fatto: <b>{val}</b> 🎲\n"
-                f"📊 Punteggio: {game['sfidante_name']} ({game['p1_wins']}) - {game['target_name']} ({game['p2_wins']})\n\n"
-                f"Tocca a <b>{game['target_name']}</b> lanciare!", roll_kb
-            )
+        game["rolled"][user.id] = val
+        if len(game["rolled"]) < 2 or any(v is None for v in game["rolled"].values()):
+            return   # manca ancora l'altro giocatore: nessun messaggio, il round non è finito
+        if game.get("resolving"):
+            return
+        game["resolving"] = True
+
+        # --- Round concluso: entrambi hanno lanciato, un solo messaggio ---
+        v1 = game["rolled"][game["sfidante_id"]]
+        v2 = game["rolled"][game["target_id"]]
+        old_msg_id = game["msg_id"]
+        game["msg_id"] = None
+        try:
+            await context.bot.edit_message_reply_markup(chat_id=chat_id, message_id=old_msg_id, reply_markup=None)
+        except Exception:
+            pass
+
+        if v1 > v2:
+            game["p1_wins"] += 1
+            round_msg = f"🏆 <b>Round {game['current_round']} vinto da {game['sfidante_name']}!</b>"
+        elif v2 > v1:
+            game["p2_wins"] += 1
+            round_msg = f"🏆 <b>Round {game['current_round']} vinto da {game['target_name']}!</b>"
         else:
-            game["p2_val"] = val
-            v1 = game["p1_val"]
-            v2 = game["p2_val"]
+            round_msg = f"⚖️ <b>Round {game['current_round']} pari!</b>"
 
-            if v1 > v2:
-                game["p1_wins"] += 1
-                round_msg = f"🏆 <b>Round {game['current_round']} vinto da {game['sfidante_name']}!</b>"
-            elif v2 > v1:
-                game["p2_wins"] += 1
-                round_msg = f"🏆 <b>Round {game['current_round']} vinto da {game['target_name']}!</b>"
+        res_text = (
+            f"👤 {game['sfidante_name']}: <b>{v1}</b> | 👤 {game['target_name']}: <b>{v2}</b>\n{round_msg}\n"
+            f"📊 Totale: {game['sfidante_name']} ({game['p1_wins']}) - {game['target_name']} ({game['p2_wins']})"
+        )
+
+        wins_needed = (game["rounds"] // 2) + 1
+        if game["p1_wins"] >= wins_needed or game["p2_wins"] >= wins_needed or game["current_round"] >= game["rounds"]:
+            winner_id = game["sfidante_id"] if game["p1_wins"] > game["p2_wins"] else (game["target_id"] if game["p2_wins"] > game["p1_wins"] else None)
+            montepremi = game["bet"] * 2
+
+            w_id_btn = winner_id if winner_id else game["sfidante_id"]
+            keyboard = [
+                rematch_row("dice", game),
+                [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{w_id_btn}")]
+            ]
+
+            if winner_id:
+                loser_id = game["target_id"] if winner_id == game["sfidante_id"] else game["sfidante_id"]
+                w_name = game["sfidante_name"] if winner_id == game["sfidante_id"] else game["target_name"]
+                record_duel_result(chat_id, winner_id, loser_id, game["bet"])
+                msg = res_text + f"\n\n👑 <b>VITTORIA FINALE! {w_name}</b> vince <b>+💳 {montepremi} $SDG</b>!"
             else:
-                round_msg = f"⚖️ <b>Round {game['current_round']} pari!</b>"
+                add_user_coins(chat_id, game["sfidante_id"], game["bet"])
+                add_user_coins(chat_id, game["target_id"], game["bet"])
+                msg = res_text + "\n\n⚖️ <b>PAREGGIO FINALE!</b> Puntate rimborsate."
 
-            res_text = f"👤 {game['sfidante_name']}: <b>{v1}</b> | 👤 {game['target_name']}: <b>{v2}</b>\n{round_msg}\n📊 Totale: {game['sfidante_name']} ({game['p1_wins']}) - {game['target_name']} ({game['p2_wins']})"
-
-            wins_needed = (game["rounds"] // 2) + 1
-            if game["p1_wins"] >= wins_needed or game["p2_wins"] >= wins_needed or game["current_round"] >= game["rounds"]:
-                winner_id = game["sfidante_id"] if game["p1_wins"] > game["p2_wins"] else (game["target_id"] if game["p2_wins"] > game["p1_wins"] else None)
-                montepremi = game["bet"] * 2
-
-                w_id_btn = winner_id if winner_id else game["sfidante_id"]
-                keyboard = [
-                    rematch_row("dice", game),
-                    [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{w_id_btn}")]
-                ]
-
-                if winner_id:
-                    loser_id = game["target_id"] if winner_id == game["sfidante_id"] else game["sfidante_id"]
-                    w_name = game["sfidante_name"] if winner_id == game["sfidante_id"] else game["target_name"]
-                    record_duel_result(chat_id, winner_id, loser_id, game["bet"])
-                    msg = res_text + f"\n\n👑 <b>VITTORIA FINALE! {w_name}</b> vince <b>+💳 {montepremi} $SDG</b>!"
-                else:
-                    add_user_coins(chat_id, game["sfidante_id"], game["bet"])
-                    add_user_coins(chat_id, game["target_id"], game["bet"])
-                    msg = res_text + "\n\n⚖️ <b>PAREGGIO FINALE!</b> Puntate rimborsate."
-
-                del DICE_DUELS[chat_id]
-                await safe_send(context.bot, chat_id, msg, keyboard)
-            else:
-                game["current_round"] += 1
-                game["turno_id"] = game["sfidante_id"]
-                await safe_send(
-                    context.bot, chat_id,
-                    res_text + f"\n\n🔄 <b>Inizia il Round {game['current_round']}!</b>\nTocca a <b>{game['sfidante_name']}</b>:",
-                    roll_kb
-                )
+            del DICE_DUELS[chat_id]
+            await safe_send(context.bot, chat_id, msg, keyboard)
+        else:
+            game["current_round"] += 1
+            game["rolled"] = {}
+            game["resolving"] = False
+            game["ts"] = time.time()
+            keyboard = [[InlineKeyboardButton("🎲 Lancia il Dado", callback_data="dice_roll")]]
+            new_msg = await safe_send(
+                context.bot, chat_id,
+                _dice_prompt(game, res_text + "\n\n🔄 <b>Si riparte!</b>\n\n"),
+                keyboard
+            )
+            if new_msg:
+                game["msg_id"] = new_msg.message_id
+            # se l'invio fallisce la partita resta ferma e verrà chiusa e rimborsata dal job di pulizia
 
 
 # --- TRIS ---
+@serialized("chat")
 async def handle_ttt_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     chat_id = query.message.chat_id
@@ -661,6 +686,7 @@ async def update_ttt_board(query, game, status, finished=False, btn_id=None, rem
 
 
 # --- ROULETTE ---
+@serialized("chat")
 async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     chat_id = query.message.chat_id
@@ -714,6 +740,7 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
 
 
 # --- HIGH / LOW (morte improvvisa: chi sbaglia perde, quindi non usa i round) ---
+@serialized("chat")
 async def handle_highlow_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     chat_id = query.message.chat_id
@@ -778,6 +805,7 @@ async def handle_highlow_callback(update: Update, context: ContextTypes.DEFAULT_
 
 
 # --- GHIGLIOTTINA ---
+@serialized("chat")
 async def handle_ghigliottina_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     chat_id = query.message.chat_id
@@ -820,6 +848,7 @@ async def run_ghigliottina_timeout(bot, chat_id: int, msg_id: int):
 
 
 # --- QUIZ 1v1 ---
+@serialized("chat")
 async def handle_quiz1v1_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     chat_id = query.message.chat_id
