@@ -23,17 +23,18 @@ from state import (
     FLAGS, ACTIVE_DUELS, HIGHLOW_DUELS, DICE_DUELS, BLACKJACK_GAMES, WORDLE_GAMES,
     MASTERMIND_GAMES, QUIZ_GAMES, QUIZ_DUELS_1V1, GHIGLIOTTINA_DUELS,
     HEIST_GAMES, PENITENZE_ATTIVE, ACTIVE_PERSECUTE, TIC_TAC_TOE_GAMES,
-    DAILY_DONATIONS, USER_DATA, GAME_STATUS, game_enabled, MAINT_GAME_TEXT,
+    DAILY_DONATIONS, USER_DATA, GAME_STATUS, AVIATOR_GAMES, SCRATCH_GAMES,
+    game_enabled, MAINT_GAME_TEXT,
 )
 from storage import add_user_coins, get_user_coins, add_user_stat
-from utils import is_admin
+from utils import is_admin, serialized
 from handlers.hub import apply_title_command, apply_persecute_command
 from handlers.multiplayer import (
     setup_challenge_menu, record_duel_result, quiz1v1_advance, rematch_row, STATUS_KEY,
 )
 from handlers.games import (
     record_single_result, HEIST_COST, WORDLE_REWARDS, MASTERMIND_REWARDS,
-    WORD_SET, norm_word,
+    WORD_SET, norm_word, SCRATCH_COST,
 )
 from handlers.quiz import quiz_reward
 
@@ -43,6 +44,9 @@ MAINT_TEXT = (
 )
 MAINT_ALERT = "🛠️ Bot in manutenzione: i giochi sono temporaneamente sospesi. Riprova tra poco!"
 MAINT_COOLDOWN = 20   # secondi tra due avvisi nella stessa chat
+
+DONATE_DEFAULT = 5
+DONATE_MAX = 50
 
 # parole in chat (senza "/") che avviano un gioco o un acquisto
 GAME_TRIGGERS = {
@@ -265,15 +269,36 @@ async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
             add_user_coins(int(cid), int(uid), 5)
     for uid, g in list(HEIST_GAMES.items()):
         add_user_coins(g["chat_id"], uid, HEIST_COST)
-    for d in (BLACKJACK_GAMES, WORDLE_GAMES, MASTERMIND_GAMES, QUIZ_GAMES, HEIST_GAMES):
+    # Laboratorio: voli in corso (puntata rimborsata, il ciclo di volo si ferma) e biglietti non finiti
+    for key, g in list(AVIATOR_GAMES.items()):
+        if not g.get("finished"):
+            g["finished"] = True
+            cid, uid = key.rsplit("_", 1)
+            add_user_coins(int(cid), int(uid), g["bet"])
+    for key in list(SCRATCH_GAMES.keys()):
+        cid, uid = key.rsplit("_", 1)
+        add_user_coins(int(cid), int(uid), SCRATCH_COST)
+    for d in (BLACKJACK_GAMES, WORDLE_GAMES, MASTERMIND_GAMES, QUIZ_GAMES, HEIST_GAMES,
+              AVIATOR_GAMES, SCRATCH_GAMES):
         d.clear()
     await update.message.reply_text("🛠️ Giochi resettati. Tutte le puntate in corso sono state rimborsate.")
 
-# --- COMANDO DONAZIONE CREDITI (/dona) ---
+# --- COMANDO DONAZIONE CREDITI (/dona @utente [importo]) ---
+@serialized("user")
 async def donate_coins_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat_id = update.effective_chat.id
     text = (update.message.text or "").strip()
+
+    # importo opzionale: il primo numero dopo il comando (default 5, massimo 50)
+    amount = DONATE_DEFAULT
+    for part in text.split()[1:]:
+        if part.isdigit():
+            amount = int(part)
+            break
+    if amount < 1 or amount > DONATE_MAX:
+        await update.message.reply_text(f"❌ Puoi donare da 1 a {DONATE_MAX} $SDG per volta.", parse_mode="HTML")
+        return
 
     target_username = None
     target_id = None
@@ -292,7 +317,9 @@ async def donate_coins_command(update: Update, context: ContextTypes.DEFAULT_TYP
         target_label = html.escape(reply.from_user.first_name or "utente")
 
     if not target_username and not target_id:
-        await update.message.reply_text("❌ Uso corretto: <code>/dona @username</code> (Invia 5 $SDG)", parse_mode="HTML")
+        await update.message.reply_text(
+            f"❌ Uso corretto: <code>/dona @username [importo]</code> (da 1 a {DONATE_MAX} $SDG, default {DONATE_DEFAULT})",
+            parse_mode="HTML")
         return
 
     if target_username and target_username == (user.username or "").lower():
@@ -330,16 +357,16 @@ async def donate_coins_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("❌ Hai già fatto una donazione a questo utente oggi! Riprova domani.", parse_mode="HTML")
         return
 
-    if get_user_coins(chat_id, user.id) < 5:
-        await update.message.reply_text("❌ Non hai abbastanza $SDG (servono almeno 5 crediti)!", parse_mode="HTML")
+    if get_user_coins(chat_id, user.id) < amount:
+        await update.message.reply_text(f"❌ Non hai abbastanza $SDG (servono almeno {amount} crediti)!", parse_mode="HTML")
         return
 
-    add_user_coins(chat_id, user.id, -5)
-    add_user_coins(chat_id, target_id, 5)
+    add_user_coins(chat_id, user.id, -amount)
+    add_user_coins(chat_id, target_id, amount)
     DAILY_DONATIONS.add(donation_key)
 
     donor = f"@{html.escape(user.username)}" if user.username else html.escape(user.first_name or "Utente")
-    await update.message.reply_text(f"🎁 <b>DONAZIONE EFFETTUATA!</b> {donor} ha donato <b>💳 5 $SDG</b> a {target_label}!", parse_mode="HTML")
+    await update.message.reply_text(f"🎁 <b>DONAZIONE EFFETTUATA!</b> {donor} ha donato <b>💳 {amount} $SDG</b> a {target_label}!", parse_mode="HTML")
 
 # --- SISTEMA DI DEBUG ED ERRORI ---
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -549,7 +576,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             reward = WORDLE_REWARDS.get(game["attempts"], WORDLE_REWARDS[5])
             record_single_result(chat_id_int, user.id, True, reward - 10, is_casino=False)
             add_user_coins(chat_id_int, user.id, reward)
-            await update.message.reply_text(f"🎉 <b>ESATTO!</b> Parola: <b>{secret}</b>! Vinti +💳 {reward} $SDG!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
+            await update.message.reply_text(f"🎉 <b>ESATTO!</b> Parola: <b>{secret}</b>! Vinti +💳 {reward} $SDG (netti +{reward - 10})!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
         elif game["attempts"] >= 5:
             del WORDLE_GAMES[game_key]
             record_single_result(chat_id_int, user.id, False, -10, is_casino=False)
