@@ -1,12 +1,13 @@
 import asyncio
 import logging
+import signal
 
 from telegram.ext import Application
 
 from config import TELEGRAM_TOKEN
 from keep_alive import start_flask
 from state import FLAGS
-from storage import load_db, auto_restore_from_telegram, backup_to_telegram
+from storage import load_db, auto_restore_from_telegram, backup_to_telegram, flush_db, flush_db_sync
 from handlers import system, hub, games, multiplayer, quiz
 
 logging.basicConfig(
@@ -15,7 +16,6 @@ logging.basicConfig(
 )
 
 # La manutenzione vive in FLAGS["maintenance"] (state.py) ed è gestita da handlers/system.py
-# (/manutenzione, maintenance_gate). Qui basta che il flag esista.
 FLAGS.setdefault("maintenance", False)
 
 
@@ -27,7 +27,13 @@ async def main_async():
     load_db()
     start_flask()
 
-    builder = Application.builder().token(TELEGRAM_TOKEN)
+    builder = (
+        Application.builder()
+        .token(TELEGRAM_TOKEN)
+        .concurrent_updates(32)          # fino a 32 update elaborati in parallelo
+        .connection_pool_size(64)        # deve essere ben sopra concurrent_updates
+        .pool_timeout(10)
+    )
     try:
         # Mette in coda le richieste e gestisce da solo il flood control di Telegram
         from telegram.ext import AIORateLimiter
@@ -46,18 +52,35 @@ async def main_async():
     quiz.register(application)
     system.register_text(application)
 
-    # Backup automatico del database ogni ora (fissato nella chat di backup)
     if application.job_queue:
+        # Scrittura del database ogni 5 secondi (solo se è cambiato qualcosa)
+        application.job_queue.run_repeating(flush_db, interval=5, first=5)
+        # Backup automatico ogni ora (fissato nella chat di backup)
         application.job_queue.run_repeating(backup_to_telegram, interval=3600, first=3600)
     else:
-        print("⚠️ JobQueue non disponibile: installa python-telegram-bot[job-queue] per i backup orari.", flush=True)
+        print("⚠️ JobQueue non disponibile: installa python-telegram-bot[job-queue]. Senza, il DB non viene salvato!", flush=True)
 
     print("SdrogoBot v6.6 stabile operativo!", flush=True)
 
     await application.initialize()
     await application.start()
     await application.updater.start_polling(drop_pending_updates=True)
-    await asyncio.Event().wait()
+
+    # Arresto pulito: Northflank manda SIGTERM a ogni deploy, e senza questo si perderebbero gli ultimi salvataggi
+    stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, stop.set)
+        except NotImplementedError:
+            pass
+    await stop.wait()
+
+    await application.updater.stop()
+    await application.stop()
+    await application.shutdown()
+    flush_db_sync()
+    print("SdrogoBot arrestato, database salvato.", flush=True)
 
 if __name__ == '__main__':
     try:
