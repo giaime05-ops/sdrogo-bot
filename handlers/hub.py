@@ -7,11 +7,12 @@ from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
 
 from state import (
     USER_DATA, USER_INVENTORIES, ACTIVE_TITLES, ACTIVE_PERSECUTE, HEIST_GAMES,
+    game_enabled, MAINT_GAME_TEXT,
 )
 from storage import (
     get_user_key, get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram,
 )
-from utils import verify_user_lock, get_formatted_name
+from utils import verify_user_lock, get_formatted_name, is_admin
 from handlers.games import HEIST_COST
 
 try:
@@ -26,6 +27,11 @@ HEIST_STALE_SECS = 1800   # una rapina abbandonata per 30 minuti viene considera
 def _today() -> str:
     """Data odierna (fuso Europa/Roma) per il bonus giornaliero."""
     return str(datetime.now(_TZ).date())
+
+
+def _lab_allowed(user_id: int, chat_type: str) -> bool:
+    """Il Laboratorio Segreto è accessibile solo all'admin e solo in chat privata."""
+    return is_admin(user_id) and chat_type == "private"
 
 
 async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -46,6 +52,10 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🧠 Quiz Show", callback_data=f"hub_quiz_{user.id}"), InlineKeyboardButton("🛒 SdrogoShop", callback_data=f"hub_shop_{user.id}")],
         [InlineKeyboardButton("💳 Portafoglio", callback_data=f"hub_wallet_{user.id}"), InlineKeyboardButton("🏆 Classifiche", callback_data=f"hub_lead_{user.id}")]
     ]
+
+    # Laboratorio Segreto: solo admin e solo in chat privata
+    if _lab_allowed(user.id, update.effective_chat.type):
+        keyboard.append([InlineKeyboardButton("🧪 Laboratorio Segreto", callback_data=f"hub_lab_{user.id}")])
 
     if update.message:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -111,16 +121,37 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     parts = data.split("_")
     action = parts[1]
+    extra = None
 
-    if action == "leadcat":
-        cat = parts[2]
+    if action in ("leadcat", "labgame"):
+        extra = parts[2]
         owner_id = int(parts[3])
     else:
         owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
-    # verify_user_lock risponde con il popup d'errore: query.answer() va chiamata solo dopo
+    # Laboratorio Segreto: solo admin in chat privata (controllo prima di qualsiasi altra cosa)
+    if action in ("lab", "labgame") and not _lab_allowed(query.from_user.id, query.message.chat.type):
+        await query.answer("🔒 Area riservata all'admin in chat privata.", show_alert=True)
+        return
+
+    # verify_user_lock risponde con il popup d'errore: query.answer() va chiamata solo dopo i controlli
     if not await verify_user_lock(query, owner_id):
         return
+
+    if action == "qmulti" and not game_enabled("quizmulti"):
+        await query.answer(MAINT_GAME_TEXT, show_alert=True)
+        return
+
+    if action == "labgame":
+        names = {
+            "aviator": "✈️ Aviator",
+            "roulettecasino": "🎡 Roulette Casinò",
+            "mines": "💣 Campo Minato",
+            "scratch": "🎟️ Gratta e Vinci",
+        }
+        await query.answer(f"🚧 {names.get(extra, 'Gioco')}: Work in progress!", show_alert=True)
+        return
+
     await query.answer()
 
     chat_id = query.message.chat_id
@@ -130,6 +161,22 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if action == "main":
         await show_hub(update, context)
+
+    elif action == "lab":
+        text = (
+            "🧪 <b>LABORATORIO SEGRETO</b>\n\n"
+            "Giochi in sviluppo, visibili solo a te in chat privata.\n"
+            "<i>Per ora ogni gioco risponde con \"Work in progress\".</i>"
+        )
+        keyboard = [
+            [InlineKeyboardButton("✈️ Aviator", callback_data=f"hub_labgame_aviator_{owner_id}"), InlineKeyboardButton("🎡 Roulette Casinò", callback_data=f"hub_labgame_roulettecasino_{owner_id}")],
+            [InlineKeyboardButton("💣 Campo Minato", callback_data=f"hub_labgame_mines_{owner_id}"), InlineKeyboardButton("🎟️ Gratta e Vinci", callback_data=f"hub_labgame_scratch_{owner_id}")],
+            back_button
+        ]
+        try:
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        except Exception:
+            pass
 
     elif action == "single":
         text = (
@@ -237,7 +284,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_leaderboard_menu(update, context, owner_id)
 
     elif action == "leadcat":
-        await show_leaderboard(update, context, owner_id, category=cat)
+        await show_leaderboard(update, context, owner_id, category=extra)
 
 
 async def show_leaderboard_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, owner_id: int):
@@ -360,9 +407,9 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if coins < 100:
             await query.answer("❌ Servono 100 $SDG per comprare il Titolo Umiliante!", show_alert=True)
             return
+        await query.answer()
         add_user_coins(chat_id, user_id, -100)
         USER_INVENTORIES[inv_key]["titles"] = USER_INVENTORIES[inv_key].get("titles", 0) + 1
-        await query.answer()
         try:
             await query.edit_message_text(
                 "✅ <b>TITOLO UMILIANTE ACQUISTATO!</b>\n\n"
@@ -378,9 +425,9 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if coins < 120:
             await query.answer("❌ Servono 120 $SDG per comprare il Tag Persecutore!", show_alert=True)
             return
+        await query.answer()
         add_user_coins(chat_id, user_id, -120)
         USER_INVENTORIES[inv_key]["persecutes"] = USER_INVENTORIES[inv_key].get("persecutes", 0) + 1
-        await query.answer()
         try:
             await query.edit_message_text(
                 "✅ <b>TAG PERSECUTORE ACQUISTATO!</b>\n\n"
@@ -393,6 +440,9 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
     elif item_type == "heist":
+        if not game_enabled("heist"):
+            await query.answer(MAINT_GAME_TEXT, show_alert=True)
+            return
         existing = HEIST_GAMES.get(user_id)
         if existing:
             if time.time() - existing.get("ts", 0) < HEIST_STALE_SECS:
@@ -403,9 +453,9 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer(f"❌ Servono {HEIST_COST} $SDG per tentare la Rapina Heist!", show_alert=True)
             return
 
+        await query.answer()
         add_user_coins(chat_id, user_id, -HEIST_COST)
         HEIST_GAMES[user_id] = {"level": 1, "chat_id": chat_id, "pending": None, "ts": time.time()}
-        await query.answer()
 
         try:
             await context.bot.send_message(
