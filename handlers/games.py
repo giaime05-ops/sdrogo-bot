@@ -1,4 +1,4 @@
-"""Minigiochi single player: Blackjack, Slot, Wordle, Mastermind, Heist + giochi del Laboratorio Segreto."""
+"""Minigiochi single player: Blackjack, Slot, Wordle, Mastermind, Heist, Aviator, Roulette, Gratta e Vinci."""
 import asyncio
 import html
 import logging
@@ -18,7 +18,7 @@ from state import (
     game_enabled, MAINT_GAME_TEXT,
 )
 from storage import get_user_coins, add_user_coins, get_user_data_dict, save_db
-from utils import verify_user_lock, is_admin, serialized
+from utils import verify_user_lock, serialized
 
 # --- PREMI WORDLE / MASTERMIND (costo di ingresso: 10 $SDG) ---
 # Totale restituito in base ai tentativi usati (netti: +50, +40, +30, +20, +10)
@@ -114,7 +114,13 @@ async def _safe_edit(query, text, keyboard=None, retries=2):
 # =====================================================================
 # BLACKJACK CON PUNTATE PERSONALIZZATE E ASSI CORRETTI
 # =====================================================================
-BJ_CARDS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11]
+# Bilanciamento: il banco pesca meno carte da 10 (3 su 12 invece di 4 su 13), così chiude
+# meno spesso a 20/21. Per compensare il giocatore ha la regola "Charlie a 5 carte":
+# 5 carte senza sballare = vittoria automatica 1:1. Il vantaggio del banco scende da ~2,1% a ~1,4%
+# (stima con simulazione Monte Carlo di una strategia di base, senza raddoppio né split).
+BJ_PLAYER_CARDS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11]
+BJ_DEALER_CARDS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 11]
+BJ_CHARLIE_CARDS = 5
 
 async def start_bj_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -133,6 +139,7 @@ async def start_bj_from_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "🃏 <b>BLACKJACK 21 - SCEGLI LA PUNTATA</b> 💰\n\n"
         f"💳 Saldo disponibile: <b>{coins} $SDG</b>\n\n"
+        "🖐️ <b>Charlie:</b> 5 carte senza sballare = vittoria automatica!\n\n"
         "<i>Seleziona quanto vuoi puntare per questa mano:</i>"
     )
     keyboard = [
@@ -175,8 +182,8 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer()
 
         add_user_coins(chat_id, owner_id, -bet)
-        player_hand = [random.choice(BJ_CARDS), random.choice(BJ_CARDS)]
-        dealer_hand = [random.choice(BJ_CARDS)]
+        player_hand = [random.choice(BJ_PLAYER_CARDS), random.choice(BJ_PLAYER_CARDS)]
+        dealer_hand = [random.choice(BJ_DEALER_CARDS)]
 
         BLACKJACK_GAMES[game_key] = {
             "player_id": user_id, "name": query.from_user.first_name or "un giocatore",
@@ -235,7 +242,7 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     ]
 
     if action == "hit":
-        game["player_hand"].append(random.choice(BJ_CARDS))
+        game["player_hand"].append(random.choice(BJ_PLAYER_CARDS))
         score = hand_value(game["player_hand"])
 
         if score > 21:
@@ -244,6 +251,18 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await _safe_edit(
                 query,
                 f"💥 <b>SBALLATO!</b> ({score})\nHai perso <b>-{bet} $SDG</b>!",
+                InlineKeyboardMarkup(end_keyboard)
+            )
+        elif len(game["player_hand"]) >= BJ_CHARLIE_CARDS:
+            # Charlie: 5 carte senza sballare = vittoria automatica 1:1
+            add_user_coins(chat_id, user_id, bet * 2)
+            record_single_result(chat_id, user_id, True, bet)
+            hand = game["player_hand"]
+            del BLACKJACK_GAMES[game_key]
+            await _safe_edit(
+                query,
+                f"🖐️ <b>CHARLIE!</b> 5 carte senza sballare: {hand} ({score})\n"
+                f"Vittoria automatica: <b>+💳 {bet} $SDG</b>!",
                 InlineKeyboardMarkup(end_keyboard)
             )
         else:
@@ -262,7 +281,7 @@ async def handle_bj_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         player_score = hand_value(game["player_hand"])
         dealer_hand = game["dealer_hand"]
         while hand_value(dealer_hand) < 17:
-            dealer_hand.append(random.choice(BJ_CARDS))
+            dealer_hand.append(random.choice(BJ_DEALER_CARDS))
         dealer_score = hand_value(dealer_hand)
         del BLACKJACK_GAMES[game_key]
 
@@ -713,29 +732,35 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 # =====================================================================
-# LABORATORIO SEGRETO: giochi sperimentali (SOLO admin, SOLO chat privata)
+# AVIATOR, ROULETTE E GRATTA E VINCI (single player, aperti a tutti dal menu Single Player)
+# Callback con prefisso "sp_": sp_avi*, sp_roul*, sp_scr*.
+# Ogni gioco è accendibile/spegnibile da /admin (GAME_STATUS: aviator, roulette, scratch).
+# Lo spegnimento blocca solo le NUOVE giocate: voli e biglietti già iniziati si possono concludere.
 # =====================================================================
-LAB_BETS = (10, 25, 50, 100)
+SP_BETS = (10, 25, 50, 100)
 
 
-def _lab_back_row(owner_id: int):
-    return [InlineKeyboardButton("🧪 Torna al Laboratorio", callback_data=f"hub_lab_{owner_id}")]
+def _sp_back_row(owner_id: int):
+    return [
+        InlineKeyboardButton("🕹️ Single Player", callback_data=f"hub_single_{owner_id}"),
+        InlineKeyboardButton("🔙 HUB", callback_data=f"hub_main_{owner_id}"),
+    ]
 
 
-async def _lab_guard(query, owner_id: int) -> bool:
-    """Doppio controllo di sicurezza: admin + chat privata + menu del proprietario."""
-    if not is_admin(query.from_user.id) or query.message.chat.type != "private":
-        await query.answer("🔒 Area riservata all'admin in chat privata.", show_alert=True)
-        return False
-    return await verify_user_lock(query, owner_id)
-
-
-def _lab_bet_keyboard(prefix: str, owner_id: int):
+def _sp_bet_keyboard(prefix: str, owner_id: int):
     return [
         [InlineKeyboardButton("10 $SDG", callback_data=f"{prefix}_10_{owner_id}"), InlineKeyboardButton("25 $SDG", callback_data=f"{prefix}_25_{owner_id}")],
         [InlineKeyboardButton("50 $SDG", callback_data=f"{prefix}_50_{owner_id}"), InlineKeyboardButton("100 $SDG", callback_data=f"{prefix}_100_{owner_id}")],
-        _lab_back_row(owner_id),
+        _sp_back_row(owner_id),
     ]
+
+
+async def _game_on(query, name: str) -> bool:
+    """True se il gioco è acceso; altrimenti mostra il popup di manutenzione."""
+    if game_enabled(name):
+        return True
+    await query.answer(MAINT_GAME_TEXT, show_alert=True)
+    return False
 
 
 # ---------------------------------------------------------------------
@@ -778,9 +803,9 @@ def _wheel_strip() -> str:
     return " ".join(random.choice(["🔴", "⚫", "🔴", "⚫", "🟢"]) for _ in range(7))
 
 
-async def handle_lab_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_sp_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    parts = query.data.split("_")        # lab_roul_OWNER | lab_roulbet_BET_OWNER | lab_roulpick_BET_CHOICE_OWNER
+    parts = query.data.split("_")        # sp_roul_OWNER | sp_roulbet_BET_OWNER | sp_roulpick_BET_CHOICE_OWNER
     action = parts[1]
     try:
         owner_id = int(parts[-1])
@@ -788,7 +813,9 @@ async def handle_lab_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer()
         return
 
-    if not await _lab_guard(query, owner_id):
+    if not await verify_user_lock(query, owner_id):
+        return
+    if not await _game_on(query, "roulette"):
         return
 
     user = query.from_user
@@ -799,13 +826,13 @@ async def handle_lab_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE
     if action == "roul":
         await query.answer()
         text = (
-            "🎡 <b>SDROGO ROULETTE</b> 🧪\n\n"
+            "🎡 <b>SDROGO ROULETTE</b>\n\n"
             f"💳 Saldo disponibile: <b>{coins} $SDG</b>\n\n"
             "Rosso / Nero / Pari / Dispari pagano 1:1, il Verde (0) paga 35:1.\n"
             "<i>Lo zero fa perdere tutto tranne chi ha puntato sul Verde.</i>\n\n"
             "<b>Fase 1:</b> scegli la puntata."
         )
-        await _safe_edit(query, text, InlineKeyboardMarkup(_lab_bet_keyboard("lab_roulbet", owner_id)))
+        await _safe_edit(query, text, InlineKeyboardMarkup(_sp_bet_keyboard("sp_roulbet", owner_id)))
         return
 
     # Fase 2: su cosa puntare
@@ -815,7 +842,7 @@ async def handle_lab_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE
         except (IndexError, ValueError):
             await query.answer()
             return
-        if bet not in LAB_BETS:
+        if bet not in SP_BETS:
             await query.answer()
             return
         if coins < bet:
@@ -823,16 +850,16 @@ async def handle_lab_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
         await query.answer()
         text = (
-            "🎡 <b>SDROGO ROULETTE</b> 🧪\n\n"
+            "🎡 <b>SDROGO ROULETTE</b>\n\n"
             f"💰 Puntata: <code>{bet} $SDG</code>\n\n"
             "<b>Fase 2:</b> su cosa punti?"
         )
         keyboard = [
-            [InlineKeyboardButton("🔴 Rosso", callback_data=f"lab_roulpick_{bet}_red_{owner_id}"), InlineKeyboardButton("⚫ Nero", callback_data=f"lab_roulpick_{bet}_black_{owner_id}")],
-            [InlineKeyboardButton("🔢 Pari", callback_data=f"lab_roulpick_{bet}_even_{owner_id}"), InlineKeyboardButton("🔢 Dispari", callback_data=f"lab_roulpick_{bet}_odd_{owner_id}")],
-            [InlineKeyboardButton("🟢 Verde (0) · 35:1", callback_data=f"lab_roulpick_{bet}_green_{owner_id}")],
-            [InlineKeyboardButton("💰 Cambia puntata", callback_data=f"lab_roul_{owner_id}")],
-            _lab_back_row(owner_id),
+            [InlineKeyboardButton("🔴 Rosso", callback_data=f"sp_roulpick_{bet}_red_{owner_id}"), InlineKeyboardButton("⚫ Nero", callback_data=f"sp_roulpick_{bet}_black_{owner_id}")],
+            [InlineKeyboardButton("🔢 Pari", callback_data=f"sp_roulpick_{bet}_even_{owner_id}"), InlineKeyboardButton("🔢 Dispari", callback_data=f"sp_roulpick_{bet}_odd_{owner_id}")],
+            [InlineKeyboardButton("🟢 Verde (0) · 35:1", callback_data=f"sp_roulpick_{bet}_green_{owner_id}")],
+            [InlineKeyboardButton("💰 Cambia puntata", callback_data=f"sp_roul_{owner_id}")],
+            _sp_back_row(owner_id),
         ]
         await _safe_edit(query, text, InlineKeyboardMarkup(keyboard))
         return
@@ -845,7 +872,7 @@ async def handle_lab_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE
         except (IndexError, ValueError):
             await query.answer()
             return
-        if bet not in LAB_BETS or choice not in ROUL_CHOICES:
+        if bet not in SP_BETS or choice not in ROUL_CHOICES:
             await query.answer()
             return
         key = f"{chat_id}_{user.id}"
@@ -869,7 +896,7 @@ async def handle_lab_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE
             record_single_result(chat_id, user.id, payout > bet, payout - bet)
 
             head = (
-                "🎡 <b>SDROGO ROULETTE</b> 🧪\n"
+                "🎡 <b>SDROGO ROULETTE</b>\n"
                 f"💰 Puntata: <code>{bet} $SDG</code> su <b>{ROUL_CHOICES[choice]}</b>\n\n"
             )
             frames = [
@@ -891,9 +918,9 @@ async def handle_lab_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE
                 text += f"💸 <b>PERSO!</b> Hai perso {bet} $SDG."
 
             end_keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton(f"🔂 Rigioca ({bet} su {ROUL_CHOICES[choice]})", callback_data=f"lab_roulpick_{bet}_{choice}_{owner_id}")],
-                [InlineKeyboardButton("💰 Cambia puntata", callback_data=f"lab_roul_{owner_id}")],
-                _lab_back_row(owner_id),
+                [InlineKeyboardButton(f"🔂 Rigioca ({bet} su {ROUL_CHOICES[choice]})", callback_data=f"sp_roulpick_{bet}_{choice}_{owner_id}")],
+                [InlineKeyboardButton("💰 Cambia puntata", callback_data=f"sp_roul_{owner_id}")],
+                _sp_back_row(owner_id),
             ])
             await _safe_edit(query, text, end_keyboard)
         finally:
@@ -922,7 +949,7 @@ def aviator_crash_point() -> float:
 
 def _avi_text(game: dict, mult: float, status: str) -> str:
     return (
-        "✈️ <b>SDROGO AVIATOR</b> 🧪\n\n"
+        "✈️ <b>SDROGO AVIATOR</b>\n\n"
         f"💰 Puntata: <code>{game['bet']} $SDG</code>\n"
         f"🚀 Moltiplicatore: <b>{mult:.2f}x</b>\n"
         f"💵 Incasso attuale: <b>{int(game['bet'] * mult)} $SDG</b>\n\n"
@@ -932,15 +959,15 @@ def _avi_text(game: dict, mult: float, status: str) -> str:
 
 def _avi_end_keyboard(bet: int, owner_id: int):
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(f"🔂 Rivola ({bet} $SDG)", callback_data=f"lab_avibet_{bet}_{owner_id}")],
-        [InlineKeyboardButton("💰 Cambia puntata", callback_data=f"lab_avi_{owner_id}")],
-        _lab_back_row(owner_id),
+        [InlineKeyboardButton(f"🔂 Rivola ({bet} $SDG)", callback_data=f"sp_avibet_{bet}_{owner_id}")],
+        [InlineKeyboardButton("💰 Cambia puntata", callback_data=f"sp_avi_{owner_id}")],
+        _sp_back_row(owner_id),
     ])
 
 
 async def _aviator_flight(query, game: dict, key: str, owner_id: int, chat_id: int, user_id: int):
     bet, crash = game["bet"], game["crash"]
-    cash_kb = InlineKeyboardMarkup([[InlineKeyboardButton("💰 CASHOUT", callback_data=f"lab_avicash_{owner_id}")]])
+    cash_kb = InlineKeyboardMarkup([[InlineKeyboardButton("💰 CASHOUT", callback_data=f"sp_avicash_{owner_id}")]])
 
     async def finish_crash():
         game["finished"] = True
@@ -981,9 +1008,9 @@ async def _aviator_flight(query, game: dict, key: str, owner_id: int, chat_id: i
                 return
 
 
-async def handle_lab_aviator(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_sp_aviator(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    parts = query.data.split("_")        # lab_avi_OWNER | lab_avibet_BET_OWNER | lab_avicash_OWNER
+    parts = query.data.split("_")        # sp_avi_OWNER | sp_avibet_BET_OWNER | sp_avicash_OWNER
     action = parts[1]
     try:
         owner_id = int(parts[-1])
@@ -991,7 +1018,7 @@ async def handle_lab_aviator(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer()
         return
 
-    if not await _lab_guard(query, owner_id):
+    if not await verify_user_lock(query, owner_id):
         return
 
     user = query.from_user
@@ -1000,19 +1027,21 @@ async def handle_lab_aviator(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Scelta puntata
     if action == "avi":
+        if not await _game_on(query, "aviator"):
+            return
         await query.answer()
         coins = get_user_coins(chat_id, user.id)
         text = (
-            "✈️ <b>SDROGO AVIATOR</b> 🧪\n\n"
+            "✈️ <b>SDROGO AVIATOR</b>\n\n"
             f"💳 Saldo disponibile: <b>{coins} $SDG</b>\n\n"
             "Il moltiplicatore sale finché l'aereo non vola via. Premi <b>CASHOUT</b> prima del crash "
             "per incassare puntata × moltiplicatore. Se l'aereo vola via prima, perdi la puntata.\n\n"
             "Scegli la puntata:"
         )
-        await _safe_edit(query, text, InlineKeyboardMarkup(_lab_bet_keyboard("lab_avibet", owner_id)))
+        await _safe_edit(query, text, InlineKeyboardMarkup(_sp_bet_keyboard("sp_avibet", owner_id)))
         return
 
-    # CASHOUT
+    # CASHOUT (sempre permesso, anche se il gioco viene spento a volo iniziato)
     if action == "avicash":
         game = AVIATOR_GAMES.get(key)
         if not game or game["finished"]:
@@ -1034,7 +1063,7 @@ async def handle_lab_aviator(update: Update, context: ContextTypes.DEFAULT_TYPE)
             sign = f"+{net}" if net >= 0 else str(net)
             await _safe_edit(
                 query,
-                "✈️ <b>SDROGO AVIATOR</b> 🧪\n\n"
+                "✈️ <b>SDROGO AVIATOR</b>\n\n"
                 f"💰 <b>CASHOUT a {cur:.2f}x!</b>\n"
                 f"Puntata: <code>{bet} $SDG</code> → Incasso: <b>{payout} $SDG</b> (<b>{sign}</b>)\n\n"
                 f"<i>L'aereo sarebbe volato via a {game['crash']:.2f}x.</i>",
@@ -1049,12 +1078,14 @@ async def handle_lab_aviator(update: Update, context: ContextTypes.DEFAULT_TYPE)
         except (IndexError, ValueError):
             await query.answer()
             return
-        if bet not in LAB_BETS:
+        if bet not in SP_BETS:
             await query.answer()
             return
         existing = AVIATOR_GAMES.get(key)
         if existing and not existing["finished"] and time.time() - existing["ts"] < 300:
             await query.answer("✈️ Hai già un volo in corso!", show_alert=True)
+            return
+        if not await _game_on(query, "aviator"):
             return
         if get_user_coins(chat_id, user.id) < bet:
             await query.answer(f"❌ Servono {bet} $SDG per questa puntata!", show_alert=True)
@@ -1104,15 +1135,15 @@ def _scratch_keyboard(game: dict, owner_id: int, finished: bool = False):
             i = r * 3 + c
             sym = game["grid"][i]
             if i in game["picked"]:
-                row.append(InlineKeyboardButton(f"✅{sym}", callback_data=f"lab_scrnoop_{owner_id}"))
+                row.append(InlineKeyboardButton(f"✅{sym}", callback_data=f"sp_scrnoop_{owner_id}"))
             elif finished:
-                row.append(InlineKeyboardButton(sym, callback_data=f"lab_scrnoop_{owner_id}"))
+                row.append(InlineKeyboardButton(sym, callback_data=f"sp_scrnoop_{owner_id}"))
             else:
-                row.append(InlineKeyboardButton("🎁", callback_data=f"lab_scrcell_{i}_{owner_id}"))
+                row.append(InlineKeyboardButton("🎁", callback_data=f"sp_scrcell_{i}_{owner_id}"))
         rows.append(row)
     if finished:
-        rows.append([InlineKeyboardButton(f"🎟️ Nuovo biglietto ({SCRATCH_COST} $SDG)", callback_data=f"lab_scr_{owner_id}")])
-        rows.append(_lab_back_row(owner_id))
+        rows.append([InlineKeyboardButton(f"🎟️ Nuovo biglietto ({SCRATCH_COST} $SDG)", callback_data=f"sp_scr_{owner_id}")])
+        rows.append(_sp_back_row(owner_id))
     return rows
 
 
@@ -1120,7 +1151,7 @@ def _scratch_text(game: dict) -> str:
     left = SCRATCH_PICKS - len(game["picked"])
     found = " ".join(game["grid"][i] for i in game["picked"]) or "—"
     return (
-        "🎟️ <b>GRATTA E VINCI</b> 🧪\n\n"
+        "🎟️ <b>GRATTA E VINCI</b>\n\n"
         f"Grattate rimaste: <b>{left}</b>\n"
         f"Trovato finora: {found}\n\n"
         "💀 vuoto • 💰 10 • 💎 25 • 👑 100 $SDG"
@@ -1128,9 +1159,9 @@ def _scratch_text(game: dict) -> str:
 
 
 @serialized("user")
-async def handle_lab_scratch(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_sp_scratch(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    parts = query.data.split("_")        # lab_scr_OWNER | lab_scrcell_IDX_OWNER | lab_scrnoop_OWNER
+    parts = query.data.split("_")        # sp_scr_OWNER | sp_scrcell_IDX_OWNER | sp_scrnoop_OWNER
     action = parts[1]
     try:
         owner_id = int(parts[-1])
@@ -1138,7 +1169,7 @@ async def handle_lab_scratch(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer()
         return
 
-    if not await _lab_guard(query, owner_id):
+    if not await verify_user_lock(query, owner_id):
         return
 
     user = query.from_user
@@ -1156,6 +1187,8 @@ async def handle_lab_scratch(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.answer("🎟️ Hai già un biglietto da finire!")
             await _safe_edit(query, _scratch_text(game), InlineKeyboardMarkup(_scratch_keyboard(game, owner_id)))
             return
+        if not await _game_on(query, "scratch"):
+            return
         if get_user_coins(chat_id, user.id) < SCRATCH_COST:
             await query.answer(f"❌ Servono {SCRATCH_COST} $SDG per un biglietto!", show_alert=True)
             return
@@ -1166,7 +1199,7 @@ async def handle_lab_scratch(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await _safe_edit(query, _scratch_text(game), InlineKeyboardMarkup(_scratch_keyboard(game, owner_id)))
         return
 
-    # Grattata di una casella
+    # Grattata di una casella (sempre permessa: il biglietto già pagato si può finire)
     if action == "scrcell":
         game = SCRATCH_GAMES.get(key)
         try:
@@ -1202,7 +1235,7 @@ async def handle_lab_scratch(update: Update, context: ContextTypes.DEFAULT_TYPE)
         else:
             verdict = f"🎉 Hai vinto <b>{payout} $SDG</b> (<b>{sign}</b> netti)!"
         text = (
-            "🎟️ <b>GRATTA E VINCI</b> 🧪\n\n"
+            "🎟️ <b>GRATTA E VINCI</b>\n\n"
             f"Hai grattato: {found}\n\n{verdict}\n\n"
             "<i>Le caselle senza ✅ sono quelle che non hai scoperto.</i>"
         )
@@ -1224,9 +1257,9 @@ def register(app):
     app.add_handler(CallbackQueryHandler(start_wordle_from_hub, pattern="^start_wordle_"))
     app.add_handler(CallbackQueryHandler(start_mastermind_from_hub, pattern="^start_mm_"))
     app.add_handler(CallbackQueryHandler(handle_heist_callback, pattern="^heist_"))
-    # Laboratorio Segreto (ogni handler ricontrolla admin + chat privata)
-    app.add_handler(CallbackQueryHandler(handle_lab_roulette, pattern="^lab_roul", block=False))
-    app.add_handler(CallbackQueryHandler(handle_lab_aviator, pattern="^lab_avi", block=False))
-    app.add_handler(CallbackQueryHandler(handle_lab_scratch, pattern="^lab_scr"))
+    # Aviator, Roulette e Gratta e Vinci: aperti a tutti dal menu Single Player
+    app.add_handler(CallbackQueryHandler(handle_sp_roulette, pattern="^sp_roul", block=False))
+    app.add_handler(CallbackQueryHandler(handle_sp_aviator, pattern="^sp_avi", block=False))
+    app.add_handler(CallbackQueryHandler(handle_sp_scratch, pattern="^sp_scr"))
     if app.job_queue:
         app.job_queue.run_repeating(expire_abandoned_games, interval=60, first=60)
