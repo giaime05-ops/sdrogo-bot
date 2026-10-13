@@ -48,6 +48,9 @@ MAINT_COOLDOWN = 20   # secondi tra due avvisi nella stessa chat
 DONATE_DEFAULT = 5
 DONATE_MAX = 50
 
+RICARICA_DEFAULT = 1000
+RICARICA_MAX = 1_000_000
+
 # parole in chat (senza "/") che avviano un gioco o un acquisto
 GAME_TRIGGERS = {
     "sfido", "sfidodadi", "sfidotris", "sfidoroulette", "sfidohighlow",
@@ -72,6 +75,9 @@ ADMIN_GAMES = [
     ("slot", "🎰 Slot 777"),
     ("mastermind", "🔐 Mastermind"),
     ("heist", "🏢 Sdrogo Heist"),
+    ("aviator", "✈️ Aviator"),
+    ("roulette", "🎡 Sdrogo Roulette"),
+    ("scratch", "🎟️ Gratta e Vinci"),
     ("dice", "🎲 Dadi 1v1"),
     ("ttt", "❌ Tris 1v1"),
     ("roulette1v1", "🎯 Roulette 1v1"),
@@ -224,17 +230,88 @@ async def maintenance_gate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     raise ApplicationHandlerStop
 
 
+async def _find_user_id_by_username(context: ContextTypes.DEFAULT_TYPE, chat_id: int, username: str):
+    """Cerca l'ID di un utente della chat dal suo @username: prima la cache, poi la scansione del registro."""
+    cache = context.bot_data.setdefault("usernames", {})
+    uid = cache.get(f"{chat_id}_{username}")
+    if uid:
+        return int(uid)
+    prefix = f"{chat_id}_"
+    for k in list(USER_DATA.keys()):
+        if k.startswith(prefix):
+            candidate = k.rsplit("_", 1)[1]
+            try:
+                m = await context.bot.get_chat_member(chat_id, int(candidate))
+                if m.user.username and m.user.username.lower() == username:
+                    cache[f"{chat_id}_{username}"] = int(candidate)
+                    return int(candidate)
+            except Exception:
+                pass
+    return None
+
+
 async def ricarica_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user, chat = update.effective_user, update.effective_chat
-    if not is_admin(user.id):
+    """/ricarica [quantità] (privato: su te stesso)
+       /ricarica @username [quantità]  oppure  risposta a un messaggio + /ricarica [quantità] (gruppi).
+       Solo admin: gli altri vengono ignorati in silenzio."""
+    user, chat, msg = update.effective_user, update.effective_chat, update.message
+    if not user or not msg or not is_admin(user.id):
         return
-    if chat.type != "private":
-        await update.message.reply_text("🔒 /ricarica funziona solo in chat privata col bot.")
+
+    parts = (msg.text or "").split()[1:]
+    amount = RICARICA_DEFAULT
+    amount_set = False
+    target_username = None
+    for p in parts:
+        if p.startswith("@") and len(p) > 1 and not target_username:
+            target_username = p[1:].lower()
+        elif p.isdigit() and not amount_set:
+            amount = int(p)
+            amount_set = True
+
+    if amount < 1 or amount > RICARICA_MAX:
+        await msg.reply_text(f"❌ La quantità deve essere tra 1 e {RICARICA_MAX} $SDG.")
         return
-    add_user_coins(chat.id, user.id, 1000)
-    await update.message.reply_text(
-        f"🧪 Modalità test: +1000 $SDG. Saldo: {get_user_coins(chat.id, user.id)} $SDG"
-    )
+
+    chat_id = chat.id
+    target_id = None
+    target_label = None
+
+    reply = msg.reply_to_message
+    if target_username:
+        if chat.type == "private":
+            await msg.reply_text(
+                "🔒 In privato posso ricaricare solo te: i saldi sono separati per chat. "
+                "Usa <code>/ricarica @username [quantità]</code> nel gruppo.",
+                parse_mode="HTML")
+            return
+        target_id = await _find_user_id_by_username(context, chat_id, target_username)
+        target_label = f"@{html.escape(target_username)}"
+    elif reply and reply.from_user:
+        if reply.from_user.is_bot:
+            await msg.reply_text("❌ Non puoi ricaricare un bot!")
+            return
+        target_id = reply.from_user.id
+        target_label = html.escape(reply.from_user.first_name or "utente")
+    elif chat.type == "private":
+        target_id = user.id
+        target_label = "te"
+    else:
+        await msg.reply_text(
+            "❌ Uso: <code>/ricarica @username [quantità]</code> oppure rispondi a un messaggio con "
+            f"<code>/ricarica [quantità]</code> (default {RICARICA_DEFAULT} $SDG).",
+            parse_mode="HTML")
+        return
+
+    if not target_id:
+        await msg.reply_text("❌ Utente non trovato nel registro della chat!")
+        return
+
+    add_user_coins(chat_id, target_id, amount)
+    await msg.reply_text(
+        f"🧪 <b>RICARICA ADMIN:</b> +💳 {amount} $SDG a {target_label}. "
+        f"Saldo: <b>{get_user_coins(chat_id, target_id)} $SDG</b>",
+        parse_mode="HTML")
 
 async def toggle_troll(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
@@ -269,7 +346,7 @@ async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
             add_user_coins(int(cid), int(uid), 5)
     for uid, g in list(HEIST_GAMES.items()):
         add_user_coins(g["chat_id"], uid, HEIST_COST)
-    # Laboratorio: voli in corso (puntata rimborsata, il ciclo di volo si ferma) e biglietti non finiti
+    # Aviator / Gratta e Vinci: voli in corso (puntata rimborsata, il ciclo di volo si ferma) e biglietti non finiti
     for key, g in list(AVIATOR_GAMES.items()):
         if not g.get("finished"):
             g["finished"] = True
@@ -403,7 +480,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
     username_lower = user.username.lower() if user.username else ""
     uname = html.escape(user.first_name or "Giocatore")
 
-    # Cache username -> id, usata da /dona per non scorrere tutto il registro
+    # Cache username -> id, usata da /dona e /ricarica per non scorrere tutto il registro
     if username_lower:
         context.bot_data.setdefault("usernames", {})[f"{chat_id}_{username_lower}"] = user.id
 
