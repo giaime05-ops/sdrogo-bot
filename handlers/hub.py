@@ -12,7 +12,7 @@ from state import (
 from storage import (
     get_user_key, get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram,
 )
-from utils import verify_user_lock, get_formatted_name, is_admin, serialized
+from utils import verify_user_lock, get_formatted_name, serialized
 from handlers.games import HEIST_COST
 
 try:
@@ -27,11 +27,6 @@ HEIST_STALE_SECS = 1800   # una rapina abbandonata per 30 minuti viene considera
 def _today() -> str:
     """Data odierna (fuso Europa/Roma) per il bonus giornaliero."""
     return str(datetime.now(_TZ).date())
-
-
-def _lab_allowed(user_id: int, chat_type: str) -> bool:
-    """Il Laboratorio Segreto è accessibile solo all'admin e solo in chat privata."""
-    return is_admin(user_id) and chat_type == "private"
 
 
 async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -52,10 +47,6 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🧠 Quiz Show", callback_data=f"hub_quiz_{user.id}"), InlineKeyboardButton("🛒 SdrogoShop", callback_data=f"hub_shop_{user.id}")],
         [InlineKeyboardButton("💳 Portafoglio", callback_data=f"hub_wallet_{user.id}"), InlineKeyboardButton("🏆 Classifiche", callback_data=f"hub_lead_{user.id}")]
     ]
-
-    # Laboratorio Segreto: solo admin e solo in chat privata
-    if _lab_allowed(user.id, update.effective_chat.type):
-        keyboard.append([InlineKeyboardButton("🧪 Laboratorio Segreto", callback_data=f"hub_lab_{user.id}")])
 
     if update.message:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -123,16 +114,11 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     action = parts[1]
     extra = None
 
-    if action in ("leadcat", "labgame"):
+    if action == "leadcat":
         extra = parts[2]
         owner_id = int(parts[3])
     else:
         owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
-
-    # Laboratorio Segreto: solo admin in chat privata (controllo prima di qualsiasi altra cosa)
-    if action in ("lab", "labgame") and not _lab_allowed(query.from_user.id, query.message.chat.type):
-        await query.answer("🔒 Area riservata all'admin in chat privata.", show_alert=True)
-        return
 
     # verify_user_lock risponde con il popup d'errore: query.answer() va chiamata solo dopo i controlli
     if not await verify_user_lock(query, owner_id):
@@ -140,11 +126,6 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if action == "qmulti" and not game_enabled("quizmulti"):
         await query.answer(MAINT_GAME_TEXT, show_alert=True)
-        return
-
-    if action == "labgame":
-        names = {"mines": "💣 Campo Minato"}
-        await query.answer(f"🚧 {names.get(extra, 'Gioco')}: Work in progress!", show_alert=True)
         return
 
     await query.answer()
@@ -157,35 +138,23 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action == "main":
         await show_hub(update, context)
 
-    elif action == "lab":
-        text = (
-            "🧪 <b>LABORATORIO SEGRETO</b>\n\n"
-            "Giochi sperimentali, visibili solo a te in chat privata.\n"
-            "✈️ Aviator • 🎡 Sdrogo Roulette • 🎟️ Gratta e Vinci sono giocabili.\n"
-            "💣 Campo Minato è ancora in sviluppo."
-        )
-        keyboard = [
-            [InlineKeyboardButton("✈️ Aviator", callback_data=f"lab_avi_{owner_id}"), InlineKeyboardButton("🎡 Sdrogo Roulette", callback_data=f"lab_roul_{owner_id}")],
-            [InlineKeyboardButton("💣 Campo Minato", callback_data=f"hub_labgame_mines_{owner_id}"), InlineKeyboardButton("🎟️ Gratta e Vinci", callback_data=f"lab_scr_{owner_id}")],
-            back_button
-        ]
-        try:
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        except Exception:
-            pass
-
     elif action == "single":
         text = (
             "🕹️ <b>GIOCHI SINGLE PLAYER</b>\n\n"
-            "🃏 <b>Blackjack 21</b> — <i>puntata da 10 $SDG</i>\n"
-            "🎰 <b>Slot Machine 777</b> — <i>puntata da 10 $SDG</i>\n"
+            "🃏 <b>Blackjack 21</b> — <i>puntata da 10 a 100 $SDG</i>\n"
+            "🎰 <b>Slot Machine 777</b> — <i>puntata da 10 a 100 $SDG</i>\n"
             "🔠 <b>Wordle Express</b> — <i>10 $SDG</i>\n"
             "🔐 <b>Mastermind Express</b> — <i>10 $SDG</i>\n"
+            "✈️ <b>Sdrogo Aviator</b> — <i>puntata da 10 a 100 $SDG, incassa prima del crash!</i>\n"
+            "🎡 <b>Sdrogo Roulette</b> — <i>puntata da 10 a 100 $SDG</i>\n"
+            "🎟️ <b>Gratta e Vinci</b> — <i>biglietto da 20 $SDG</i>\n"
             "🏢 <b>Sdrogo Heist</b> — <i>pass acquistabile nello SdrogoShop</i>"
         )
         keyboard = [
             [InlineKeyboardButton("🃏 Blackjack", callback_data=f"start_bj_{owner_id}"), InlineKeyboardButton("🎰 Slot 777", callback_data=f"start_slot_{owner_id}")],
             [InlineKeyboardButton("🔠 Wordle", callback_data=f"start_wordle_{owner_id}"), InlineKeyboardButton("🔐 Mastermind", callback_data=f"start_mm_{owner_id}")],
+            [InlineKeyboardButton("✈️ Aviator", callback_data=f"sp_avi_{owner_id}"), InlineKeyboardButton("🎡 Roulette", callback_data=f"sp_roul_{owner_id}")],
+            [InlineKeyboardButton("🎟️ Gratta e Vinci", callback_data=f"sp_scr_{owner_id}")],
             back_button
         ]
         try:
