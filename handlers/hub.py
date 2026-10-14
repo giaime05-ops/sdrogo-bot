@@ -1,32 +1,28 @@
 from datetime import datetime, timedelta
 from html import escape
+import asyncio
+import random
 import time
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
 
+from economy import (
+    inv, fmt, charge as eco_charge, banco_add, banco_take, banco_balance, follia_active,
+    challenge_text, quests_text, spin_daily, wheel_prizes_text, DAILY_WHEEL, today_str,
+)
 from state import (
-    USER_DATA, USER_INVENTORIES, ACTIVE_TITLES, ACTIVE_PERSECUTE, HEIST_GAMES,
+    USER_DATA, USER_INVENTORIES, ACTIVE_TITLES, ACTIVE_PERSECUTE, HEIST_GAMES, GROUP_CHALLENGE,
     game_enabled, MAINT_GAME_TEXT,
 )
-from storage import (
-    get_user_key, get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram,
-)
-from utils import verify_user_lock, get_formatted_name, serialized
-from handlers.games import HEIST_COST
-
-try:
-    from zoneinfo import ZoneInfo
-    _TZ = ZoneInfo("Europe/Rome")
-except Exception:
-    _TZ = None
+from storage import get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram
+from utils import verify_user_lock, get_formatted_name, serialized, is_v2, smart_edit
+from handlers.games import HEIST_COST, heist_new_game, heist_intro_text, heist_start_kb
+from handlers import v2
 
 HEIST_STALE_SECS = 1800   # una rapina abbandonata per 30 minuti viene considerata chiusa
-
-
-def _today() -> str:
-    """Data odierna (fuso Europa/Roma) per il bonus giornaliero."""
-    return str(datetime.now(_TZ).date())
+WHEEL_TICK = 0.8          # secondi tra un fotogramma e l'altro della Ruota Daily
+WHEEL_FRAMES = 6
 
 
 async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -34,33 +30,39 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     coins = get_user_coins(chat_id, user.id)
     display_name = escape(get_formatted_name(chat_id, user.id, user.first_name))
+    v2u = is_v2(user.id)
 
     text = (
         "🎰 <b>SDROGOBOT ARCADE HUB</b> 🎮\n\n"
         f"👤 <b>Player:</b> {display_name}\n"
-        f"💰 <b>Saldo:</b> <code>💳 {coins} $SDG</code>\n\n"
-        "<i>Seleziona una categoria per iniziare:</i>"
+        f"💰 <b>Saldo:</b> <code>💳 {fmt(coins)} $SDG</code>\n"
     )
+    if v2u:
+        text += f"🏦 <b>Banco Centrale:</b> <code>{fmt(banco_balance())} $SDG</code>\n"
+        if follia_active():
+            text += "🎪 <b>FOLLIA SDROGO ATTIVA!</b> Vincite potenziate! 🎉\n"
+    text += "\n<i>Seleziona una categoria per iniziare:</i>"
 
     keyboard = [
         [InlineKeyboardButton("🕹️ Single Player", callback_data=f"hub_single_{user.id}"), InlineKeyboardButton("⚔️ Multiplayer", callback_data=f"hub_multi_{user.id}")],
         [InlineKeyboardButton("🧠 Quiz Show", callback_data=f"hub_quiz_{user.id}"), InlineKeyboardButton("🛒 SdrogoShop", callback_data=f"hub_shop_{user.id}")],
         [InlineKeyboardButton("💳 Portafoglio", callback_data=f"hub_wallet_{user.id}"), InlineKeyboardButton("🏆 Classifiche", callback_data=f"hub_lead_{user.id}")]
     ]
+    if v2u:
+        keyboard.append([InlineKeyboardButton("🎯 SFIDE & MISSIONI", callback_data=f"hub_quests_{user.id}")])
 
     if update.message:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     elif update.callback_query:
-        try:
-            await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        except Exception:
-            pass
+        await smart_edit(update.callback_query, text, InlineKeyboardMarkup(keyboard))
+
 
 async def show_wallet(query, owner_id: int):
     chat_id = query.message.chat_id
     user_id = query.from_user.id
     coins = get_user_coins(chat_id, user_id)
     u_data = get_user_data_dict(chat_id, user_id)
+    v2u = is_v2(user_id)
 
     q_wins = u_data.get("quizzes_won", 0)
     c_wins = u_data.get("casino_wins", 0)
@@ -72,18 +74,15 @@ async def show_wallet(query, owner_id: int):
     wr_single = min(100, int(single_won / single_played * 100)) if single_played > 0 else 0
 
     duels_played = u_data.get("duels_played", 0)
-    duels_won = d_wins
-    wr_duels = min(100, int(duels_won / duels_played * 100)) if duels_played > 0 else 0
+    wr_duels = min(100, int(d_wins / duels_played * 100)) if duels_played > 0 else 0
 
-    inv = USER_INVENTORIES.get(f"{chat_id}_{user_id}", {})
-    stars = inv.get("stars", 0)
-
-    profit_str = f"+{net_profit}" if net_profit >= 0 else str(net_profit)
+    stars = USER_INVENTORIES.get(f"{chat_id}_{user_id}", {}).get("stars", 0)
+    profit_str = f"+{fmt(net_profit)}" if net_profit >= 0 else f"-{fmt(-net_profit)}"
 
     text = (
         "💳 <b>PORTAFOGLIO & PROFILO</b>\n\n"
         f"👤 Giocatore: <b>{escape(query.from_user.first_name)}</b>\n"
-        f"💰 Saldo attuale: <code>💳 {coins} $SDG</code>\n"
+        f"💰 Saldo attuale: <code>💳 {fmt(coins)} $SDG</code>\n"
         f"📈 Profitto Netto: <code>{profit_str} $SDG</code>\n"
         f"⭐ Stelle Heist: <b>{stars}</b>\n\n"
         "📊 <b>STORICO & STATISTICHE:</b>\n"
@@ -93,24 +92,66 @@ async def show_wallet(query, owner_id: int):
         "🎯 <b>PERFORMANCE:</b>\n"
         f"• Win Rate Single Player: <b>{wr_single}%</b>\n"
         f"• Win Rate Duelli: <b>{wr_duels}%</b>\n\n"
-        "🎁 <b>Bonus Daily:</b> Riscuoti 50 $SDG una volta al giorno (si azzera a mezzanotte).\n"
-        "💸 <i>Usa /dona @username [importo] per regalare da 1 a 50 $SDG a un amico (5 se non indichi l'importo)!</i>"
     )
-    keyboard = [
-        [InlineKeyboardButton("🎁 Riscuoti Daily (+50 $SDG)", callback_data=f"claim_daily_{owner_id}")],
-        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
-    ]
-    try:
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-    except Exception:
-        pass
+    if v2u:
+        text += (
+            f"🎡 <b>Ruota Daily:</b> gira una volta al giorno! Premi: {wheel_prizes_text()} $SDG\n"
+            "💼 <i>Al verde? Usa /lavora per guadagnare 50 $SDG.</i>\n"
+        )
+        keyboard = [
+            [InlineKeyboardButton("🎡 Gira la Ruota Daily", callback_data=f"claim_daily_{owner_id}")],
+            [InlineKeyboardButton("🎒 Inventario", callback_data=f"hub_inv_{owner_id}")],
+            [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
+        ]
+    else:
+        text += "🎁 <b>Bonus Daily:</b> Riscuoti 50 $SDG una volta al giorno (si azzera a mezzanotte).\n"
+        keyboard = [
+            [InlineKeyboardButton("🎁 Riscuoti Daily (+50 $SDG)", callback_data=f"claim_daily_{owner_id}")],
+            [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
+        ]
+    text += "💸 <i>Usa /dona @username [importo] per regalare da 1 a 50 $SDG a un amico (5 se non indichi l'importo)!</i>"
+    await smart_edit(query, text, InlineKeyboardMarkup(keyboard))
+
+
+def _shop_view(chat_id: int, user_id: int, owner_id: int, back_button: list):
+    v2u = is_v2(user_id)
+    d = inv(chat_id, user_id)
+    if not v2u:
+        text = (
+            "🛒 <b>SDROGOSHOP</b>\n\n"
+            f"📦 <b>Inventario:</b> {d['titles']} Titoli | {d['persecutes']} Persecuzioni | {d['stars']} ⭐\n\n"
+            "🏷️ <b>1. Titolo Umiliante (100 $SDG)</b>\nAssegna '🏳️‍🌈GAY🏳️‍🌈' a una vittima per 24 ore!\n\n"
+            "🗣️ <b>2. Tag Persecutore (120 $SDG)</b>\nIl bot risponde 'frocio hah' ai prossimi 15 messaggi!\n\n"
+            f"🏢 <b>3. Pass SDROGO HEIST ({HEIST_COST} $SDG)</b>\nRapina a 5 livelli in PRIVATO col bot per Jackpot + Stelle!"
+        )
+        keyboard = [
+            [InlineKeyboardButton("🏷️ Compra Titolo (100 $SDG)", callback_data=f"buy_title_{owner_id}")],
+            [InlineKeyboardButton("🗣️ Compra Tag Persecutore (120 $SDG)", callback_data=f"buy_persecute_{owner_id}")],
+            [InlineKeyboardButton(f"🏢 Avvia SDROGO HEIST ({HEIST_COST} $SDG)", callback_data=f"buy_heist_{owner_id}")],
+            back_button
+        ]
+        return text, InlineKeyboardMarkup(keyboard)
+
+    text = (
+        "🛒 <b>SDROGOSHOP</b>\n\n"
+        f"💳 Saldo Attuale: <b>{fmt(get_user_coins(chat_id, user_id))} $SDG</b>\n"
+        "🎒 Gli oggetti acquistati finiscono nell'Inventario.\n\n"
+    )
+    keyboard = []
+    for key, _field, price, label, short, _how in v2.SHOP_ITEMS:
+        text += f"<b>{label}</b> — {price} $SDG\n<i>{short}</i>\n\n"
+        keyboard.append([InlineKeyboardButton(f"{label} ({price})", callback_data=f"buy_{key}_{owner_id}")])
+    text += f"🏢 <b>Pass SDROGO HEIST</b> — {HEIST_COST} $SDG\n<i>Escape room a tempo in PRIVATO: svaligia il Banco Centrale!</i>"
+    keyboard.append([InlineKeyboardButton(f"🏢 Avvia SDROGO HEIST ({HEIST_COST})", callback_data=f"buy_heist_{owner_id}")])
+    keyboard.append([InlineKeyboardButton("🎒 Inventario", callback_data=f"hub_inv_{owner_id}")])
+    keyboard.append(back_button)
+    return text, InlineKeyboardMarkup(keyboard)
 
 
 async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
 
-    data = query.data
-    parts = data.split("_")
+    parts = query.data.split("_")
     action = parts[1]
     extra = None
 
@@ -128,39 +169,58 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(MAINT_GAME_TEXT, show_alert=True)
         return
 
+    v2u = is_v2(query.from_user.id)
+    if action in ("quests", "inv") and not v2u:
+        await query.answer("🎯 Non ancora disponibile!", show_alert=True)
+        return
+
     await query.answer()
 
     chat_id = query.message.chat_id
     user_id = query.from_user.id
-
     back_button = [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
 
     if action == "main":
         await show_hub(update, context)
 
     elif action == "single":
-        text = (
-            "🕹️ <b>GIOCHI SINGLE PLAYER</b>\n\n"
-            "🃏 <b>Blackjack 21</b> — <i>puntata da 10 a 100 $SDG</i>\n"
-            "🎰 <b>Slot Machine 777</b> — <i>puntata da 10 a 100 $SDG</i>\n"
-            "🔠 <b>Wordle Express</b> — <i>10 $SDG</i>\n"
-            "🔐 <b>Mastermind Express</b> — <i>10 $SDG</i>\n"
-            "✈️ <b>Sdrogo Aviator</b> — <i>puntata da 10 a 100 $SDG, incassa prima del crash!</i>\n"
-            "🎡 <b>Sdrogo Roulette</b> — <i>puntata da 10 a 100 $SDG</i>\n"
-            "🎟️ <b>Gratta e Vinci</b> — <i>biglietto da 20 $SDG</i>\n"
-            "🏢 <b>Sdrogo Heist</b> — <i>pass acquistabile nello SdrogoShop</i>"
-        )
-        keyboard = [
-            [InlineKeyboardButton("🃏 Blackjack", callback_data=f"start_bj_{owner_id}"), InlineKeyboardButton("🎰 Slot 777", callback_data=f"start_slot_{owner_id}")],
-            [InlineKeyboardButton("🔠 Wordle", callback_data=f"start_wordle_{owner_id}"), InlineKeyboardButton("🔐 Mastermind", callback_data=f"start_mm_{owner_id}")],
-            [InlineKeyboardButton("✈️ Aviator", callback_data=f"sp_avi_{owner_id}"), InlineKeyboardButton("🎡 Roulette", callback_data=f"sp_roul_{owner_id}")],
-            [InlineKeyboardButton("🎟️ Gratta e Vinci", callback_data=f"sp_scr_{owner_id}")],
-            back_button
-        ]
-        try:
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        except Exception:
-            pass
+        if v2u:
+            text = (
+                "🕹️ <b>GIOCHI SINGLE PLAYER</b>\n\n"
+                "🃏 <b>Blackjack 21</b> • 🎰 <b>Slot 777</b>\n"
+                "🔠 <b>Wordle</b> (10 $SDG) • 🔐 <b>Mastermind</b> (10 $SDG)\n"
+                "✈️ <b>Aviator</b> • 🎡 <b>Sdrogo Roulette</b>\n"
+                "🎟️ <b>Gratta e Vinci</b> (20 $SDG) • 🃏 <b>Sdrogo Poker</b> (1v1 contro il Bot)\n"
+                "🏢 <b>Sdrogo Heist</b> — pass nello SdrogoShop\n\n"
+                "<i>Puntate da 10 a 100 $SDG dove previsto.</i>"
+            )
+            keyboard = [
+                [InlineKeyboardButton("🃏 Blackjack", callback_data=f"start_bj_{owner_id}"), InlineKeyboardButton("🎰 Slot 777", callback_data=f"start_slot_{owner_id}")],
+                [InlineKeyboardButton("🔠 Wordle", callback_data=f"start_wordle_{owner_id}"), InlineKeyboardButton("🔐 Mastermind", callback_data=f"start_mm_{owner_id}")],
+                [InlineKeyboardButton("✈️ Aviator", callback_data=f"sp_avi_{owner_id}"), InlineKeyboardButton("🎡 Roulette", callback_data=f"sp_roul_{owner_id}")],
+                [InlineKeyboardButton("🎟️ Gratta e Vinci", callback_data=f"sp_scr_{owner_id}"), InlineKeyboardButton("🃏 Sdrogo Poker", callback_data=f"sp_pk_{owner_id}")],
+                back_button
+            ]
+        else:
+            text = (
+                "🕹️ <b>GIOCHI SINGLE PLAYER</b>\n\n"
+                "🃏 <b>Blackjack 21</b> — <i>puntata da 10 a 100 $SDG</i>\n"
+                "🎰 <b>Slot Machine 777</b> — <i>puntata da 10 a 100 $SDG</i>\n"
+                "🔠 <b>Wordle Express</b> — <i>10 $SDG</i>\n"
+                "🔐 <b>Mastermind Express</b> — <i>10 $SDG</i>\n"
+                "✈️ <b>Sdrogo Aviator</b> — <i>puntata da 10 a 100 $SDG, incassa prima del crash!</i>\n"
+                "🎡 <b>Sdrogo Roulette</b> — <i>puntata da 10 a 100 $SDG</i>\n"
+                "🎟️ <b>Gratta e Vinci</b> — <i>biglietto da 20 $SDG</i>\n"
+                "🏢 <b>Sdrogo Heist</b> — <i>pass acquistabile nello SdrogoShop</i>"
+            )
+            keyboard = [
+                [InlineKeyboardButton("🃏 Blackjack", callback_data=f"start_bj_{owner_id}"), InlineKeyboardButton("🎰 Slot 777", callback_data=f"start_slot_{owner_id}")],
+                [InlineKeyboardButton("🔠 Wordle", callback_data=f"start_wordle_{owner_id}"), InlineKeyboardButton("🔐 Mastermind", callback_data=f"start_mm_{owner_id}")],
+                [InlineKeyboardButton("✈️ Aviator", callback_data=f"sp_avi_{owner_id}"), InlineKeyboardButton("🎡 Roulette", callback_data=f"sp_roul_{owner_id}")],
+                [InlineKeyboardButton("🎟️ Gratta e Vinci", callback_data=f"sp_scr_{owner_id}")],
+                back_button
+            ]
+        await smart_edit(query, text, InlineKeyboardMarkup(keyboard))
 
     elif action == "multi":
         text = (
@@ -181,10 +241,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🌐 Quiz Multi (Scegli Categoria)", callback_data=f"hub_qmulti_{owner_id}")],
             back_button
         ]
-        try:
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        except Exception:
-            pass
+        await smart_edit(query, text, InlineKeyboardMarkup(keyboard))
 
     elif action == "qmulti":
         text = "🌐 <b>QUIZ MULTIPLAYER PER CATEGORIA</b>\n\nScegli la categoria da lanciare in chat di gruppo:"
@@ -197,10 +254,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🎵 Canzoni", callback_data=f"start_qmulti_CANZONI_{owner_id}")],
             back_button
         ]
-        try:
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        except Exception:
-            pass
+        await smart_edit(query, text, InlineKeyboardMarkup(keyboard))
 
     elif action == "quiz":
         text = (
@@ -215,32 +269,24 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("📜 Personaggi", callback_data=f"start_qpersonaggi_{owner_id}"), InlineKeyboardButton("🎵 Canzoni", callback_data=f"start_qcanzoni_{owner_id}")],
             back_button
         ]
-        try:
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        except Exception:
-            pass
+        await smart_edit(query, text, InlineKeyboardMarkup(keyboard))
 
     elif action == "shop":
-        inv_key = f"{chat_id}_{user_id}"
-        inv = USER_INVENTORIES.get(inv_key, {"titles": 0, "persecutes": 0, "stars": 0})
+        text, kb = _shop_view(chat_id, user_id, owner_id, back_button)
+        await smart_edit(query, text, kb)
 
-        text = (
-            "🛒 <b>SDROGOSHOP</b>\n\n"
-            f"📦 <b>Inventario:</b> {inv.get('titles', 0)} Titoli | {inv.get('persecutes', 0)} Persecuzioni | {inv.get('stars', 0)} ⭐\n\n"
-            "🏷️ <b>1. Titolo Umiliante (100 $SDG)</b>\nAssegna '🏳️‍🌈GAY🏳️‍🌈' a una vittima per 24 ore!\n\n"
-            "🗣️ <b>2. Tag Persecutore (120 $SDG)</b>\nIl bot risponde 'frocio hah' ai prossimi 15 messaggi!\n\n"
-            f"🏢 <b>3. Pass SDROGO HEIST ({HEIST_COST} $SDG)</b>\nRapina a 5 livelli in PRIVATO col bot per Jackpot + Stelle!"
-        )
-        keyboard = [
-            [InlineKeyboardButton("🏷️ Compra Titolo (100 $SDG)", callback_data=f"buy_title_{owner_id}")],
-            [InlineKeyboardButton("🗣️ Compra Tag Persecutore (120 $SDG)", callback_data=f"buy_persecute_{owner_id}")],
-            [InlineKeyboardButton(f"🏢 Avvia SDROGO HEIST ({HEIST_COST} $SDG)", callback_data=f"buy_heist_{owner_id}")],
-            back_button
-        ]
-        try:
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        except Exception:
-            pass
+    elif action == "inv":
+        text, kb = v2.inventory_view(chat_id, user_id, owner_id)
+        await smart_edit(query, text, kb)
+
+    elif action == "quests":
+        parts_txt = []
+        if GROUP_CHALLENGE.get("active"):
+            parts_txt.append(challenge_text())
+        else:
+            parts_txt.append("🎯 <b>SFIDA DI GRUPPO</b>\nNessuna sfida attiva al momento: la prossima partirà presto!")
+        parts_txt.append(quests_text(chat_id, user_id))
+        await smart_edit(query, "\n\n".join(parts_txt), InlineKeyboardMarkup([back_button]))
 
     elif action == "wallet":
         await show_wallet(query, owner_id)
@@ -262,10 +308,7 @@ async def show_leaderboard_menu(update: Update, context: ContextTypes.DEFAULT_TY
         [InlineKeyboardButton("⚔️ Re dei Duelli", callback_data=f"hub_leadcat_duels_{owner_id}")],
         [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
     ]
-    try:
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-    except Exception:
-        pass
+    await smart_edit(query, text, InlineKeyboardMarkup(keyboard))
 
 
 async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, owner_id: int = None, category: str = "coins"):
@@ -295,7 +338,7 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
     text = f"🏆 <b>{title_name}</b> 👑\n\n"
     medals = ["🥇", "🥈", "🥉"]
 
-    if not chat_users:
+        if not chat_users:
         text += "<i>Nessun dato in questa classifica, per ora.</i>\n"
 
     for idx, (uid, val) in enumerate(chat_users[:10], start=1):
@@ -307,7 +350,7 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
         except Exception:
             name = f"Giocatore {uid[-4:]}"
 
-        text += f"{rank_icon} <b>{name}</b> — <code>{val} {unit}</code>\n"
+        text += f"{rank_icon} <b>{name}</b> — <code>{fmt(val)} {unit}</code>\n"
 
     keyboard = [
         [InlineKeyboardButton("🔙 Scegli altra Classifica", callback_data=f"hub_lead_{current_user_id}")],
@@ -315,10 +358,7 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
     ]
 
     if query:
-        try:
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-        except Exception:
-            pass
+        await smart_edit(query, text, InlineKeyboardMarkup(keyboard))
     else:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
@@ -333,17 +373,49 @@ async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     chat_id, user_id = query.message.chat_id, query.from_user.id
     u_data = get_user_data_dict(chat_id, user_id)
-    today = _today()
+    today = today_str()
 
     if u_data.get("last_daily") == today:
         await query.answer("❌ Bonus giornaliero già riscosso oggi!", show_alert=True)
         return
 
+    # --- V1: bonus fisso da 50 $SDG ---
+    if not is_v2(user_id):
+        u_data["last_daily"] = today
+        add_user_coins(chat_id, user_id, 50)
+        await query.answer("🎉 Hai riscosso +💳 50 $SDG!", show_alert=True)
+        await backup_to_telegram(context)
+        await show_wallet(query, owner_id)
+        return
+
+    # --- V2: Ruota Daily. Premio estratto e pagato PRIMA dell'animazione ---
     u_data["last_daily"] = today
-    add_user_coins(chat_id, user_id, 50)
-    await query.answer("🎉 Hai riscosso +💳 50 $SDG!", show_alert=True)
-    await backup_to_telegram(context)
-    await show_wallet(query, owner_id)
+    prize = spin_daily()
+    add_user_coins(chat_id, user_id, prize)
+    await query.answer()
+
+    name = escape(query.from_user.first_name or "Giocatore")
+    head = f"🎡 <b>RUOTA DAILY</b> 🎡\n👤 Player: <b>{name}</b>\n\n"
+    prizes = [p for p, _ in DAILY_WHEEL]
+    for _ in range(WHEEL_FRAMES):
+        reel = [random.choice(prizes) for _ in range(3)]
+        await smart_edit(query, head + f"[ {reel[0]} | {reel[1]} | {reel[2]} ]\n\n<i>La ruota gira...</i>")
+        await asyncio.sleep(WHEEL_TICK)
+
+    side = [random.choice(prizes), random.choice(prizes)]
+    if prize >= 500:
+        verdict = f"💥🎉 <b>SUPER JACKPOT!!!</b> Hai vinto <b>+{fmt(prize)} $SDG</b>! 🎉💥"
+    else:
+        verdict = f"🎉 Hai vinto <b>+{fmt(prize)} $SDG</b>!"
+    final = (
+        head + f"[ {side[0]} | <b>{prize}</b> | {side[1]} ]\n\n{verdict}\n"
+        f"💳 Saldo Attuale: <b>{fmt(get_user_coins(chat_id, user_id))} $SDG</b>\n\n"
+        "<i>Torna domani per un nuovo giro!</i>"
+    )
+    await smart_edit(query, final, InlineKeyboardMarkup([
+        [InlineKeyboardButton("💳 Portafoglio", callback_data=f"hub_wallet_{owner_id}")],
+        [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
+    ]))
 
 
 @serialized("user")
@@ -351,7 +423,7 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
 
     parts = query.data.split("_")
-    item_type = parts[1]
+    item = parts[1]
     owner_id = int(parts[2]) if len(parts) > 2 else query.from_user.id
 
     if not await verify_user_lock(query, owner_id):
@@ -360,53 +432,16 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     user_id = query.from_user.id
     coins = get_user_coins(chat_id, user_id)
-    inv_key = f"{chat_id}_{user_id}"
-
-    if inv_key not in USER_INVENTORIES:
-        USER_INVENTORIES[inv_key] = {"titles": 0, "persecutes": 0, "stars": 0}
+    v2u = is_v2(user_id)
+    d = inv(chat_id, user_id)
 
     shop_keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("🛒 Torna allo Shop", callback_data=f"hub_shop_{owner_id}")],
         [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{owner_id}")]
     ])
 
-    if item_type == "title":
-        if coins < 100:
-            await query.answer("❌ Servono 100 $SDG per comprare il Titolo Umiliante!", show_alert=True)
-            return
-        await query.answer()
-        add_user_coins(chat_id, user_id, -100)
-        USER_INVENTORIES[inv_key]["titles"] = USER_INVENTORIES[inv_key].get("titles", 0) + 1
-        try:
-            await query.edit_message_text(
-                "✅ <b>TITOLO UMILIANTE ACQUISTATO!</b>\n\n"
-                "Per assegnarlo per 24 ORE a una vittima, scrivi in chat:\n"
-                "👉 <code>titolo @username</code> (oppure rispondi al suo messaggio con <code>titolo</code>)",
-                reply_markup=shop_keyboard,
-                parse_mode="HTML"
-            )
-        except Exception:
-            pass
-
-    elif item_type == "persecute":
-        if coins < 120:
-            await query.answer("❌ Servono 120 $SDG per comprare il Tag Persecutore!", show_alert=True)
-            return
-        await query.answer()
-        add_user_coins(chat_id, user_id, -120)
-        USER_INVENTORIES[inv_key]["persecutes"] = USER_INVENTORIES[inv_key].get("persecutes", 0) + 1
-        try:
-            await query.edit_message_text(
-                "✅ <b>TAG PERSECUTORE ACQUISTATO!</b>\n\n"
-                "Per perseguitare una vittima per 15 messaggi, scrivi in chat:\n"
-                "👉 <code>perseguita @username</code> (oppure rispondi al suo messaggio con <code>perseguita</code>)",
-                reply_markup=shop_keyboard,
-                parse_mode="HTML"
-            )
-        except Exception:
-            pass
-
-    elif item_type == "heist":
+    # ---------------- PASS HEIST ----------------
+    if item == "heist":
         if not game_enabled("heist"):
             await query.answer(MAINT_GAME_TEXT, show_alert=True)
             return
@@ -421,36 +456,59 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         await query.answer()
-        add_user_coins(chat_id, user_id, -HEIST_COST)
-        HEIST_GAMES[user_id] = {"level": 1, "chat_id": chat_id, "pending": None, "ts": time.time()}
+        if v2u:
+            # escape room a tempo: il costo del pass alimenta il Banco Centrale (e conta nella sfida di gruppo)
+            eco_charge(chat_id, user_id, HEIST_COST)
+            banco_add(HEIST_COST)
+            HEIST_GAMES[user_id] = heist_new_game(chat_id)
+            private_text, private_kb = heist_intro_text(), heist_start_kb(user_id)
+        else:
+            add_user_coins(chat_id, user_id, -HEIST_COST)
+            HEIST_GAMES[user_id] = {"level": 1, "chat_id": chat_id, "pending": None, "ts": time.time()}
+            private_text = ("🏢 <b>SDROGO HEIST - LA RAPINA AL CAVEAU</b> 🕵️‍♂️\n\n"
+                            "Benvenuto al Livello 1! Devi disattivare l'allarme per entrare.")
+            private_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
+                "🔓 Disattiva Allarme (Livello 1)", callback_data=f"heist_lvl1_{user_id}")]])
 
         try:
-            await context.bot.send_message(
-                chat_id=user_id,
-                text="🏢 <b>SDROGO HEIST - LA RAPINA AL CAVEAU</b> 🕵️‍♂️\n\nBenvenuto al Livello 1! Devi disattivare l'allarme per entrare.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔓 Disattiva Allarme (Livello 1)", callback_data=f"heist_lvl1_{user_id}")]]),
-                parse_mode="HTML"
-            )
+            await context.bot.send_message(chat_id=user_id, text=private_text, reply_markup=private_kb, parse_mode="HTML")
         except Exception:
+            # il giocatore non ha mai avviato il bot in privato: annulla e rimborsa tutto
             HEIST_GAMES.pop(user_id, None)
             add_user_coins(chat_id, user_id, HEIST_COST)
-            try:
-                await query.edit_message_text(
-                    "❌ Devi prima avviare il bot in chat PRIVATA per giocare a Sdrogo Heist!",
-                    reply_markup=shop_keyboard
-                )
-            except Exception:
-                pass
+            if v2u:
+                banco_take(HEIST_COST)
+            await smart_edit(query, "❌ Devi prima avviare il bot in chat PRIVATA per giocare a Sdrogo Heist!", shop_keyboard)
             return
 
-        try:
-            await query.edit_message_text(
-                "🏢 <b>LA RAPINA È INIZIATA!</b> Controlla la tua chat PRIVATA con SdrogoBot!",
-                reply_markup=shop_keyboard,
-                parse_mode="HTML"
-            )
-        except Exception:
-            pass
+        await smart_edit(query, "🏢 <b>LA RAPINA È INIZIATA!</b> Controlla la tua chat PRIVATA con SdrogoBot!", shop_keyboard)
+        return
+
+    # ---------------- OGGETTI DELLO SHOP ----------------
+    spec = v2.SHOP_BY_KEY.get(item)
+    if not spec:
+        await query.answer()
+        return
+    if not v2u and item not in ("title", "persecute"):
+        await query.answer("🛒 Oggetto non ancora disponibile!", show_alert=True)
+        return
+    _key, field, price, label, _short, how = spec
+    if coins < price:
+        await query.answer(f"❌ Servono {price} $SDG per comprare {label}!", show_alert=True)
+        return
+
+    await query.answer()
+    d[field] = d.get(field, 0) + 1
+    add_user_coins(chat_id, user_id, -price)       # salva anche l'inventario nel database
+
+    if not v2u and item == "persecute":
+        how = ("Per perseguitare una vittima per 15 messaggi, scrivi in chat:\n"
+               "👉 <code>perseguita @username</code> (oppure rispondi al suo messaggio con <code>perseguita</code>)")
+    await smart_edit(
+        query,
+        f"✅ <b>{label} ACQUISTATO!</b>\n\n{how}\n\n💳 Saldo Attuale: <b>{fmt(get_user_coins(chat_id, user_id))} $SDG</b>",
+        shop_keyboard
+    )
 
 
 async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -506,9 +564,17 @@ async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     ACTIVE_TITLES[f"{chat_id}_{target_id}"] = {"title": "🏳️‍🌈GAY🏳️‍🌈", "expire": expire_time}
     await update.message.reply_text(f"🔥 <b>TITOLO ASSEGNATO!</b> Per 24 ORE {escape(target_username)} sarà chiamato '🏳️‍🌈GAY🏳️‍🌈' dal bot!", parse_mode="HTML")
 
+
 async def apply_persecute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = update.effective_user
+
+    # V2: "perseguita" è la reazione forzata per 15 minuti (menu inline per scegliere l'emoji)
+    if is_v2(user.id):
+        await v2.persecute_command(update, context)
+        return
+
+    # V1: comportamento originale (risposta fissa ai prossimi 15 messaggi)
     inv_key = f"{chat_id}_{user.id}"
     text = (update.message.text or "").strip()
 
@@ -534,8 +600,10 @@ async def apply_persecute_command(update: Update, context: ContextTypes.DEFAULT_
     ACTIVE_PERSECUTE[f"{chat_id}_{target_username}"] = {"count": 15, "phrase": "frocio hah"}
     await update.message.reply_text(f"😈 <b>PERSECUZIONE ATTIVATA!</b> I prossimi 15 messaggi di @{escape(target_username)} riceveranno risposta 'frocio hah' dal bot!", parse_mode="HTML")
 
+
 async def block_direct_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🚫 <b>I giochi si avviano solo dall'HUB!</b>\nUsa /sdrogocomm per accedere.", parse_mode="HTML")
+
 
 def register(app):
     app.add_handler(CommandHandler("sdrogocomm", show_hub))
@@ -544,4 +612,5 @@ def register(app):
         app.add_handler(CommandHandler(cmd, block_direct_command))
     app.add_handler(CallbackQueryHandler(hub_callback, pattern="^hub_"))
     app.add_handler(CallbackQueryHandler(shop_buy_callback, pattern="^buy_"))
-    app.add_handler(CallbackQueryHandler(claim_daily_callback, pattern="^claim_daily_"))
+    # block=False: l'animazione della Ruota Daily non ferma gli altri giocatori
+    app.add_handler(CallbackQueryHandler(claim_daily_callback, pattern="^claim_daily_", block=False))
