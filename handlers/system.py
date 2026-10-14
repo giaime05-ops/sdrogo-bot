@@ -1,9 +1,8 @@
-"""Admin, gestione errori e router dei messaggi di testo."""
+"""Admin, gestione errori e router dei messaggi di testo (V1 + V2)."""
 import html
 import logging
 import random
 import time
-from datetime import datetime
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import RetryAfter, BadRequest
@@ -12,31 +11,29 @@ from telegram.ext import (
     ApplicationHandlerStop, TypeHandler,
 )
 
-try:
-    from zoneinfo import ZoneInfo
-    _TZ = ZoneInfo("Europe/Rome")
-except Exception:
-    _TZ = None
-
 from config import FRASE_PENITENZA, TARGET_MAP
+from economy import (
+    fmt, game_header, today_str, banco_take, challenge_start, quest_progress,
+)
 from state import (
     FLAGS, ACTIVE_DUELS, HIGHLOW_DUELS, DICE_DUELS, BLACKJACK_GAMES, WORDLE_GAMES,
     MASTERMIND_GAMES, QUIZ_GAMES, QUIZ_DUELS_1V1, GHIGLIOTTINA_DUELS,
     HEIST_GAMES, PENITENZE_ATTIVE, ACTIVE_PERSECUTE, TIC_TAC_TOE_GAMES,
-    DAILY_DONATIONS, USER_DATA, GAME_STATUS, AVIATOR_GAMES, SCRATCH_GAMES,
+    DAILY_DONATIONS, USER_DATA, GAME_STATUS, AVIATOR_GAMES, SCRATCH_GAMES, POKER_GAMES,
+    WORK_GAMES, SYSTEM_FLAGS, GROUP_CHALLENGE,
     game_enabled, MAINT_GAME_TEXT,
 )
-from storage import add_user_coins, get_user_coins, add_user_stat
-from utils import is_admin, serialized
+from storage import add_user_coins, get_user_coins, add_user_stat, save_db
+from utils import is_admin, serialized, smart_edit
 from handlers.hub import apply_title_command, apply_persecute_command
 from handlers.multiplayer import (
-    setup_challenge_menu, record_duel_result, quiz1v1_advance, rematch_row, STATUS_KEY,
+    setup_challenge_menu, record_duel_result, quiz1v1_advance, rematch_row, STATUS_KEY, balances_line,
 )
 from handlers.games import (
-    record_single_result, HEIST_COST, WORDLE_REWARDS, MASTERMIND_REWARDS,
-    WORD_SET, norm_word, SCRATCH_COST,
+    HEIST_COST, WORDLE_REWARDS, MASTERMIND_REWARDS, WORD_SET, norm_word, SCRATCH_COST, _settle,
 )
 from handlers.quiz import quiz_reward
+from handlers import v2
 
 MAINT_TEXT = (
     "🛠️ <b>SdrogoBot è in manutenzione</b>\n"
@@ -54,7 +51,8 @@ RICARICA_MAX = 1_000_000
 # parole in chat (senza "/") che avviano un gioco o un acquisto
 GAME_TRIGGERS = {
     "sfido", "sfidodadi", "sfidotris", "sfidoroulette", "sfidohighlow",
-    "sfidoghigliottina", "sfidoquiz", "titolo", "perseguita", "dona"
+    "sfidoghigliottina", "sfidoquiz", "titolo", "perseguita", "dona",
+    "silenzia", "sanguisuga",
 }
 
 # Il MessageHandler esclude i comandi (~filters.COMMAND), quindi qui servono solo le parole senza "/"
@@ -78,6 +76,8 @@ ADMIN_GAMES = [
     ("aviator", "✈️ Aviator"),
     ("roulette", "🎡 Sdrogo Roulette"),
     ("scratch", "🎟️ Gratta e Vinci"),
+    ("poker", "🃏 Sdrogo Poker"),
+    ("lavora", "💼 /lavora"),
     ("dice", "🎲 Dadi 1v1"),
     ("ttt", "❌ Tris 1v1"),
     ("roulette1v1", "🎯 Roulette 1v1"),
@@ -88,23 +88,32 @@ ADMIN_GAMES = [
 ]
 
 
-def _today() -> str:
-    return str(datetime.now(_TZ).date())
-
-
-# --- DASHBOARD ADMIN (/admin): accendi/spegni i singoli giochi ---
+# --- DASHBOARD ADMIN (/admin) ---
 def _admin_allowed(user_id: int, chat_type: str) -> bool:
     return is_admin(user_id) and chat_type == "private"
 
 
 def _admin_view():
+    v2_on = bool(SYSTEM_FLAGS.get("UPDATE_V2_PUBLIC"))
+    gc = GROUP_CHALLENGE
+    if gc.get("active"):
+        left = max(0, int(gc.get("end", 0) - time.time()))
+        chal = f"attiva ({fmt(gc.get('spent', 0))}/{fmt(gc.get('goal', 5000))} $SDG, {left // 86400}g {left % 86400 // 3600}h)"
+    else:
+        chal = "nessuna sfida attiva"
     text = (
         "🛠️ <b>DASHBOARD ADMIN</b>\n\n"
+        f"🆕 V2 pubblica: <b>{'ON — tutti la vedono' if v2_on else 'OFF — solo tu la vedi'}</b>\n"
+        f"🎯 Sfida di gruppo: <b>{chal}</b>\n\n"
         "🟢 = attivo | 🔴 = in manutenzione\n"
         "Tocca un gioco per accenderlo o spegnerlo. "
         "<i>Le partite già in corso possono sempre finire.</i>"
     )
-    rows, row = [], []
+    rows = [
+        [InlineKeyboardButton("🟢 V2 Pubblica: ON" if v2_on else "🔴 V2 Pubblica: OFF", callback_data="adm_v2")],
+        [InlineKeyboardButton("🎯 Avvia/Resetta Sfida di Gruppo", callback_data="adm_chal")],
+    ]
+    row = []
     for key, label in ADMIN_GAMES:
         icon = "🟢" if GAME_STATUS.get(key, True) else "🔴"
         row.append(InlineKeyboardButton(f"{icon} {label}", callback_data=f"adm_toggle_{key}"))
@@ -138,7 +147,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("🔒 Area riservata all'admin in chat privata.", show_alert=True)
         return
 
-    parts = query.data.split("_")        # adm_toggle_wordle | adm_all_1 | adm_close
+    parts = query.data.split("_")        # adm_toggle_wordle | adm_all_1 | adm_v2 | adm_chal | adm_close
     action = parts[1]
 
     if action == "close":
@@ -161,15 +170,24 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for key in GAME_STATUS:
             GAME_STATUS[key] = value
         await query.answer("Tutti i giochi " + ("🟢 accesi" if value else "🔴 spenti"))
+    elif action == "v2":
+        SYSTEM_FLAGS["UPDATE_V2_PUBLIC"] = not SYSTEM_FLAGS.get("UPDATE_V2_PUBLIC", False)
+        save_db()                                   # persistente: sopravvive ai riavvii
+        await query.answer("🟢 V2 PUBBLICA: tutti la vedono!" if SYSTEM_FLAGS["UPDATE_V2_PUBLIC"]
+                           else "🔴 V2 nascosta: solo tu la vedi.", show_alert=True)
+    elif action == "chal":
+        await query.answer()
+        ok, note = await challenge_start(context.bot)
+        try:
+            await context.bot.send_message(chat_id=query.from_user.id, text=("✅ " if ok else "⚠️ ") + note)
+        except Exception:
+            pass
     else:
         await query.answer()
         return
 
     text, markup = _admin_view()
-    try:
-        await query.edit_message_text(text, reply_markup=markup, parse_mode="HTML")
-    except Exception:
-        pass
+    await smart_edit(query, text, markup)
 
 
 # --- UTILITIES / ADMIN ---
@@ -182,6 +200,7 @@ async def toggle_maintenance(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if FLAGS["maintenance"] else
         "✅ Manutenzione DISATTIVATA: il bot è di nuovo operativo."
     )
+
 
 async def maintenance_gate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not FLAGS.get("maintenance"):
@@ -251,7 +270,7 @@ async def _find_user_id_by_username(context: ContextTypes.DEFAULT_TYPE, chat_id:
 
 
 async def ricarica_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/ricarica [quantità] (privato: su te stesso)
+    """/ricarica [quantità] (su te stesso, in qualunque chat)
        /ricarica @username [quantità]  oppure  risposta a un messaggio + /ricarica [quantità] (gruppi).
        Solo admin: gli altri vengono ignorati in silenzio."""
     user, chat, msg = update.effective_user, update.effective_chat, update.message
@@ -293,15 +312,9 @@ async def ricarica_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         target_id = reply.from_user.id
         target_label = html.escape(reply.from_user.first_name or "utente")
-    elif chat.type == "private":
+    else:
         target_id = user.id
         target_label = "te"
-    else:
-        await msg.reply_text(
-            "❌ Uso: <code>/ricarica @username [quantità]</code> oppure rispondi a un messaggio con "
-            f"<code>/ricarica [quantità]</code> (default {RICARICA_DEFAULT} $SDG).",
-            parse_mode="HTML")
-        return
 
     if not target_id:
         await msg.reply_text("❌ Utente non trovato nel registro della chat!")
@@ -309,19 +322,22 @@ async def ricarica_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     add_user_coins(chat_id, target_id, amount)
     await msg.reply_text(
-        f"🧪 <b>RICARICA ADMIN:</b> +💳 {amount} $SDG a {target_label}. "
-        f"Saldo: <b>{get_user_coins(chat_id, target_id)} $SDG</b>",
+        f"🧪 <b>RICARICA ADMIN:</b> +💳 {fmt(amount)} $SDG a {target_label}. "
+        f"Saldo: <b>{fmt(get_user_coins(chat_id, target_id))} $SDG</b>",
         parse_mode="HTML")
+
 
 async def toggle_troll(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
     FLAGS["troll"] = not FLAGS["troll"]
     await update.message.reply_text(f"Modalità Auto-Troll: {'ATTIVATA 🙉' if FLAGS['troll'] else 'DISATTIVATA 🛑'}")
 
+
 async def clear_penalties(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
     PENITENZE_ATTIVE.clear()
     await update.message.reply_text("🧹 Penitenze rimosse!")
+
 
 async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
@@ -336,6 +352,9 @@ async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for key, g in list(BLACKJACK_GAMES.items()):
         cid, uid = key.rsplit("_", 1)
         add_user_coins(int(cid), int(uid), g["bet"])
+    for key, g in list(POKER_GAMES.items()):
+        cid, uid = key.rsplit("_", 1)
+        add_user_coins(int(cid), int(uid), g.get("pot_p", g.get("bet", 0)))
     for store in (WORDLE_GAMES, MASTERMIND_GAMES):
         for key in list(store.keys()):
             cid, uid = key.rsplit("_", 1)
@@ -346,6 +365,8 @@ async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
             add_user_coins(int(cid), int(uid), 5)
     for uid, g in list(HEIST_GAMES.items()):
         add_user_coins(g["chat_id"], uid, HEIST_COST)
+        if g.get("v2"):
+            banco_take(HEIST_COST)                       # il pass V2 era finito nel Banco: lo rimetto al giocatore
     # Aviator / Gratta e Vinci: voli in corso (puntata rimborsata, il ciclo di volo si ferma) e biglietti non finiti
     for key, g in list(AVIATOR_GAMES.items()):
         if not g.get("finished"):
@@ -355,10 +376,11 @@ async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for key in list(SCRATCH_GAMES.keys()):
         cid, uid = key.rsplit("_", 1)
         add_user_coins(int(cid), int(uid), SCRATCH_COST)
-    for d in (BLACKJACK_GAMES, WORDLE_GAMES, MASTERMIND_GAMES, QUIZ_GAMES, HEIST_GAMES,
-              AVIATOR_GAMES, SCRATCH_GAMES):
+    for d in (BLACKJACK_GAMES, POKER_GAMES, WORDLE_GAMES, MASTERMIND_GAMES, QUIZ_GAMES, HEIST_GAMES,
+              AVIATOR_GAMES, SCRATCH_GAMES, WORK_GAMES):
         d.clear()
     await update.message.reply_text("🛠️ Giochi resettati. Tutte le puntate in corso sono state rimborsate.")
+
 
 # --- COMANDO DONAZIONE CREDITI (/dona @utente [importo]) ---
 @serialized("user")
@@ -405,20 +427,7 @@ async def donate_coins_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if target_username:
         target_label = f"@{html.escape(target_username)}"
-        # 1) cache degli username già visti in chat, 2) scansione del registro come ripiego
-        target_id = context.bot_data.get("usernames", {}).get(f"{chat_id}_{target_username}")
-        if not target_id:
-            prefix = f"{chat_id}_"
-            for k in list(USER_DATA.keys()):
-                if k.startswith(prefix):
-                    uid = k.rsplit("_", 1)[1]
-                    try:
-                        m = await context.bot.get_chat_member(chat_id, int(uid))
-                        if m.user.username and m.user.username.lower() == target_username:
-                            target_id = int(uid)
-                            break
-                    except Exception:
-                        pass
+        target_id = await _find_user_id_by_username(context, chat_id, target_username)
 
     if not target_id:
         await update.message.reply_text("❌ Utente destinatario non trovato nel registro della chat!", parse_mode="HTML")
@@ -427,9 +436,9 @@ async def donate_coins_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("❌ Non puoi donare crediti a te stesso!", parse_mode="HTML")
         return
 
-    today_str = _today()
-    DAILY_DONATIONS.difference_update({k for k in DAILY_DONATIONS if not k.endswith(today_str)})
-    donation_key = f"{chat_id}_{user.id}_{target_id}_{today_str}"
+    today_str_ = today_str()
+    DAILY_DONATIONS.difference_update({k for k in DAILY_DONATIONS if not k.endswith(today_str_)})
+    donation_key = f"{chat_id}_{user.id}_{target_id}_{today_str_}"
     if donation_key in DAILY_DONATIONS:
         await update.message.reply_text("❌ Hai già fatto una donazione a questo utente oggi! Riprova domani.", parse_mode="HTML")
         return
@@ -444,6 +453,7 @@ async def donate_coins_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
     donor = f"@{html.escape(user.username)}" if user.username else html.escape(user.first_name or "Utente")
     await update.message.reply_text(f"🎁 <b>DONAZIONE EFFETTUATA!</b> {donor} ha donato <b>💳 {amount} $SDG</b> a {target_label}!", parse_mode="HTML")
+
 
 # --- SISTEMA DI DEBUG ED ERRORI ---
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -464,10 +474,12 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     logging.error(msg="Eccezione non gestita durante l'update:", exc_info=err)
     print(f"🚨 ERRORE: {err}", flush=True)
 
+
 async def catch_all_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cq = update.callback_query
     name = update.effective_user.first_name if update.effective_user else "?"
     logging.debug(f"Click ricevuto: {cq.data if cq else None} da {name}")
+
 
 # --- HANDLER MESSAGGI GENERICI (TEXT ROUTER) ---
 async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -480,9 +492,13 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
     username_lower = user.username.lower() if user.username else ""
     uname = html.escape(user.first_name or "Giocatore")
 
-    # Cache username -> id, usata da /dona e /ricarica per non scorrere tutto il registro
+    # Cache username -> id, usata da /dona, /ricarica e dagli oggetti V2
     if username_lower:
         context.bot_data.setdefault("usernames", {})[f"{chat_id}_{username_lower}"] = user.id
+
+    # Effetti V2: silenzio, filtro, reazioni forzate, input privato (frase d'umiliazione)
+    if await v2.process_effects(update, context):
+        return
 
     # Handling Penitenze
     if user.id in PENITENZE_ATTIVE and PENITENZE_ATTIVE[user.id] > 0:
@@ -497,7 +513,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text(f"✅ {user.first_name} riabilitato!")
             return
 
-    # Handling Tag Persecutore
+    # Handling Tag Persecutore (V1)
     persecute_key = f"{chat_id}_{username_lower}"
     if persecute_key in ACTIVE_PERSECUTE:
         p_data = ACTIVE_PERSECUTE[persecute_key]
@@ -518,6 +534,12 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     if first == "perseguita" and (has_mention or has_reply):
         await apply_persecute_command(update, context)
+        return
+    if first == "silenzia" and (has_mention or has_reply):
+        await v2.silence_command(update, context)
+        return
+    if first == "sanguisuga" and (has_mention or has_reply):
+        await v2.sang_command(update, context)
         return
     if first == "dona" and (has_mention or has_reply):
         await donate_coins_command(update, context)
@@ -547,13 +569,15 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             loser_id = duel["target_id"] if user.id == duel["sfidante_id"] else duel["sfidante_id"]
             del GHIGLIOTTINA_DUELS[chat_id_int]
             record_duel_result(chat_id_int, user.id, loser_id, duel["bet"])
+            quest_progress(chat_id_int, user.id, "duel_win")
             montepremi = duel["bet"] * 2
             end_keyboard = [
                 rematch_row("ghig", duel),
                 [InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user.id}")]
             ]
             await update.message.reply_text(
-                f"🏆 <b>GHIGLIOTTINA RISOLTA!</b> <b>{uname}</b> indovina <b>{duel['word']}</b> e vince +💳 {montepremi} $SDG!",
+                f"🏆 <b>GHIGLIOTTINA RISOLTA!</b> <b>{uname}</b> indovina <b>{duel['word']}</b> e vince +💳 {fmt(montepremi)} $SDG!\n\n"
+                + balances_line(chat_id_int, [(duel["sfidante_id"], duel["sfidante_name"]), (duel["target_id"], duel["target_name"])]),
                 reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
             return
 
@@ -585,19 +609,27 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         mm["history"].append(f"<code>{text}</code> -> {res_str}")
         res_text = "\n".join(mm["history"])
         end_keyboard = [[InlineKeyboardButton("🔂 Rigioca", callback_data=f"start_mm_{user.id}"), InlineKeyboardButton("🔙 HUB", callback_data=f"hub_main_{user.id}")] ]
+        title = "🔐 <b>MASTERMIND EXPRESS</b> 🔐"
         if c_hits == 3:
             del MASTERMIND_GAMES[mm_key]
             reward = MASTERMIND_REWARDS.get(mm["attempts"], MASTERMIND_REWARDS[5])
-            net_profit = reward - 10
-            record_single_result(chat_id_int, user.id, True, net_profit, is_casino=False)
-            add_user_coins(chat_id_int, user.id, reward)
-            await update.message.reply_text(f"🎉 <b>ESATTO!</b> Codice: <b>{secret}</b>! Vinti +💳 {reward} $SDG!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
+            paid, notes = await _settle(context.bot, chat_id_int, user.id, "mastermind", 10, reward, is_casino=False)
+            qmsg = quest_progress(chat_id_int, user.id, "mm_win")
+            head = game_header(title, user.first_name, get_user_coins(chat_id_int, user.id), 10)
+            await update.message.reply_text(
+                f"{head}🎉 <b>ESATTO!</b> Codice: <b>{secret}</b>! Vinti +💳 {fmt(paid)} $SDG!"
+                + ("\n" + "\n".join(notes) if notes else "") + (f"\n{qmsg}" if qmsg else "") + f"\n\n{res_text}",
+                reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
         elif mm["attempts"] >= 5:
             del MASTERMIND_GAMES[mm_key]
-            record_single_result(chat_id_int, user.id, False, -10, is_casino=False)
-            await update.message.reply_text(f"💥 <b>GAME OVER!</b> Il codice era {secret}.\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
+            _, notes = await _settle(context.bot, chat_id_int, user.id, "mastermind", 10, 0, is_casino=False)
+            head = game_header(title, user.first_name, get_user_coins(chat_id_int, user.id), 10)
+            await update.message.reply_text(
+                f"{head}💥 <b>GAME OVER!</b> Il codice era {secret}." + ("\n" + "\n".join(notes) if notes else "") + f"\n\n{res_text}",
+                reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
         else:
-            await update.message.reply_text(f"🔐 <b>MASTERMIND ({mm['attempts']}/5)</b>\n\n{res_text}", parse_mode="HTML")
+            head = game_header(title, user.first_name, get_user_coins(chat_id_int, user.id), 10)
+            await update.message.reply_text(f"{head}<b>Tentativo {mm['attempts']}/5</b>\n\n{res_text}", parse_mode="HTML")
         return
 
     # Handling Quiz Multiplayer & Single (con statistiche Quizzes Won)
@@ -606,7 +638,10 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         del QUIZ_GAMES[chat_id]
         add_user_coins(chat_id_int, user.id, 15)
         add_user_stat(chat_id_int, user.id, "quizzes_won", 1)
-        await update.message.reply_text(f"🎉 <b>QUIZ MULTI RISOLTO!</b> <b>{uname}</b> indovina <b>{q['target']}</b> e vince +💳 15 $SDG!", parse_mode="HTML")
+        qmsg = quest_progress(chat_id_int, user.id, "quiz_win")
+        await update.message.reply_text(
+            f"🎉 <b>QUIZ MULTI RISOLTO!</b> <b>{uname}</b> indovina <b>{q['target']}</b> e vince +💳 15 $SDG!"
+            + (f"\n{qmsg}" if qmsg else ""), parse_mode="HTML")
         return
 
     quiz_key = f"{chat_id}_{user.id}"
@@ -616,7 +651,10 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         reward = quiz_reward(q["step"])
         add_user_coins(chat_id_int, user.id, reward)
         add_user_stat(chat_id_int, user.id, "quizzes_won", 1)
-        await update.message.reply_text(f"🎉 <b>CORRETTO!</b> <b>{uname}</b> indovina <b>{q['target']}</b>! Vinti +💳 {reward} $SDG!", parse_mode="HTML")
+        qmsg = quest_progress(chat_id_int, user.id, "quiz_win")
+        await update.message.reply_text(
+            f"🎉 <b>CORRETTO!</b> <b>{uname}</b> indovina <b>{q['target']}</b>! Vinti +💳 {reward} $SDG!"
+            + (f"\n{qmsg}" if qmsg else ""), parse_mode="HTML")
         return
 
     # Handling Wordle
@@ -647,19 +685,28 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         game["history"].append(f"<code>{letters_row}</code>\n{colors_row}")
         res_text = "\n\n".join(game["history"])
         end_keyboard = [[InlineKeyboardButton("🔂 Rigioca", callback_data=f"start_wordle_{user.id}"), InlineKeyboardButton("🔙 HUB", callback_data=f"hub_main_{user.id}")] ]
+        title = "🔠 <b>WORDLE EXPRESS</b> 🔠"
 
         if guess == secret:
             del WORDLE_GAMES[game_key]
             reward = WORDLE_REWARDS.get(game["attempts"], WORDLE_REWARDS[5])
-            record_single_result(chat_id_int, user.id, True, reward - 10, is_casino=False)
-            add_user_coins(chat_id_int, user.id, reward)
-            await update.message.reply_text(f"🎉 <b>ESATTO!</b> Parola: <b>{secret}</b>! Vinti +💳 {reward} $SDG (netti +{reward - 10})!\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
+            paid, notes = await _settle(context.bot, chat_id_int, user.id, "wordle", 10, reward, is_casino=False)
+            qmsg = quest_progress(chat_id_int, user.id, "wordle_win")
+            head = game_header(title, user.first_name, get_user_coins(chat_id_int, user.id), 10)
+            await update.message.reply_text(
+                f"{head}🎉 <b>ESATTO!</b> Parola: <b>{secret}</b>! Vinti +💳 {fmt(paid)} $SDG (netti +{fmt(paid - 10)})!"
+                + ("\n" + "\n".join(notes) if notes else "") + (f"\n{qmsg}" if qmsg else "") + f"\n\n{res_text}",
+                reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
         elif game["attempts"] >= 5:
             del WORDLE_GAMES[game_key]
-            record_single_result(chat_id_int, user.id, False, -10, is_casino=False)
-            await update.message.reply_text(f"💥 <b>GAME OVER!</b> La parola era {secret}.\n\n{res_text}", reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
+            _, notes = await _settle(context.bot, chat_id_int, user.id, "wordle", 10, 0, is_casino=False)
+            head = game_header(title, user.first_name, get_user_coins(chat_id_int, user.id), 10)
+            await update.message.reply_text(
+                f"{head}💥 <b>GAME OVER!</b> La parola era {secret}." + ("\n" + "\n".join(notes) if notes else "") + f"\n\n{res_text}",
+                reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
         else:
-            await update.message.reply_text(f"🔠 <b>WORDLE ({game['attempts']}/5)</b>\n\n{res_text}", parse_mode="HTML")
+            head = game_header(title, user.first_name, get_user_coins(chat_id_int, user.id), 10)
+            await update.message.reply_text(f"{head}<b>Tentativo {game['attempts']}/5</b>\n\n{res_text}", parse_mode="HTML")
         return
 
     # Auto-Troll
@@ -669,6 +716,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
                 await context.bot.set_message_reaction(chat_id=chat_id, message_id=update.message.message_id, reaction=TARGET_MAP[username_lower])
             except Exception as e:
                 logging.warning(f"Auto-troll: reazione non riuscita: {e}")
+
 
 # --- REGISTRAZIONE HANDLER ---
 def register(app):
@@ -683,6 +731,7 @@ def register(app):
     app.add_handler(CommandHandler("ricarica", ricarica_command))
     app.add_handler(CommandHandler("admin", admin_dashboard))
     app.add_handler(CallbackQueryHandler(admin_callback, pattern="^adm_"))
+
 
 def register_text(app):
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
