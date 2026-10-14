@@ -568,8 +568,8 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         if user.id in [duel["sfidante_id"], duel["target_id"]] and text_upper == duel["word"]:
             loser_id = duel["target_id"] if user.id == duel["sfidante_id"] else duel["sfidante_id"]
             del GHIGLIOTTINA_DUELS[chat_id_int]
-            record_duel_result(chat_id_int, user.id, loser_id, duel["bet"])
-            quest_progress(chat_id_int, user.id, "duel_win")
+            # record_duel_result aggiorna già la missione "Vinci 1 duello" e restituisce il messaggio da mostrare
+            qmsg = record_duel_result(chat_id_int, user.id, loser_id, duel["bet"])
             montepremi = duel["bet"] * 2
             end_keyboard = [
                 rematch_row("ghig", duel),
@@ -577,7 +577,8 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             ]
             await update.message.reply_text(
                 f"🏆 <b>GHIGLIOTTINA RISOLTA!</b> <b>{uname}</b> indovina <b>{duel['word']}</b> e vince +💳 {fmt(montepremi)} $SDG!\n\n"
-                + balances_line(chat_id_int, [(duel["sfidante_id"], duel["sfidante_name"]), (duel["target_id"], duel["target_name"])]),
+                + balances_line(chat_id_int, [(duel["sfidante_id"], duel["sfidante_name"]), (duel["target_id"], duel["target_name"])])
+                + (f"\n{qmsg}" if qmsg else ""),
                 reply_markup=InlineKeyboardMarkup(end_keyboard), parse_mode="HTML")
             return
 
