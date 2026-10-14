@@ -6,7 +6,7 @@ from datetime import datetime
 from telegram.ext import ContextTypes
 
 from config import DB_FILE, BACKUP_CHAT_ID
-from state import USER_DATA, USER_INVENTORIES
+from state import USER_DATA, USER_INVENTORIES, SYSTEM_FLAGS, BANCO_STATE, GROUP_CHALLENGE
 
 _dirty = False
 
@@ -28,6 +28,7 @@ async def auto_restore_from_telegram(bot):
     except Exception as e:
         logging.error(f"Errore Auto-Restore da messaggio fissato: {e}")
 
+
 def load_db():
     if os.path.exists(DB_FILE):
         try:
@@ -36,9 +37,14 @@ def load_db():
             USER_DATA.clear()
             USER_INVENTORIES.clear()
             if isinstance(data.get("users"), dict):
-                # Nuovo formato: utenti + inventari
+                # Nuovo formato: utenti + inventari + stato di sistema (V2)
                 USER_DATA.update(data["users"])
                 USER_INVENTORIES.update(data.get("inventories", {}))
+                system = data.get("system", {})
+                if isinstance(system, dict):
+                    SYSTEM_FLAGS.update(system.get("flags", {}))
+                    BANCO_STATE.update(system.get("banco", {}))
+                    GROUP_CHALLENGE.update(system.get("challenge", {}))
             else:
                 # Vecchio formato: il file conteneva solo USER_DATA
                 USER_DATA.update(data)
@@ -46,6 +52,19 @@ def load_db():
             logging.error(f"Errore caricamento DB: {e}")
             USER_DATA.clear()
             USER_INVENTORIES.clear()
+
+
+def _snapshot() -> str:
+    """Serializza tutto lo stato persistente. Va chiamata nel loop (snapshot coerente)."""
+    return json.dumps({
+        "users": USER_DATA,
+        "inventories": USER_INVENTORIES,
+        "system": {
+            "flags": SYSTEM_FLAGS,
+            "banco": BANCO_STATE,
+            "challenge": GROUP_CHALLENGE,
+        },
+    })
 
 
 def save_db():
@@ -69,7 +88,7 @@ async def flush_db(context=None):
         return
     _dirty = False
     try:
-        payload = json.dumps({"users": USER_DATA, "inventories": USER_INVENTORIES})
+        payload = _snapshot()
         await asyncio.to_thread(_write_file, payload)
     except Exception as e:
         _dirty = True
@@ -80,7 +99,7 @@ def flush_db_sync():
     """Scrittura immediata, usata all'arresto del bot."""
     global _dirty
     try:
-        _write_file(json.dumps({"users": USER_DATA, "inventories": USER_INVENTORIES}))
+        _write_file(_snapshot())
         _dirty = False
     except Exception as e:
         logging.error(f"Errore salvataggio DB finale: {e}")
