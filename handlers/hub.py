@@ -338,7 +338,7 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
     text = f"🏆 <b>{title_name}</b> 👑\n\n"
     medals = ["🥇", "🥈", "🥉"]
 
-        if not chat_users:
+    if not chat_users:
         text += "<i>Nessun dato in questa classifica, per ora.</i>\n"
 
     for idx, (uid, val) in enumerate(chat_users[:10], start=1):
