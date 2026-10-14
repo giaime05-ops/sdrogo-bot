@@ -8,7 +8,8 @@ from config import TELEGRAM_TOKEN
 from keep_alive import start_flask
 from state import FLAGS
 from storage import load_db, auto_restore_from_telegram, backup_to_telegram, flush_db, flush_db_sync
-from handlers import system, hub, games, multiplayer, quiz
+from economy import challenge_tick
+from handlers import system, hub, games, multiplayer, quiz, v2
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -24,6 +25,7 @@ async def main_async():
         print("TELEGRAM_TOKEN mancante!", flush=True)
         return
 
+    # carica utenti, inventari e stato V2 (flag, Banco, sfida di gruppo) da database.json
     load_db()
     start_flask()
 
@@ -46,6 +48,7 @@ async def main_async():
 
     # system.register installa error handler e blocco manutenzione (group=-2, prima di tutto il resto)
     system.register(application)
+    v2.register(application)             # /lavora, ruota daily, missioni, inventario, effetti troll
     hub.register(application)
     games.register(application)
     multiplayer.register(application)
@@ -53,14 +56,16 @@ async def main_async():
     system.register_text(application)
 
     if application.job_queue:
-        # Scrittura del database ogni 5 secondi (solo se è cambiato qualcosa)
+        # Scrittura del database ogni 5 secondi (solo se è cambiato qualcosa), in un thread
         application.job_queue.run_repeating(flush_db, interval=5, first=5)
         # Backup automatico ogni ora (fissato nella chat di backup)
         application.job_queue.run_repeating(backup_to_telegram, interval=3600, first=3600)
+        # Sfida di gruppo: aggiorna la barra, chiude e rilancia i cicli
+        application.job_queue.run_repeating(challenge_tick, interval=10, first=15)
     else:
         print("⚠️ JobQueue non disponibile: installa python-telegram-bot[job-queue]. Senza, il DB non viene salvato!", flush=True)
 
-    print("SdrogoBot v6.6 stabile operativo!", flush=True)
+    print("SdrogoBot V2 operativo!", flush=True)
 
     await application.initialize()
     await application.start()
