@@ -9,7 +9,7 @@ from keep_alive import start_flask
 from state import FLAGS
 from storage import load_db, auto_restore_from_telegram, backup_to_telegram, flush_db, flush_db_sync
 from economy import challenge_tick
-from handlers import system, hub, games, multiplayer, quiz, v2
+from handlers import system, hub, games, multiplayer, quiz, v2, heist, admin_tools
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -25,7 +25,6 @@ async def main_async():
         print("TELEGRAM_TOKEN mancante!", flush=True)
         return
 
-    # carica utenti, inventari e stato V2 (flag, Banco, sfida di gruppo) da database.json
     load_db()
     start_flask()
 
@@ -48,24 +47,26 @@ async def main_async():
 
     # system.register installa error handler e blocco manutenzione (group=-2, prima di tutto il resto)
     system.register(application)
-    v2.register(application)             # /lavora, ruota daily, missioni, inventario, effetti troll
+    v2.register(application)
     hub.register(application)
     games.register(application)
+    heist.register(application)          # Sdrogo Heist V3 (callback "hst_" + controllo timer)
     multiplayer.register(application)
     quiz.register(application)
+    admin_tools.register(application)    # /annuncio e /dici (solo Admin, in privato)
     system.register_text(application)
 
     if application.job_queue:
-        # Scrittura del database ogni 5 secondi (solo se è cambiato qualcosa), in un thread
+        # Scrittura del database ogni 5 secondi (solo se è cambiato qualcosa)
         application.job_queue.run_repeating(flush_db, interval=5, first=5)
         # Backup automatico ogni ora (fissato nella chat di backup)
         application.job_queue.run_repeating(backup_to_telegram, interval=3600, first=3600)
-        # Sfida di gruppo: aggiorna la barra, chiude e rilancia i cicli
+        # Sfida di gruppo: scadenza, annuncio finale e avvio della successiva
         application.job_queue.run_repeating(challenge_tick, interval=10, first=15)
     else:
         print("⚠️ JobQueue non disponibile: installa python-telegram-bot[job-queue]. Senza, il DB non viene salvato!", flush=True)
 
-    print("SdrogoBot V2 operativo!", flush=True)
+    print("SdrogoBot v7.0 operativo!", flush=True)
 
     await application.initialize()
     await application.start()
@@ -86,6 +87,7 @@ async def main_async():
     await application.shutdown()
     flush_db_sync()
     print("SdrogoBot arrestato, database salvato.", flush=True)
+
 
 if __name__ == '__main__':
     try:
