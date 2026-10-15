@@ -18,7 +18,8 @@ from state import (
 )
 from storage import get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram
 from utils import verify_user_lock, get_formatted_name, serialized, is_v2, smart_edit, set_chat_type
-from handlers.games import HEIST_COST, heist_new_game, heist_intro_text, heist_start_kb
+from handlers.games import HEIST_COST
+from handlers.heist import heist_new_game, heist_intro_text, heist_start_kb
 from handlers import v2
 
 HEIST_STALE_SECS = 1800   # una rapina abbandonata per 30 minuti viene considerata chiusa
