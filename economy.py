@@ -4,17 +4,17 @@ import logging
 import os
 import random
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 try:
     from zoneinfo import ZoneInfo
     _TZ = ZoneInfo("Europe/Rome")
-except Exception:
+except Exception:          # tzdata mancante (tipico delle immagini Docker "slim"): uso il calcolo manuale sotto
     _TZ = None
 
 from config import GROUP_CHAT_ID
-from state import USER_INVENTORIES, BANCO_STATE, GROUP_CHALLENGE
-from storage import add_user_coins, get_user_data_dict, save_db
+from state import USER_INVENTORIES, BANCO_STATE, GROUP_CHALLENGE, GAME_STATUS
+from storage import add_user_coins, get_user_coins, get_user_data_dict, save_db, BANCO_INITIAL
 from utils import is_v2, smart_edit_msg
 
 # ======================================================================
@@ -31,9 +31,9 @@ SANG_PCT = 0.25           # Sanguisuga: quota rubata a ogni vincita
 SANG_GAMES = 10
 
 CHALLENGE_GOAL = 5000
-CHALLENGE_DAYS = 7
 CHALLENGE_REWARD = 500
-CHALLENGE_NEXT_DELAY = 24 * 3600      # pausa tra una sfida e la successiva
+CHALLENGE_WEEKDAY = 3                 # la sfida si rinnova ogni GIOVEDÌ a mezzanotte italiana (0=lunedì ... 3=giovedì)
+CHALLENGE_MIN_HOURS = 48              # una sfida avviata a mano a ridosso del giovedì dura fino a quello dopo
 CHALLENGE_EDIT_EVERY = 5              # secondi minimi tra due aggiornamenti del messaggio fissato
 
 WORK_REWARD = 50
@@ -61,8 +61,61 @@ def fmt(n) -> str:
     return f"{int(n):,}".replace(",", ".")
 
 
+def _last_sunday(year: int, month: int) -> datetime:
+    d = datetime(year, month, 31, tzinfo=timezone.utc)      # marzo e ottobre hanno 31 giorni
+    return d - timedelta(days=(d.weekday() + 1) % 7)
+
+
+def rome_now() -> datetime:
+    """Ora attuale in Italia. Con tzdata usa ZoneInfo; altrimenti applica la regola europea dell'ora legale
+    (dall'ultima domenica di marzo all'ultima di ottobre, alle 01:00 UTC): il reset NON dipende dal server."""
+    if _TZ is not None:
+        return datetime.now(_TZ)
+    now = datetime.now(timezone.utc)
+    start = _last_sunday(now.year, 3).replace(hour=1)
+    end = _last_sunday(now.year, 10).replace(hour=1)
+    return now + timedelta(hours=2 if start <= now < end else 1)
+
+
 def today_str() -> str:
-    return str(datetime.now(_TZ).date())
+    """Data odierna in Italia: Ruota Daily, missioni giornaliere e donazioni si azzerano a mezzanotte italiana."""
+    return str(rome_now().date())
+
+
+def _rome_offset_hours(utc_dt: datetime) -> int:
+    """Scarto dell'Italia da UTC (1 inverno, 2 estate) in un dato istante."""
+    if _TZ is not None:
+        return int(utc_dt.astimezone(_TZ).utcoffset().total_seconds() // 3600)
+    start = _last_sunday(utc_dt.year, 3).replace(hour=1)
+    end = _last_sunday(utc_dt.year, 10).replace(hour=1)
+    return 2 if start <= utc_dt < end else 1
+
+
+def rome_midnight_ts(d) -> float:
+    """Timestamp della mezzanotte italiana (00:00) della data d."""
+    guess = datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+    return (guess - timedelta(hours=_rome_offset_hours(guess))).timestamp()
+
+
+def challenge_end_ts(start_ts: float) -> float:
+    """Fine della sfida: la prossima mezzanotte italiana tra mercoledì e giovedì.
+    Se mancano meno di CHALLENGE_MIN_HOURS ore, quella del giovedì successivo."""
+    utc = datetime.fromtimestamp(start_ts, timezone.utc)
+    local = utc + timedelta(hours=_rome_offset_hours(utc))
+    ahead = (CHALLENGE_WEEKDAY - local.weekday()) % 7 or 7
+    end = rome_midnight_ts(local.date() + timedelta(days=ahead))
+    if end - start_ts < CHALLENGE_MIN_HOURS * 3600:
+        end = rome_midnight_ts(local.date() + timedelta(days=ahead + 7))
+    return end
+
+
+_DAYS_IT = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"]
+
+
+def _fmt_deadline(ts: float) -> str:
+    utc = datetime.fromtimestamp(ts, timezone.utc)
+    loc = utc + timedelta(hours=_rome_offset_hours(utc))
+    return f"{_DAYS_IT[loc.weekday()]} {loc.day:02d}/{loc.month:02d} alle {loc.hour:02d}:{loc.minute:02d}"
 
 
 def game_header(title: str, user_name: str, coins: int, bet=None) -> str:
@@ -116,7 +169,8 @@ def record_single_result(chat_id: int, user_id: int, won: bool, profit: int, is_
 def inv(chat_id: int, user_id: int) -> dict:
     """Inventario dell'utente con tutti i campi V2 inizializzati.
     Oggetti posseduti: titles, persecutes, silence, mutefilter, boost_win, boost_luck, sang.
-    Effetti attivi: boost_win_left, boost_luck_left, sang_on_me ({"buyer", "left"})."""
+    Effetti attivi (con le cariche residue, salvate nel database): boost_win_left, boost_luck_left,
+    sang_on_me ({"buyer", "left"})."""
     key = f"{chat_id}_{user_id}"
     d = USER_INVENTORIES.setdefault(key, {})
     for k, v in (("titles", 0), ("persecutes", 0), ("stars", 0), ("silence", 0), ("mutefilter", 0),
@@ -157,7 +211,11 @@ def follia_active() -> bool:
 
 
 async def banco_check(bot):
-    """Isteresi: la Follia parte a >= 7.000 e finisce solo sotto 4.500. Annuncia nel gruppo principale."""
+    """Se il Banco è a zero lo riporta al valore iniziale. Isteresi della Follia: parte a >= 7.000 e finisce
+    solo sotto 4.500. Annuncia nel gruppo principale."""
+    if banco_balance() <= 0:
+        BANCO_STATE["BANCO_BALANCE"] = BANCO_INITIAL
+        save_db()
     bal = banco_balance()
     if not follia_active() and bal >= FOLLIA_ON:
         BANCO_STATE["FOLLIA_ATTIVA"] = True
@@ -222,7 +280,7 @@ def challenge_text(footer: str = "") -> str:
     hours = rem // 3600
     return (
         "🎯 <b>SFIDA DI GRUPPO</b> 🎯\n\n"
-        f"Spendete <b>{fmt(goal)} $SDG</b> nei giochi entro 7 giorni!\n\n"
+        f"Spendete <b>{fmt(goal)} $SDG</b> nei giochi entro <b>{_fmt_deadline(gc.get('end', 0))}</b> (ora italiana)!\n\n"
         f"[{_bar(spent, goal)}] <b>{fmt(spent)}/{fmt(goal)}</b> ({pct}%)\n"
         f"👥 Partecipanti: <b>{len(gc.get('participants', {}))}</b>\n"
         f"⏳ Tempo rimasto: <b>{days}g {hours}h</b>\n\n"
@@ -248,7 +306,7 @@ async def challenge_start(bot, chat_id=None):
 
     now = time.time()
     gc.update({
-        "active": True, "goal": CHALLENGE_GOAL, "start": now, "end": now + CHALLENGE_DAYS * 86400,
+        "active": True, "goal": CHALLENGE_GOAL, "start": now, "end": challenge_end_ts(now),
         "spent": 0, "participants": {}, "chat_id": int(cid), "msg_id": None, "next_start": 0.0,
     })
     note = "Sfida avviata."
@@ -272,7 +330,8 @@ async def _challenge_finish(bot, success: bool):
     gc = GROUP_CHALLENGE
     cid, mid = gc.get("chat_id"), gc.get("msg_id")
     gc["active"] = False
-    gc["next_start"] = time.time() + CHALLENGE_NEXT_DELAY
+    # la prossima sfida parte a mezzanotte tra mercoledì e giovedì (subito, se la scadenza è già arrivata)
+    gc["next_start"] = max(time.time(), float(gc.get("end", 0)))
     participants = dict(gc.get("participants", {}))
     spent = int(gc.get("spent", 0))
 
@@ -288,13 +347,13 @@ async def _challenge_finish(bot, success: bool):
             f"Il gruppo ha speso <b>{fmt(spent)} $SDG</b>!\n"
             f"🎁 Ogni partecipante ({len(participants)}) riceve <b>{CHALLENGE_REWARD} $SDG + 1 Boost Fortuna</b> "
             "(lo trovi nell'Inventario 🎒).\n\n"
-            "⏭️ La prossima sfida partirà tra 24 ore!"
+            "⏭️ La prossima sfida parte giovedì a mezzanotte!"
         )
     else:
         final = (
             "⌛ <b>SFIDA DI GRUPPO SCADUTA</b>\n\n"
             f"Il gruppo ha speso <b>{fmt(spent)}/{fmt(gc.get('goal', CHALLENGE_GOAL))} $SDG</b>: obiettivo mancato. "
-            "Niente premi, ma la prossima sfida parte tra 24 ore!"
+            "Niente premi, ma una nuova sfida parte subito!"
         )
 
     save_db()
@@ -393,53 +452,176 @@ async def settle_single(bot, chat_id: int, user_id: int, game: str, bet: int, ba
     if user_payout > 0:
         add_user_coins(chat_id, user_id, user_payout)
     record_single_result(chat_id, user_id, user_payout > bet, user_payout - bet, is_casino=is_casino)
-    save_db()
+    qmsg = single_quest_events(chat_id, user_id, game, bet, base_payout, user_payout)
+    if qmsg:
+        notes.append(qmsg)
+    save_db()                       # salva anche le cariche residue di boost e malus
     await banco_check(bot)
     return user_payout, notes
 
 
 # ======================================================================
-# MISSIONI GIORNALIERE (2 al giorno per giocatore, solo V2)
+# MISSIONI GIORNALIERE (V2): 1 single player + 1 multiplayer per giocatore, diverse da utente a utente.
+# Si rinnovano a mezzanotte italiana. Gli eventi arrivano da settle_single (tutti i giochi single player che
+# liquidano), da record_duel_result (duelli), da quiz, /lavora e Heist.
+#
+# Eventi single player (generati da settle_single):  "<gioco>:win" "<gioco>:profit" "<gioco>:streak"
+#   "<gioco>:best" "aviator:mult"   con <gioco> in blackjack, slot, roulette, aviator, scratch, poker, wordle, mastermind
+# Altri eventi: "poker:hand", "quiz_win", "work_done", "heist:level", "duel:win", "duel:profit", "duel:streak",
+#   "duel:<tipo>:win" (dice, tris, highlow, rr, ghig, quiz1v1), "quizmulti_win".
+# mode "add": il progresso somma i valori (partite vinte, profitto accumulato).
+# mode "max": conta il valore migliore del giorno (serie di vittorie, moltiplicatore, vincita singola, mano).
 # ======================================================================
+def _q(qid, kind, tier, game, event, target, reward, text, mode="add", unit=""):
+    return {"id": qid, "kind": kind, "tier": tier, "game": game, "event": event, "target": target,
+            "reward": reward, "text": text, "mode": mode, "unit": unit}
+
+
 QUEST_POOL = [
-    {"id": "mm_win", "text": "Vinci 2 partite a Mastermind", "target": 2, "reward": 40},
-    {"id": "quiz_win", "text": "Indovina 3 Quiz", "target": 3, "reward": 40},
-    {"id": "wordle_win", "text": "Vinci 1 partita a Wordle", "target": 1, "reward": 35},
-    {"id": "bj_win", "text": "Vinci 2 mani a Blackjack", "target": 2, "reward": 40},
-    {"id": "slot_play", "text": "Gira la Slot 5 volte", "target": 5, "reward": 30},
-    {"id": "scratch_play", "text": "Gratta 2 biglietti", "target": 2, "reward": 30},
-    {"id": "roulette_play", "text": "Gioca 3 volte a Sdrogo Roulette", "target": 3, "reward": 30},
-    {"id": "duel_win", "text": "Vinci 1 duello 1v1", "target": 1, "reward": 45},
+    # ---------------- SINGLE PLAYER ----------------
+    _q("bj_w1", "sp", 1, "blackjack", "blackjack:win", 1, 35, "Vinci 1 mano a Blackjack"),
+    _q("bj_s2", "sp", 2, "blackjack", "blackjack:streak", 2, 90, "Vinci 2 mani di fila a Blackjack", "max"),
+    _q("bj_p100", "sp", 3, "blackjack", "blackjack:profit", 100, 140, "Guadagna 100 $SDG di profitto a Blackjack", "add", " $SDG"),
+    _q("sl_w2", "sp", 1, "slot", "slot:win", 2, 40, "Vinci 2 giri alla Slot Machine"),
+    _q("sl_p60", "sp", 2, "slot", "slot:profit", 60, 80, "Guadagna 60 $SDG di profitto alla Slot Machine", "add", " $SDG"),
+    _q("ro_w2", "sp", 1, "roulette", "roulette:win", 2, 40, "Vinci 2 giri alla Sdrogo Roulette"),
+    _q("ro_s3", "sp", 3, "roulette", "roulette:streak", 3, 170, "Fai una tripletta alla Sdrogo Roulette (3 vittorie di fila)", "max"),
+    _q("av_p50", "sp", 2, "aviator", "aviator:profit", 50, 70, "Guadagna 50 $SDG di profitto su Aviator", "add", " $SDG"),
+    _q("av_m3", "sp", 2, "aviator", "aviator:mult", 3, 80, "Incassa a ×3 o più su Aviator", "max", "×"),
+    _q("av_m6", "sp", 3, "aviator", "aviator:mult", 6, 170, "Incassa a ×6 o più su Aviator", "max", "×"),
+    _q("sc_w2", "sp", 1, "scratch", "scratch:win", 2, 40, "Vinci 2 Gratta e Vinci"),
+    _q("sc_b100", "sp", 3, "scratch", "scratch:best", 100, 140, "Vinci almeno 100 $SDG netti con un solo Gratta e Vinci", "max", " $SDG"),
+    _q("pk_w1", "sp", 1, "poker", "poker:win", 1, 45, "Vinci 1 mano a Sdrogo Poker"),
+    _q("pk_h3", "sp", 2, "poker", "poker:hand", 3, 100, "Vinci uno showdown a Sdrogo Poker con almeno un Tris", "max"),
+    _q("pk_h6", "sp", 3, "poker", "poker:hand", 6, 190, "Vinci uno showdown a Sdrogo Poker con almeno un Full", "max"),
+    _q("wd_w1", "sp", 1, "wordle", "wordle:win", 1, 35, "Indovina 1 Wordle"),
+    _q("wd_f3", "sp", 2, "wordle", "wordle:best", 30, 70, "Indovina il Wordle entro il 3° tentativo", "max", " $SDG"),
+    _q("mm_w1", "sp", 1, "mastermind", "mastermind:win", 1, 35, "Risolvi 1 Mastermind"),
+    _q("mm_f3", "sp", 2, "mastermind", "mastermind:best", 40, 75, "Risolvi il Mastermind entro il 3° tentativo", "max", " $SDG"),
+    _q("qz_w3", "sp", 1, None, "quiz_win", 3, 45, "Rispondi correttamente a 3 Quiz"),
+    _q("hs_l3", "sp", 2, "heist", "heist:level", 3, 100, "Supera il Livello 3 di Sdrogo Heist", "max"),
+    _q("wk_1", "sp", 1, "lavora", "work_done", 1, 30, "Effettua /lavora 1 volta"),
+    # ---------------- MULTIPLAYER ----------------
+    _q("du_w1", "mp", 1, None, "duel:win", 1, 50, "Vinci 1 duello 1v1 (qualsiasi gioco)"),
+    _q("du_s2", "mp", 2, None, "duel:streak", 2, 110, "Vinci 2 duelli di fila", "max"),
+    _q("du_p100", "mp", 2, None, "duel:profit", 100, 100, "Guadagna 100 $SDG di profitto nei duelli", "add", " $SDG"),
+    _q("du_dice", "mp", 1, "dice", "duel:dice:win", 1, 60, "Vinci 1 duello a dadi"),
+    _q("du_ttt", "mp", 1, "ttt", "duel:tris:win", 1, 60, "Vinci 1 partita a Tris"),
+    _q("du_hl", "mp", 1, "highlow", "duel:highlow:win", 1, 60, "Vinci 1 sfida Più Alto o Più Basso"),
+    _q("du_rr", "mp", 2, "roulette1v1", "duel:rr:win", 1, 80, "Vinci 1 Roulette Russa 1v1"),
+    _q("du_gh", "mp", 2, "ghig", "duel:ghig:win", 1, 90, "Vinci 1 duello alla Ghigliottina"),
+    _q("du_qz", "mp", 1, "quiz1v1", "duel:quiz1v1:win", 1, 60, "Vinci 1 Quiz 1v1"),
+    _q("du_qm", "mp", 1, "quizmulti", "quizmulti_win", 2, 50, "Rispondi per primo a 2 Quiz Multiplayer"),
 ]
+QUEST_IDS = {q["id"] for q in QUEST_POOL}
+QUEST_BY_ID = {q["id"]: q for q in QUEST_POOL}
+_TIER_WEIGHTS = {1: 50, 2: 35, 3: 15}      # facili più frequenti, quelle difficili ogni tanto
+
+
+def _pick_quest(kind: str, can_work: bool, exclude: str = ""):
+    eligible = [p for p in QUEST_POOL
+                if p["kind"] == kind and p["id"] != exclude
+                and (p["id"] != "wk_1" or can_work)
+                and (p["game"] is None or GAME_STATUS.get(p["game"], True))]
+    if not eligible:
+        return None
+    weights = [_TIER_WEIGHTS[p["tier"]] for p in eligible]
+    return random.choices(eligible, weights=weights, k=1)[0]
 
 
 def quests_for(chat_id: int, user_id: int) -> list:
+    """Missioni di oggi: 1 single player + 1 multiplayer, scelte a caso e diverse da giocatore a giocatore."""
     u = get_user_data_dict(chat_id, user_id)
     q = u.get("quests")
-    if not q or q.get("date") != today_str():
-        picked = random.sample(QUEST_POOL, 2)
-        q = {"date": today_str(),
-             "list": [{**p, "progress": 0, "done": False} for p in picked]}
+    stale = (not q or q.get("date") != today_str()
+             or any(x.get("id") not in QUEST_IDS for x in q.get("list", [])))
+    if stale:
+        # "/lavora" è proponibile solo a chi può davvero usarlo (saldo sotto la soglia)
+        can_work = WORK_MAX_BALANCE is None or get_user_coins(chat_id, user_id) < WORK_MAX_BALANCE
+        picked = [x for x in (_pick_quest("sp", can_work), _pick_quest("mp", can_work)) if x]
+        q = {"date": today_str(), "streaks": {}, "list": [{**p, "progress": 0, "done": False} for p in picked]}
         u["quests"] = q
         save_db()
     return q["list"]
 
 
-def quest_progress(chat_id: int, user_id: int, event: str, n: int = 1) -> str:
-    """Avanza le missioni dell'evento. Se una si completa, accredita il premio e restituisce il messaggio
+def _fmt_val(v, unit: str) -> str:
+    if unit == "×":
+        return f"×{v:g}"
+    if isinstance(v, float):
+        v = int(v)
+    return f"{v}{unit}"
+
+
+def quest_progress(chat_id: int, user_id: int, event: str, n=1) -> str:
+    """Avanza le missioni di quell'evento. Se una si completa, accredita il premio e restituisce il messaggio
     da mostrare ('' altrimenti). Non fa nulla per chi non ha la V2."""
     if not is_v2(user_id):
         return ""
     msgs = []
     for qst in quests_for(chat_id, user_id):
-        if qst["id"] == event and not qst["done"]:
+        if qst["event"] != event or qst["done"]:
+            continue
+        if qst.get("mode") == "max":
+            qst["progress"] = max(qst["progress"], n)
+        else:
             qst["progress"] += n
-            if qst["progress"] >= qst["target"]:
-                qst["done"] = True
-                add_user_coins(chat_id, user_id, qst["reward"])
-                msgs.append(f"🎯 Missione completata: {qst['text']}! +{qst['reward']} $SDG")
+        if qst["progress"] >= qst["target"]:
+            qst["done"] = True
+            add_user_coins(chat_id, user_id, qst["reward"])
+            msgs.append(f"🎯 Missione completata: {qst['text']}! +{qst['reward']} $SDG")
     if msgs:
         save_db()
+    return "\n".join(msgs)
+
+
+def _streak(chat_id: int, user_id: int, key: str, won: bool) -> int:
+    """Serie di vittorie consecutive di oggi per la chiave data (gioco o 'duel'). Si azzera a una sconfitta."""
+    quests_for(chat_id, user_id)
+    st = get_user_data_dict(chat_id, user_id)["quests"].setdefault("streaks", {})
+    st[key] = st.get(key, 0) + 1 if won else 0
+    return st[key]
+
+
+def single_quest_events(chat_id: int, user_id: int, game: str, bet: int, base_payout: int, user_payout: int) -> str:
+    """Eventi di missione di una partita single player appena liquidata. Restituisce i messaggi di completamento."""
+    if not is_v2(user_id):
+        return ""
+    base_net = int(base_payout) - int(bet)
+    won = base_net > 0
+    profit = int(user_payout) - int(bet)
+    msgs = []
+
+    def ev(name, n):
+        m = quest_progress(chat_id, user_id, f"{game}:{name}", n)
+        if m:
+            msgs.append(m)
+
+    streak = _streak(chat_id, user_id, game, won)
+    if won:
+        ev("win", 1)
+        ev("best", base_net)
+        ev("streak", streak)
+        if game == "aviator" and bet > 0:
+            ev("mult", round(base_payout / bet, 2))
+    if profit > 0:
+        ev("profit", profit)
+    return "\n".join(msgs)
+
+
+def duel_quest_events(chat_id: int, winner_id: int, loser_id: int, bet: int, game: str) -> str:
+    """Eventi di missione di un duello concluso (game: dice, tris, highlow, rr, ghig, quiz1v1).
+    Restituisce il messaggio da mostrare al vincitore. Lo sconfitto vede solo azzerarsi la sua serie."""
+    if loser_id and is_v2(loser_id):
+        _streak(chat_id, loser_id, "duel", False)
+    if not winner_id or not is_v2(winner_id):
+        return ""
+    msgs = []
+    streak = _streak(chat_id, winner_id, "duel", True)
+    for ev, n in (("duel:win", 1), (f"duel:{game}:win", 1), ("duel:profit", bet), ("duel:streak", streak)):
+        m = quest_progress(chat_id, winner_id, ev, n)
+        if m:
+            msgs.append(m)
     return "\n".join(msgs)
 
 
@@ -447,9 +629,12 @@ def quests_text(chat_id: int, user_id: int) -> str:
     lines = ["🎯 <b>MISSIONI GIORNALIERE</b>\n"]
     for qst in quests_for(chat_id, user_id):
         icon = "✅" if qst["done"] else "🔸"
+        kind = "🎮" if qst["kind"] == "sp" else "⚔️"
+        unit = qst.get("unit", "")
         prog = min(qst["progress"], qst["target"])
-        lines.append(f"{icon} {qst['text']} — <b>{prog}/{qst['target']}</b> · 🎁 {qst['reward']} $SDG")
-    lines.append("\n<i>Le missioni si rinnovano ogni giorno a mezzanotte.</i>")
+        lines.append(f"{icon} {kind} {qst['text']} — <b>{_fmt_val(prog, unit)}/{_fmt_val(qst['target'], unit)}</b> · 🎁 {qst['reward']} $SDG")
+    lines.append("\n<i>🎮 single player · ⚔️ multiplayer. Le missioni si rinnovano ogni giorno a mezzanotte (ora italiana) "
+                 "e sono diverse da giocatore a giocatore.</i>")
     return "\n".join(lines)
 
 
@@ -582,5 +767,7 @@ def work_cooldown_left(chat_id: int, user_id: int) -> int:
 
 
 def work_set_cooldown(chat_id: int, user_id: int):
+    """Avvia il cooldown di /lavora e conta la missione 'Effettua /lavora 1 volta'."""
     get_user_data_dict(chat_id, user_id)["last_work"] = time.time()
     save_db()
+    quest_progress(chat_id, user_id, "work_done")
