@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import functools
 from datetime import datetime
 
@@ -12,9 +13,25 @@ def is_admin(user_id: int) -> bool:
     return str(user_id) == str(ADMIN_ID) if ADMIN_ID else False
 
 
+# --- VISIBILITÀ V2 (dipende dalla chat in cui arriva l'update) ---
+# Il tipo di chat dell'update in elaborazione viene registrato da handlers/hub.py (bind_context_and_track,
+# group=-3) all'inizio di OGNI update. Le task create dagli handler (animazioni, timer) ereditano il valore.
+_CHAT_TYPE = contextvars.ContextVar("sdrogo_chat_type", default=None)
+
+
+def set_chat_type(chat_type):
+    _CHAT_TYPE.set(chat_type)
+
+
 def is_v2(user_id: int) -> bool:
-    """True se l'utente vede la V2: sempre l'admin, tutti gli altri solo con UPDATE_V2_PUBLIC attivo."""
-    return bool(SYSTEM_FLAGS.get("UPDATE_V2_PUBLIC")) or is_admin(user_id)
+    """Con UPDATE_V2_PUBLIC attivo la V2 la vedono tutti.
+    Altrimenti: in chat privata solo l'admin, nei gruppi nessuno (nemmeno l'admin)."""
+    if SYSTEM_FLAGS.get("UPDATE_V2_PUBLIC"):
+        return True
+    ctype = _CHAT_TYPE.get()
+    if ctype is None or ctype == "private":     # DM (o contesto sconosciuto: job in background, mai gruppi)
+        return is_admin(user_id)
+    return False
 
 
 def fmt_num(n) -> str:
