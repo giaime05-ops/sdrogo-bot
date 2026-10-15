@@ -569,7 +569,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             loser_id = duel["target_id"] if user.id == duel["sfidante_id"] else duel["sfidante_id"]
             del GHIGLIOTTINA_DUELS[chat_id_int]
             # record_duel_result aggiorna già la missione "Vinci 1 duello" e restituisce il messaggio da mostrare
-            qmsg = record_duel_result(chat_id_int, user.id, loser_id, duel["bet"])
+            qmsg = record_duel_result(chat_id_int, user.id, loser_id, duel["bet"], "ghig")
             montepremi = duel["bet"] * 2
             end_keyboard = [
                 rematch_row("ghig", duel),
@@ -639,7 +639,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         del QUIZ_GAMES[chat_id]
         add_user_coins(chat_id_int, user.id, 15)
         add_user_stat(chat_id_int, user.id, "quizzes_won", 1)
-        qmsg = quest_progress(chat_id_int, user.id, "quiz_win")
+        qmsg = quest_progress(chat_id_int, user.id, "quizmulti_win")
         await update.message.reply_text(
             f"🎉 <b>QUIZ MULTI RISOLTO!</b> <b>{uname}</b> indovina <b>{q['target']}</b> e vince +💳 15 $SDG!"
             + (f"\n{qmsg}" if qmsg else ""), parse_mode="HTML")
