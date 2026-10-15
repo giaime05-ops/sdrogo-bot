@@ -2,13 +2,19 @@ import asyncio
 import os
 import json
 import logging
+import time
 from datetime import datetime
 from telegram.ext import ContextTypes
 
 from config import DB_FILE, BACKUP_CHAT_ID
-from state import USER_DATA, USER_INVENTORIES, SYSTEM_FLAGS, BANCO_STATE, GROUP_CHALLENGE
+from state import (
+    USER_DATA, USER_INVENTORIES, SYSTEM_FLAGS, BANCO_STATE, GROUP_CHALLENGE, GAME_STATUS,
+    SILENCED, REACT_TARGETS, MUTE_FILTER, DAILY_DONATIONS,
+)
 
 _dirty = False
+
+BANCO_INITIAL = 1000      # valore iniziale del Banco Centrale se è a zero o non inizializzato
 
 
 async def auto_restore_from_telegram(bot):
@@ -29,6 +35,38 @@ async def auto_restore_from_telegram(bot):
         logging.error(f"Errore Auto-Restore da messaggio fissato: {e}")
 
 
+def _load_effects(eff: dict):
+    """Ripristina silenzia, perseguita e filtro: gli effetti già scaduti vengono scartati."""
+    now = time.time()
+    SILENCED.clear()
+    REACT_TARGETS.clear()
+    MUTE_FILTER.clear()
+    for k, v in (eff.get("silenced") or {}).items():
+        if isinstance(v, dict) and v.get("until", 0) > now and v.get("left", 0) > 0:
+            SILENCED[k] = v
+    for k, v in (eff.get("react") or {}).items():
+        if isinstance(v, dict) and v.get("until", 0) > now:
+            REACT_TARGETS[k] = v
+    for k, until in (eff.get("mute") or {}).items():
+        try:
+            if float(until) > now:
+                MUTE_FILTER[k] = float(until)
+        except (TypeError, ValueError):
+            pass
+
+
+def _init_banco():
+    """Banco a zero o non inizializzato: parte da BANCO_INITIAL."""
+    global _dirty
+    try:
+        bal = int(BANCO_STATE.get("BANCO_BALANCE", 0) or 0)
+    except (TypeError, ValueError):
+        bal = 0
+    if bal <= 0:
+        BANCO_STATE["BANCO_BALANCE"] = BANCO_INITIAL
+        _dirty = True
+
+
 def load_db():
     if os.path.exists(DB_FILE):
         try:
@@ -45,6 +83,12 @@ def load_db():
                     SYSTEM_FLAGS.update(system.get("flags", {}))
                     BANCO_STATE.update(system.get("banco", {}))
                     GROUP_CHALLENGE.update(system.get("challenge", {}))
+                    _load_effects(system.get("effects", {}) or {})
+                    DAILY_DONATIONS.clear()
+                    DAILY_DONATIONS.update(system.get("donations", []) or [])
+                    for k, v in (system.get("games") or {}).items():
+                        if k in GAME_STATUS:
+                            GAME_STATUS[k] = bool(v)
             else:
                 # Vecchio formato: il file conteneva solo USER_DATA
                 USER_DATA.update(data)
@@ -52,17 +96,21 @@ def load_db():
             logging.error(f"Errore caricamento DB: {e}")
             USER_DATA.clear()
             USER_INVENTORIES.clear()
+    _init_banco()
 
 
 def _snapshot() -> str:
     """Serializza tutto lo stato persistente. Va chiamata nel loop (snapshot coerente)."""
     return json.dumps({
         "users": USER_DATA,
-        "inventories": USER_INVENTORIES,
+        "inventories": USER_INVENTORIES,      # oggetti + cariche residue di boost/malus
         "system": {
             "flags": SYSTEM_FLAGS,
             "banco": BANCO_STATE,
-            "challenge": GROUP_CHALLENGE,
+            "challenge": GROUP_CHALLENGE,     # spesa, scadenza, message_id del messaggio fissato
+            "effects": {"silenced": SILENCED, "react": REACT_TARGETS, "mute": MUTE_FILTER},
+            "games": GAME_STATUS,
+            "donations": sorted(DAILY_DONATIONS),   # donazioni di oggi: il limite giornaliero resiste ai riavvii
         },
     })
 
@@ -105,6 +153,15 @@ def flush_db_sync():
         logging.error(f"Errore salvataggio DB finale: {e}")
 
 
+def _rome_stamp() -> str:
+    """Data e ora italiane per la didascalia del backup (non quelle del server, che sono in UTC)."""
+    try:
+        from economy import rome_now       # import ritardato: economy importa questo modulo
+        return rome_now().strftime('%Y-%m-%d %H:%M:%S')
+    except Exception:
+        return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+
 async def backup_to_telegram(context: ContextTypes.DEFAULT_TYPE):
     await flush_db()
     if BACKUP_CHAT_ID and os.path.exists(DB_FILE):
@@ -113,7 +170,7 @@ async def backup_to_telegram(context: ContextTypes.DEFAULT_TYPE):
                 msg = await context.bot.send_document(
                     chat_id=int(BACKUP_CHAT_ID),
                     document=f,
-                    caption=f"Backup DB SdrogoBot - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    caption=f"Backup DB SdrogoBot - {_rome_stamp()}"
                 )
             try:
                 await context.bot.pin_chat_message(
