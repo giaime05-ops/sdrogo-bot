@@ -10,7 +10,7 @@ from telegram.error import RetryAfter, BadRequest
 from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from database_quiz import GHIGLIOTTINA_DB, CATEGORIE_QUIZ
-from economy import fmt, note_spend, quest_progress
+from economy import fmt, note_spend, quest_progress, duel_quest_events
 from state import (
     ACTIVE_DUELS, HIGHLOW_DUELS, GHIGLIOTTINA_DUELS, QUIZ_DUELS_1V1,
     TIC_TAC_TOE_GAMES, DICE_DUELS,
@@ -240,7 +240,7 @@ async def cleanup_stale_games(context: ContextTypes.DEFAULT_TYPE):
             del PENDING_CHALLENGES[uid]
 
 
-def record_duel_result(chat_id: int, winner_id: int, loser_id: int, bet_amount: int) -> str:
+def record_duel_result(chat_id: int, winner_id: int, loser_id: int, bet_amount: int, game: str = "") -> str:
     """Registra l'esito del duello, accredita il montepremi al vincitore.
     Restituisce l'eventuale messaggio di missione completata ('' se nessuna)."""
     for uid, won in [(winner_id, True), (loser_id, False)]:
@@ -257,7 +257,7 @@ def record_duel_result(chat_id: int, winner_id: int, loser_id: int, bet_amount: 
         else:
             u_data["net_profit"] = u_data.get("net_profit", 0) - bet_amount
     save_db()
-    return quest_progress(chat_id, winner_id, "duel_win") if winner_id else ""
+    return duel_quest_events(chat_id, winner_id, loser_id, bet_amount, game)
 
 
 def _with_quest(text: str, qmsg: str) -> str:
@@ -628,7 +628,7 @@ async def handle_dice_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             qmsg = ""
             if winner_id:
                 loser_id = game["target_id"] if winner_id == game["sfidante_id"] else game["sfidante_id"]
-                qmsg = record_duel_result(chat_id, winner_id, loser_id, game["bet"])
+                qmsg = record_duel_result(chat_id, winner_id, loser_id, game["bet"], "dice")
                 msg = res_text + "\n\n🏁 <b>VITTORIA FINALE!</b>\n" + duel_recap(chat_id, game, winner_id, game["bet"])
             else:
                 add_user_coins(chat_id, game["sfidante_id"], game["bet"])
@@ -694,7 +694,7 @@ async def handle_ttt_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             if winner:
                 w_id = game["sfidante_id"] if winner == "X" else game["target_id"]
                 l_id = game["target_id"] if winner == "X" else game["sfidante_id"]
-                qmsg = record_duel_result(chat_id, w_id, l_id, game["bet"])
+                qmsg = record_duel_result(chat_id, w_id, l_id, game["bet"], "tris")
                 end_text = _with_quest("🏆 <b>TRIS VINTO!</b>\n" + duel_recap(chat_id, game, w_id, game["bet"]), qmsg)
                 w_id_btn = w_id
             else:
@@ -769,7 +769,7 @@ async def gestione_bottoni_roulette(update: Update, context: ContextTypes.DEFAUL
         if is_bullet:
             winner_id = duel["target_id"] if user.id == duel["sfidante_id"] else duel["sfidante_id"]
             loser_id = user.id
-            qmsg = record_duel_result(chat_id, winner_id, loser_id, duel["bet"])
+            qmsg = record_duel_result(chat_id, winner_id, loser_id, duel["bet"], "rr")
             del ACTIVE_DUELS[chat_id]
 
             keyboard = [
@@ -840,7 +840,7 @@ async def handle_highlow_callback(update: Update, context: ContextTypes.DEFAULT_
                 f"👉 Tocca a <b>{names[game['turno_id']]}</b>: più alto o più basso?", keyboard)
         else:
             winner_id = game["target_id"] if user.id == game["sfidante_id"] else game["sfidante_id"]
-            qmsg = record_duel_result(chat_id, winner_id, user.id, game["bet"])
+            qmsg = record_duel_result(chat_id, winner_id, user.id, game["bet"], "highlow")
             del HIGHLOW_DUELS[chat_id]
             keyboard = [
                 rematch_row("highlow", game),
@@ -999,7 +999,7 @@ async def conclude_quiz1v1_duel(bot, chat_id: int):
     else:
         w, l = ((duel["sfidante_id"], duel["target_id"]) if p1 > p2
                 else (duel["target_id"], duel["sfidante_id"]))
-        qmsg = record_duel_result(chat_id, w, l, bet)
+        qmsg = record_duel_result(chat_id, w, l, bet, "quiz1v1")
         text = _with_quest(
             f"🏆 Risultato finale <b>{max(p1, p2)}-{min(p1, p2)}</b>\n" + duel_recap(chat_id, duel, w, bet), qmsg)
         btn_id = w
