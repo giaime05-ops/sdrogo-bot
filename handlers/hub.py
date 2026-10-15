@@ -1,11 +1,12 @@
 from datetime import datetime, timedelta
 from html import escape
 import asyncio
+import logging
 import random
 import time
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import CommandHandler, CallbackQueryHandler, TypeHandler, ContextTypes
 
 from economy import (
     inv, fmt, charge as eco_charge, banco_add, banco_take, banco_balance, follia_active,
@@ -16,13 +17,64 @@ from state import (
     game_enabled, MAINT_GAME_TEXT,
 )
 from storage import get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram
-from utils import verify_user_lock, get_formatted_name, serialized, is_v2, smart_edit
+from utils import verify_user_lock, get_formatted_name, serialized, is_v2, smart_edit, set_chat_type
 from handlers.games import HEIST_COST, heist_new_game, heist_intro_text, heist_start_kb
 from handlers import v2
 
 HEIST_STALE_SECS = 1800   # una rapina abbandonata per 30 minuti viene considerata chiusa
 WHEEL_TICK = 0.8          # secondi tra un fotogramma e l'altro della Ruota Daily
 WHEEL_FRAMES = 6
+
+# --- AUTO-ELIMINAZIONE DEI MESSAGGI HUB ABBANDONATI (solo gruppi) ---
+# Registro dei messaggi che sono ANCORA una schermata HUB: (chat_id, message_id) -> {"ts": ultima attività}.
+# Un messaggio esce dal registro appena diventa una schermata di gioco; il job cancella solo chi è ancora dentro.
+# Non riguarda in nessun modo i timer di gameplay (/lavora, Heist, quiz, Aviator...).
+HUB_TTL = 300             # secondi di inattività dopo i quali un HUB nel gruppo viene eliminato
+HUB_CLEANUP_EVERY = 30    # frequenza del controllo
+GROUP_TYPES = ("group", "supergroup")
+HUB_MESSAGES = {}
+# Callback che lasciano il messaggio una schermata HUB (menu, shop, portafoglio, istruzioni di sfida a parole).
+# Qualunque altro callback (start_bj_, sp_*, slot_*, heist_*, dice_*, cfg_*, ...) avvia un gioco: il messaggio esce dal registro.
+HUB_PREFIXES = (
+    "hub_", "buy_", "claim_daily_", "inv_",
+    "start_dice_", "start_ttt_", "start_roulette_", "start_highlow_",
+    "start_ghigliottina_prep_", "start_quiz1v1_prep_",
+)
+
+
+def _track_hub(chat_id: int, message_id: int):
+    HUB_MESSAGES[(chat_id, message_id)] = {"ts": time.time()}
+
+
+async def bind_context_and_track(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Eseguito all'inizio di OGNI update (group=-3):
+    1) registra il tipo di chat, da cui dipende la visibilità della V2 (is_v2);
+    2) mantiene il registro dei messaggi HUB dei gruppi: li rinnova se restano HUB, li toglie se partono i giochi."""
+    chat = update.effective_chat
+    set_chat_type(chat.type if chat else None)
+
+    q = update.callback_query
+    if not q or not q.message or q.message.chat.type not in GROUP_TYPES:
+        return
+    key = (q.message.chat_id, q.message.message_id)
+    if (q.data or "").startswith(HUB_PREFIXES):
+        _track_hub(*key)
+    else:
+        HUB_MESSAGES.pop(key, None)             # un gioco sta partendo: questo messaggio non va MAI cancellato
+
+
+async def cleanup_hub_messages(context: ContextTypes.DEFAULT_TYPE):
+    """Job periodico: elimina gli HUB abbandonati da più di HUB_TTL secondi, solo se sono ancora schermate HUB."""
+    now = time.time()
+    for key, info in list(HUB_MESSAGES.items()):
+        if now - info["ts"] < HUB_TTL:
+            continue
+        if HUB_MESSAGES.pop(key, None) is None:     # ricontrollo: se un gioco è partito nel frattempo la voce non c'è più
+            continue
+        try:
+            await context.bot.delete_message(chat_id=key[0], message_id=key[1])
+        except Exception as e:
+            logging.debug(f"HUB {key} non eliminato: {e}")
 
 
 async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -52,7 +104,9 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("🎯 SFIDE & MISSIONI", callback_data=f"hub_quests_{user.id}")])
 
     if update.message:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        sent = await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        if update.effective_chat.type in GROUP_TYPES:
+            _track_hub(sent.chat_id, sent.message_id)       # parte il timer di auto-eliminazione
     elif update.callback_query:
         await smart_edit(update.callback_query, text, InlineKeyboardMarkup(keyboard))
 
@@ -360,7 +414,9 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
     if query:
         await smart_edit(query, text, InlineKeyboardMarkup(keyboard))
     else:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        sent = await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        if update.effective_chat.type in GROUP_TYPES:
+            _track_hub(sent.chat_id, sent.message_id)       # anche la classifica aperta da comando è una schermata HUB
 
 
 @serialized("user")
@@ -606,6 +662,8 @@ async def block_direct_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 def register(app):
+    # group=-3: gira per primo su OGNI update (tipo di chat per is_v2 + registro dei messaggi HUB)
+    app.add_handler(TypeHandler(Update, bind_context_and_track), group=-3)
     app.add_handler(CommandHandler("sdrogocomm", show_hub))
     app.add_handler(CommandHandler("topricconi", show_leaderboard))
     for cmd in ["roulette", "blackjack", "slot", "highlow", "wordle", "quiz", "shop", "heist", "sfidodadi", "sfidotris"]:
@@ -614,3 +672,5 @@ def register(app):
     app.add_handler(CallbackQueryHandler(shop_buy_callback, pattern="^buy_"))
     # block=False: l'animazione della Ruota Daily non ferma gli altri giocatori
     app.add_handler(CallbackQueryHandler(claim_daily_callback, pattern="^claim_daily_", block=False))
+    if app.job_queue:
+        app.job_queue.run_repeating(cleanup_hub_messages, interval=HUB_CLEANUP_EVERY, first=HUB_CLEANUP_EVERY)
