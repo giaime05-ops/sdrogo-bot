@@ -1727,6 +1727,9 @@ async def _poker_end(context, query, user, chat_id: int, key: str, game: dict, r
         if mine > theirs:
             base = game["pot_p"] + game["pot_b"]
             verdict = "🏆 <b>HAI VINTO LO SHOWDOWN!</b>"
+            hq = quest_progress(chat_id, user.id, "poker:hand", mine[0])     # missioni "vinci con un Tris / Full"
+            if hq:
+                detail += hq + "\n"
         elif mine < theirs:
             base = 0
             verdict = "❌ <b>Il bot vince lo showdown.</b>"
