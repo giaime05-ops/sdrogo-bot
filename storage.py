@@ -1,39 +1,148 @@
+"""Persistenza di SdrogoBot su SQLite.
+
+Come funziona
+-------------
+* Il bot lavora sempre sui dizionari in memoria (USER_DATA, USER_INVENTORIES, ...): le letture sono istantanee.
+* Ogni 3 secondi `flush_db` confronta lo stato con quello già salvato e scrive SOLO le righe cambiate, in UNA transazione
+  atomica, in un thread dedicato: l'event loop di Python non si ferma mai e nessun file viene riscritto in blocco.
+* Anche le partite in corso (Poker, Blackjack, Wordle, Mastermind, Gratta e Vinci) sono salvate nella stessa transazione
+  del saldo: se il container si riavvia, al boot le mani riprendono da dove erano. Per i giochi che non si possono
+  riprendere (Aviator, Heist, Quiz, duelli) viene salvato un "buono di rimborso" e la puntata torna al giocatore.
+* Il file del database è il backup: ogni ora (e allo spegnimento) una copia coerente viene inviata e fissata nella
+  chat di backup; se il container riparte senza disco (database vuoto) viene ripristinata da lì.
+* Migrazione automatica: se esiste il vecchio database.json e il database SQLite è vuoto, viene importato.
+"""
 import asyncio
+import contextvars
 import copy
-import os
 import json
 import logging
+import os
+import sqlite3
+import tempfile
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+
 from telegram.ext import ContextTypes
 
-from config import DB_FILE, BACKUP_CHAT_ID
+from config import DB_FILE, BACKUP_CHAT_ID, ADMIN_ID
 from state import (
     USER_DATA, USER_INVENTORIES, SYSTEM_FLAGS, BANCO_STATE, GROUP_CHALLENGE, GAME_STATUS,
-    SILENCED, REACT_TARGETS, MUTE_FILTER, DAILY_DONATIONS,
+    SILENCED, REACT_TARGETS, MUTE_FILTER, DAILY_DONATIONS, SANDBOX,
+    POKER_GAMES, BLACKJACK_GAMES, WORDLE_GAMES, MASTERMIND_GAMES, SCRATCH_GAMES,
+    AVIATOR_GAMES, HEIST_GAMES, QUIZ_GAMES,
+    ACTIVE_DUELS, HIGHLOW_DUELS, DICE_DUELS, TIC_TAC_TOE_GAMES, GHIGLIOTTINA_DUELS, QUIZ_DUELS_1V1,
 )
 
+# Percorso del database: variabile DB_PATH; altrimenti /data/sdrogo.db se esiste un volume Northflank montato su /data;
+# altrimenti sdrogo.db nella cartella dell'app.
+DB_PATH = os.environ.get("DB_PATH") or (
+    "/data/sdrogo.db" if os.path.isdir("/data") and os.access("/data", os.W_OK) else "sdrogo.db"
+)
+
+BANCO_INITIAL = 1000        # valore iniziale del Banco Centrale se è a zero o non inizializzato
+HISTORY_MAX = 20            # giocate ricordate per utente (cronologia circolare, comando /storico)
+SANDBOX_COINS = 10000       # saldo di partenza del profilo di prova dell'admin
+HEIST_PASS = 150            # costo del pass Heist (per il rimborso in caso di riavvio)
+
 _dirty = False
+_conn = None
+_db_lock = threading.Lock()                         # un solo accesso alla connessione alla volta
+_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="sdrogo-db")
+_flush_lock = None                                  # asyncio.Lock creato al primo uso (dentro l'event loop)
+_boot_sessions = []                                 # sessioni lette dal DB all'avvio, da ripristinare/rimborsare
 
-BANCO_INITIAL = 1000      # valore iniziale del Banco Centrale se è a zero o non inizializzato
+# copia di ciò che è già su disco: {"users": {id: json}, "inv": {...}, "kv": {...}, "sess": {(kind, key): json}}
+_saved = {"users": {}, "inv": {}, "kv": {}, "sess": {}}
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS inventories(id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS kv(key TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS sessions(kind TEXT NOT NULL, key TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY(kind, key));
+"""
 
 
-async def auto_restore_from_telegram(bot):
-    if not BACKUP_CHAT_ID: return
-    try:
-        chat_id = int(BACKUP_CHAT_ID)
-        if not os.path.exists(DB_FILE):
-            print("📦 Ricerca messaggio fissato per il ripristino...", flush=True)
-            chat = await bot.get_chat(chat_id)
-            if chat.pinned_message and chat.pinned_message.document:
-                file_info = await bot.get_file(chat.pinned_message.document.file_id)
-                await file_info.download_to_drive(DB_FILE)
-                print("✅ Database ripristinato con successo dal messaggio fissato!", flush=True)
-                load_db()
-            else:
-                print("⚠️ Nessun messaggio fissato con documento trovato nella chat di backup.", flush=True)
-    except Exception as e:
-        logging.error(f"Errore Auto-Restore da messaggio fissato: {e}")
+# ----------------------------------------------------------------------------------------------
+# SANDBOX ADMIN
+# ----------------------------------------------------------------------------------------------
+_SBX_CTX = contextvars.ContextVar("sdrogo_sandbox", default=False)
+
+
+def is_sandbox(user_id) -> bool:
+    """True se l'utente è l'admin e la modalità Sandbox è accesa."""
+    return bool(SANDBOX.get("on")) and bool(ADMIN_ID) and str(user_id) == str(ADMIN_ID)
+
+
+def ukey(user_id) -> str:
+    """Chiave del profilo: str(user_id), oppure "sbx_<id>" (profilo di prova) per l'admin in Sandbox."""
+    return f"sbx_{user_id}" if is_sandbox(user_id) else str(user_id)
+
+
+def set_sandbox_ctx(user_id):
+    """Chiamata all'inizio di ogni update: nel contesto di una giocata Sandbox Banco, Follia e Sfida di gruppo
+    restano fuori (vedi in_sandbox() in economy.py)."""
+    _SBX_CTX.set(is_sandbox(user_id) if user_id is not None else False)
+
+
+def in_sandbox() -> bool:
+    return _SBX_CTX.get()
+
+
+def sandbox_set(on: bool):
+    """Accende (profilo di prova nuovo, con saldo e oggetti) o spegne (il profilo di prova viene buttato)."""
+    uid = str(ADMIN_ID)
+    USER_DATA.pop(f"sbx_{uid}", None)
+    USER_INVENTORIES.pop(f"sbx_{uid}", None)
+    SANDBOX["on"] = bool(on)
+    if on and ADMIN_ID:
+        USER_DATA[f"sbx_{uid}"] = _new_profile(SANDBOX_COINS)
+        USER_INVENTORIES[f"sbx_{uid}"] = {
+            "titles": 5, "persecutes": 5, "stars": 0, "silence": 3, "mutefilter": 3,
+            "boost_win": 3, "boost_luck": 3, "sang": 2,
+        }
+
+
+# ----------------------------------------------------------------------------------------------
+# CONNESSIONE E SCHEMA
+# ----------------------------------------------------------------------------------------------
+def _connect():
+    d = os.path.dirname(DB_PATH)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30, isolation_level=None)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.executescript(SCHEMA)
+    return conn
+
+
+def _close():
+    global _conn
+    with _db_lock:
+        if _conn is not None:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+            _conn = None
+
+
+def _json(obj) -> str:
+    def default(o):
+        if isinstance(o, (set, frozenset)):
+            return sorted(o)
+        if isinstance(o, datetime):
+            return o.isoformat()
+        return None                                  # oggetti non salvabili (lock, task...): ignorati
+    return json.dumps(obj, separators=(",", ":"), default=default)
+
+
+def _is_empty() -> bool:
+    """True se il database non contiene ancora nessun giocatore (container nuovo, nessun volume)."""
+    return not any(not k.startswith("sbx_") for k in USER_DATA)
 
 
 def _load_effects(eff: dict):
@@ -54,6 +163,18 @@ def _load_effects(eff: dict):
                 MUTE_FILTER[k] = float(until)
         except (TypeError, ValueError):
             pass
+
+
+def _apply_system(system: dict):
+    SYSTEM_FLAGS.update(system.get("flags", {}))
+    BANCO_STATE.update(system.get("banco", {}))
+    GROUP_CHALLENGE.update(system.get("challenge", {}))
+    _load_effects(system.get("effects", {}) or {})
+    DAILY_DONATIONS.clear()
+    DAILY_DONATIONS.update(system.get("donations", []) or [])
+    for k, v in (system.get("games") or {}).items():
+        if k in GAME_STATUS:
+            GAME_STATUS[k] = bool(v)
 
 
 def _init_banco():
@@ -80,8 +201,8 @@ def _migrate_profiles() -> bool:
     """Unisce i profili vecchio formato ("chat_user") in uno solo per utente.
     Saldo e missioni: del profilo col saldo più alto. Statistiche: sommate. Oggetti e cariche: sommati.
     I saldi degli altri profili restano annotati in 'legacy_coins' (si possono sempre recuperare)."""
-    legacy_users = [k for k in USER_DATA if "_" in k]
-    legacy_invs = [k for k in USER_INVENTORIES if "_" in k]
+    legacy_users = [k for k in USER_DATA if "_" in k and not k.startswith("sbx_")]
+    legacy_invs = [k for k in USER_INVENTORIES if "_" in k and not k.startswith("sbx_")]
     if not legacy_users and not legacy_invs:
         return False
 
@@ -146,94 +267,312 @@ def chat_user_ids(chat_id: int) -> list:
     return [uid for uid, d in USER_DATA.items() if cid in d.get("chats", ())]
 
 
-def load_db():
-    if os.path.exists(DB_FILE):
+# ----------------------------------------------------------------------------------------------
+# CARICAMENTO
+# ----------------------------------------------------------------------------------------------
+def _read_sqlite():
+    """Legge tutto il database nei dizionari in memoria."""
+    global _boot_sessions
+    with _db_lock:
+        c = _conn
+        users = list(c.execute("SELECT id, data FROM users"))
+        invs = list(c.execute("SELECT id, data FROM inventories"))
+        kv = dict(c.execute("SELECT key, data FROM kv"))
+        sess = list(c.execute("SELECT kind, key, data FROM sessions"))
+    USER_DATA.clear()
+    USER_INVENTORIES.clear()
+    _saved["users"] = {}
+    _saved["inv"] = {}
+    for uid, raw in users:
         try:
-            with open(DB_FILE, "r") as f:
-                data = json.load(f)
-            USER_DATA.clear()
-            USER_INVENTORIES.clear()
-            if isinstance(data.get("users"), dict):
-                # Nuovo formato: utenti + inventari + stato di sistema (V2)
-                USER_DATA.update(data["users"])
-                USER_INVENTORIES.update(data.get("inventories", {}))
-                system = data.get("system", {})
-                if isinstance(system, dict):
-                    SYSTEM_FLAGS.update(system.get("flags", {}))
-                    BANCO_STATE.update(system.get("banco", {}))
-                    GROUP_CHALLENGE.update(system.get("challenge", {}))
-                    _load_effects(system.get("effects", {}) or {})
-                    DAILY_DONATIONS.clear()
-                    DAILY_DONATIONS.update(system.get("donations", []) or [])
-                    for k, v in (system.get("games") or {}).items():
-                        if k in GAME_STATUS:
-                            GAME_STATUS[k] = bool(v)
-            else:
-                # Vecchio formato: il file conteneva solo USER_DATA
-                USER_DATA.update(data)
-        except Exception as e:
-            logging.error(f"Errore caricamento DB: {e}")
-            USER_DATA.clear()
-            USER_INVENTORIES.clear()
+            USER_DATA[uid] = json.loads(raw)
+            _saved["users"][uid] = raw
+        except ValueError:
+            logging.error(f"Profilo {uid} illeggibile: ignorato.")
+    for uid, raw in invs:
+        try:
+            USER_INVENTORIES[uid] = json.loads(raw)
+            _saved["inv"][uid] = raw
+        except ValueError:
+            pass
+    _saved["kv"] = dict(kv)
+    system = {}
+    for name in ("flags", "banco", "challenge", "effects", "games", "donations"):
+        if name in kv:
+            try:
+                system[name] = json.loads(kv[name])
+            except ValueError:
+                pass
+    _apply_system(system)
+    _saved["sess"] = {(k, key): raw for k, key, raw in sess}
+    _boot_sessions = sess
+
+
+def _import_legacy_json() -> bool:
+    """Importa il vecchio database.json (una volta sola). True se ha importato qualcosa."""
+    global _dirty
+    if not DB_FILE or not os.path.exists(DB_FILE):
+        return False
+    try:
+        with open(DB_FILE, "r") as f:
+            data = json.load(f)
+    except Exception as e:
+        logging.error(f"database.json non leggibile, migrazione saltata: {e}")
+        return False
+    if isinstance(data.get("users"), dict):
+        USER_DATA.update(data["users"])
+        USER_INVENTORIES.update(data.get("inventories", {}))
+        system = data.get("system", {})
+        if isinstance(system, dict):
+            _apply_system(system)
+    else:
+        USER_DATA.update(data)                    # formato originale: solo gli utenti
+    _dirty = True
+    logging.info(f"Migrazione da {DB_FILE}: {len(USER_DATA)} giocatori importati.")
+    return True
+
+
+def load_db():
+    """Apre (o crea) il database SQLite e carica lo stato. Va chiamata una volta all'avvio, e dopo un ripristino."""
+    global _conn, _dirty
+    _close()
+    with _db_lock:
+        _conn = _connect()
+    _read_sqlite()
+    imported = False
+    if _is_empty() and not _saved["kv"]:
+        imported = _import_legacy_json()
     if _migrate_profiles():
-        save_db()
+        _dirty = True
     _init_banco()
+    if imported:
+        flush_db_sync()                           # i dati sono al sicuro nel nuovo DB: il vecchio file si mette da parte
+        try:
+            os.replace(DB_FILE, DB_FILE + ".migrato")
+        except OSError:
+            pass
 
 
-def _snapshot() -> str:
-    """Serializza tutto lo stato persistente. Va chiamata nel loop (snapshot coerente)."""
-    return json.dumps({
-        "users": USER_DATA,
-        "inventories": USER_INVENTORIES,      # oggetti + cariche residue di boost/malus
-        "system": {
-            "flags": SYSTEM_FLAGS,
-            "banco": BANCO_STATE,
-            "challenge": GROUP_CHALLENGE,     # spesa, scadenza, message_id del messaggio fissato
-            "effects": {"silenced": SILENCED, "react": REACT_TARGETS, "mute": MUTE_FILTER},
-            "games": GAME_STATUS,
-            "donations": sorted(DAILY_DONATIONS),   # donazioni di oggi: il limite giornaliero resiste ai riavvii
-        },
-    })
+# ----------------------------------------------------------------------------------------------
+# SESSIONI DI GIOCO (partite in corso)
+# ----------------------------------------------------------------------------------------------
+_RESTORABLE = {
+    "poker": POKER_GAMES, "blackjack": BLACKJACK_GAMES, "wordle": WORDLE_GAMES,
+    "mastermind": MASTERMIND_GAMES, "scratch": SCRATCH_GAMES,
+}
+_DUEL_STORES = (HIGHLOW_DUELS, DICE_DUELS, ACTIVE_DUELS, TIC_TAC_TOE_GAMES, GHIGLIOTTINA_DUELS, QUIZ_DUELS_1V1)
 
 
+def _split_key(key):
+    chat, uid = str(key).rsplit("_", 1)
+    return int(chat), int(uid)
+
+
+def _tickets() -> dict:
+    """Buoni di rimborso per le partite che non si possono riprendere dopo un riavvio."""
+    out = {}
+
+    def add(kind, ident, chat_id, uid, amount, label, banco=0):
+        if amount and amount > 0 and not str(uid).startswith("sbx"):
+            out[("refund", f"{kind}:{ident}")] = _json(
+                {"chat_id": chat_id, "uid": uid, "amount": int(amount), "label": label, "banco": int(banco)})
+
+    for key, g in list(AVIATOR_GAMES.items()):
+        if not g.get("finished"):
+            try:
+                chat, uid = _split_key(key)
+                add("avi", key, chat, uid, g.get("bet", 0), "Aviator")
+            except ValueError:
+                pass
+    for uid, g in list(HEIST_GAMES.items()):
+        add("heist", uid, g.get("chat_id", uid), uid, HEIST_PASS, "Sdrogo Heist", HEIST_PASS if g.get("v2") else 0)
+    for key, g in list(QUIZ_GAMES.items()):
+        if isinstance(key, str) and "_" in key and not g.get("multi"):
+            try:
+                chat, uid = _split_key(key)
+                add("quiz", key, chat, uid, 5, "Quiz")
+            except ValueError:
+                pass
+    for n, store in enumerate(_DUEL_STORES):
+        for cid, g in list(store.items()):
+            if g.get("target_id") and g.get("bet"):           # accettato = puntate già scalate
+                for who in ("sfidante_id", "target_id"):
+                    if g.get(who):
+                        add("duel", f"{n}:{cid}:{who}", cid, g[who], g["bet"], "Duello")
+    return out
+
+
+def _collect_sessions() -> dict:
+    rows = {}
+    for kind, store in _RESTORABLE.items():
+        for key, g in list(store.items()):
+            rows[(kind, str(key))] = _json(g)
+    rows.update(_tickets())
+    return rows
+
+
+async def recover_sessions(bot):
+    """Da chiamare all'avvio, dopo load_db(): riprende le partite salvate e rimborsa quelle che non si possono riprendere."""
+    global _boot_sessions, _dirty
+    sessions, _boot_sessions = _boot_sessions, []
+    if not sessions:
+        return
+    now = time.time()
+    refunds = {}                                   # chat_id -> [(uid, amount, label)]
+    restored = 0
+    for kind, key, raw in sessions:
+        try:
+            data = json.loads(raw)
+        except ValueError:
+            continue
+        if kind in _RESTORABLE:
+            if kind == "poker":
+                for f in ("hole_p", "hole_b", "board", "deck"):
+                    data[f] = [tuple(c) for c in data.get(f, [])]
+            data["last"] = now                     # tempo di grazia: l'inattività riparte da adesso
+            _RESTORABLE[kind][key] = data
+            restored += 1
+        elif kind == "refund":
+            chat_id, uid, amount = data.get("chat_id"), data.get("uid"), int(data.get("amount", 0))
+            if chat_id is None or uid is None or amount <= 0:
+                continue
+            u = USER_DATA.get(str(uid))
+            if u is not None:
+                u["coins"] = u.get("coins", 0) + amount
+            if data.get("banco"):
+                BANCO_STATE["BANCO_BALANCE"] = max(0, int(BANCO_STATE.get("BANCO_BALANCE", 0)) - int(data["banco"]))
+            refunds.setdefault(chat_id, []).append((uid, amount, data.get("label", "partita")))
+    if refunds or restored:
+        _dirty = True
+        await flush_db()                           # rimborsi e buoni cancellati nella stessa transazione: mai due volte
+    for chat_id, items in refunds.items():
+        lines = "\n".join(f"• <a href=\"tg://user?id={u}\">giocatore</a>: +{a} $SDG ({lab})" for u, a, lab in items)
+        try:
+            await bot.send_message(
+                chat_id=int(chat_id), parse_mode="HTML",
+                text="♻️ <b>Il bot si è riavviato.</b> Le partite che non si possono riprendere sono state rimborsate:\n" + lines)
+        except Exception as e:
+            logging.warning(f"Avviso rimborso non inviato a {chat_id}: {e}")
+    logging.info(f"Sessioni: {restored} riprese, {sum(len(v) for v in refunds.values())} rimborsate.")
+
+
+# ----------------------------------------------------------------------------------------------
+# SCRITTURA
+# ----------------------------------------------------------------------------------------------
 def save_db():
-    """Segna il database come modificato. La scrittura vera avviene in flush_db (ogni 5 secondi)."""
+    """Segna il database come modificato. La scrittura vera avviene in flush_db (ogni 3 secondi)."""
     global _dirty
     _dirty = True
 
 
-def _write_file(payload: str):
-    tmp = DB_FILE + ".tmp"
-    with open(tmp, "w") as f:
-        f.write(payload)
-    os.replace(tmp, DB_FILE)
+def _kv_rows() -> dict:
+    return {
+        "flags": _json(SYSTEM_FLAGS),
+        "banco": _json(BANCO_STATE),
+        "challenge": _json(GROUP_CHALLENGE),            # spesa, scadenza, message_id del messaggio fissato
+        "effects": _json({"silenced": SILENCED, "react": REACT_TARGETS, "mute": MUTE_FILTER}),
+        "games": _json(GAME_STATUS),
+        "donations": _json(sorted(DAILY_DONATIONS)),     # il limite giornaliero resiste ai riavvii
+        "meta": _json({"v": 8}),
+    }
+
+
+def _build(with_users: bool):
+    """Calcola le righe cambiate. Gira nel loop (fotografia coerente di tutto lo stato)."""
+    cur = {"users": _saved["users"], "inv": _saved["inv"]}
+    if with_users:
+        cur["users"] = {u: _json(d) for u, d in list(USER_DATA.items()) if not u.startswith("sbx_")}
+        cur["inv"] = {u: _json(d) for u, d in list(USER_INVENTORIES.items()) if not u.startswith("sbx_")}
+    cur["kv"] = _kv_rows()
+    cur["sess"] = _collect_sessions()
+    changes = {
+        "users": [(k, v) for k, v in cur["users"].items() if _saved["users"].get(k) != v],
+        "users_del": [(k,) for k in _saved["users"] if k not in cur["users"]],
+        "inv": [(k, v) for k, v in cur["inv"].items() if _saved["inv"].get(k) != v],
+        "inv_del": [(k,) for k in _saved["inv"] if k not in cur["inv"]],
+        "kv": [(k, v) for k, v in cur["kv"].items() if _saved["kv"].get(k) != v],
+        "sess": [(k[0], k[1], v) for k, v in cur["sess"].items() if _saved["sess"].get(k) != v],
+        "sess_del": [k for k in _saved["sess"] if k not in cur["sess"]],
+    }
+    return cur, changes
+
+
+def _has_changes(ch: dict) -> bool:
+    return any(ch.values())
+
+
+def _apply(ch: dict):
+    """Scrive le modifiche in una transazione (gira in un thread: non blocca il bot)."""
+    with _db_lock:
+        c = _conn
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            up = "INSERT INTO {t}({k}, data) VALUES(?, ?) ON CONFLICT({k}) DO UPDATE SET data = excluded.data"
+            if ch["users"]:
+                c.executemany(up.format(t="users", k="id"), ch["users"])
+            if ch["users_del"]:
+                c.executemany("DELETE FROM users WHERE id = ?", ch["users_del"])
+            if ch["inv"]:
+                c.executemany(up.format(t="inventories", k="id"), ch["inv"])
+            if ch["inv_del"]:
+                c.executemany("DELETE FROM inventories WHERE id = ?", ch["inv_del"])
+            if ch["kv"]:
+                c.executemany(up.format(t="kv", k="key"), ch["kv"])
+            if ch["sess"]:
+                c.executemany(
+                    "INSERT INTO sessions(kind, key, data) VALUES(?, ?, ?) "
+                    "ON CONFLICT(kind, key) DO UPDATE SET data = excluded.data", ch["sess"])
+            if ch["sess_del"]:
+                c.executemany("DELETE FROM sessions WHERE kind = ? AND key = ?", ch["sess_del"])
+            c.execute("COMMIT")
+        except Exception:
+            c.execute("ROLLBACK")
+            raise
+
+
+def _commit_saved(cur: dict):
+    _saved["users"], _saved["inv"], _saved["kv"], _saved["sess"] = cur["users"], cur["inv"], cur["kv"], cur["sess"]
 
 
 async def flush_db(context=None):
-    """Scrive il DB su disco se è cambiato. Il JSON viene creato nel loop (snapshot coerente),
-    la scrittura su file avviene in un thread, così il bot non si ferma."""
-    global _dirty
-    if not _dirty:
+    """Salva su SQLite ciò che è cambiato (profili solo se segnati come modificati; partite e stato di sistema sempre)."""
+    global _dirty, _flush_lock
+    if _conn is None:
         return
-    _dirty = False
-    try:
-        payload = _snapshot()
-        await asyncio.to_thread(_write_file, payload)
-    except Exception as e:
-        _dirty = True
-        logging.error(f"Errore salvataggio DB: {e}")
+    if _flush_lock is None:
+        _flush_lock = asyncio.Lock()
+    async with _flush_lock:
+        with_users = _dirty
+        _dirty = False
+        try:
+            cur, ch = _build(with_users)
+            if not _has_changes(ch):
+                return
+            await asyncio.get_running_loop().run_in_executor(_executor, _apply, ch)
+            _commit_saved(cur)
+        except Exception as e:
+            _dirty = True
+            logging.error(f"Errore salvataggio DB: {e}")
 
 
 def flush_db_sync():
-    """Scrittura immediata, usata all'arresto del bot."""
+    """Scrittura immediata e bloccante, usata all'arresto del bot (e dopo la migrazione)."""
     global _dirty
+    if _conn is None:
+        return
     try:
-        _write_file(_snapshot())
+        cur, ch = _build(True)
+        if _has_changes(ch):
+            _apply(ch)
+        _commit_saved(cur)
         _dirty = False
     except Exception as e:
         logging.error(f"Errore salvataggio DB finale: {e}")
 
 
+# ----------------------------------------------------------------------------------------------
+# BACKUP / RIPRISTINO SU TELEGRAM
+# ----------------------------------------------------------------------------------------------
 def _rome_stamp() -> str:
     """Data e ora italiane per la didascalia del backup (non quelle del server, che sono in UTC)."""
     try:
@@ -243,30 +582,97 @@ def _rome_stamp() -> str:
         return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
-async def backup_to_telegram(context: ContextTypes.DEFAULT_TYPE):
+def _copy_db(dst_path: str):
+    """Copia coerente del database (API di backup di SQLite, sicura anche mentre il bot scrive)."""
+    dst = sqlite3.connect(dst_path)
+    try:
+        with _db_lock:
+            _conn.backup(dst)
+    finally:
+        dst.close()
+
+
+async def backup_now(bot):
+    """Invia una copia del database nella chat di backup e la fissa."""
+    if not BACKUP_CHAT_ID or _conn is None:
+        return
     await flush_db()
-    if BACKUP_CHAT_ID and os.path.exists(DB_FILE):
+    tmp = os.path.join(tempfile.gettempdir(), "sdrogo_backup.db")
+    try:
+        await asyncio.get_running_loop().run_in_executor(_executor, _copy_db, tmp)
+        with open(tmp, "rb") as f:
+            msg = await bot.send_document(
+                chat_id=int(BACKUP_CHAT_ID), document=f, filename="sdrogo_backup.db",
+                caption=f"Backup DB SdrogoBot - {_rome_stamp()}")
         try:
-            with open(DB_FILE, "rb") as f:
-                msg = await context.bot.send_document(
-                    chat_id=int(BACKUP_CHAT_ID),
-                    document=f,
-                    caption=f"Backup DB SdrogoBot - {_rome_stamp()}"
-                )
-            try:
-                await context.bot.pin_chat_message(
-                    chat_id=int(BACKUP_CHAT_ID),
-                    message_id=msg.message_id,
-                    disable_notification=True
-                )
-            except Exception as e:
-                logging.error(f"Errore pin backup: {e}")
+            await bot.pin_chat_message(chat_id=int(BACKUP_CHAT_ID), message_id=msg.message_id, disable_notification=True)
         except Exception as e:
-            logging.error(f"Errore backup Telegram: {e}")
+            logging.error(f"Errore pin backup: {e}")
+    except Exception as e:
+        logging.error(f"Errore backup Telegram: {e}")
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+
+async def backup_to_telegram(context: ContextTypes.DEFAULT_TYPE):
+    await backup_now(context.bot)
+
+
+def _swap_db(tmp_path: str):
+    _close()
+    for suffix in ("", "-wal", "-shm"):
+        try:
+            os.remove(DB_PATH + suffix)
+        except OSError:
+            pass
+    d = os.path.dirname(DB_PATH)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    os.replace(tmp_path, DB_PATH)
+
+
+async def auto_restore_from_telegram(bot):
+    """Container nuovo e senza dati: ripristina dal messaggio fissato nella chat di backup (file .db oppure il vecchio .json)."""
+    if not BACKUP_CHAT_ID or not _is_empty():
+        return
+    try:
+        print("📦 Database vuoto: ricerca del backup fissato...", flush=True)
+        chat = await bot.get_chat(int(BACKUP_CHAT_ID))
+        pm = chat.pinned_message
+        if not (pm and pm.document):
+            print("⚠️ Nessun messaggio fissato con documento trovato nella chat di backup.", flush=True)
+            return
+        name = (pm.document.file_name or "").lower()
+        f = await bot.get_file(pm.document.file_id)
+        if name.endswith(".db"):
+            tmp = DB_PATH + ".restore"
+            await f.download_to_drive(tmp)
+            await asyncio.to_thread(_swap_db, tmp)
+        else:
+            await f.download_to_drive(DB_FILE)           # vecchio backup JSON: verrà importato da load_db
+        load_db()
+        print("✅ Database ripristinato dal messaggio fissato!", flush=True)
+    except Exception as e:
+        logging.error(f"Errore Auto-Restore da messaggio fissato: {e}")
+
+
+# ----------------------------------------------------------------------------------------------
+# PROFILI
+# ----------------------------------------------------------------------------------------------
+def _new_profile(coins: int = 50) -> dict:
+    return {
+        "coins": coins, "last_daily": "", "quizzes_won": 0, "casino_wins": 0, "duels_wins": 0,
+        "net_profit": 0, "duels_played": 0, "single_played": 0, "chats": [],
+    }
+
 
 def get_user_key(chat_id: int, user_id: int) -> str:
-    """Chiave del profilo: solo l'ID utente, uguale in chat privata e in ogni gruppo."""
-    return str(user_id)
+    """Chiave del profilo: solo l'ID utente, uguale in chat privata e in ogni gruppo (profilo di prova in Sandbox)."""
+    return ukey(user_id)
+
 
 def _track_chat(d: dict, chat_id) -> bool:
     """Ricorda in quali chat il giocatore è stato visto (serve a classifiche e ricerca username)."""
@@ -283,19 +689,13 @@ def _track_chat(d: dict, chat_id) -> bool:
 
 def get_user_data_dict(chat_id: int, user_id: int) -> dict:
     key = get_user_key(chat_id, user_id)
+    if key.startswith("sbx_"):                       # profilo di prova: niente chat tracciate, mai su disco
+        if key not in USER_DATA:
+            USER_DATA[key] = _new_profile(SANDBOX_COINS)
+        return USER_DATA[key]
     is_backup = str(chat_id) == str(BACKUP_CHAT_ID)
     if key not in USER_DATA:
-        USER_DATA[key] = {
-            "coins": 50,
-            "last_daily": "",
-            "quizzes_won": 0,
-            "casino_wins": 0,
-            "duels_wins": 0,
-            "net_profit": 0,
-            "duels_played": 0,
-            "single_played": 0,
-            "chats": [],
-        }
+        USER_DATA[key] = _new_profile()
         if not is_backup:
             _track_chat(USER_DATA[key], chat_id)
             save_db()
@@ -307,13 +707,15 @@ def get_user_data_dict(chat_id: int, user_id: int) -> dict:
             if stat not in USER_DATA[key]:
                 USER_DATA[key][stat] = 0
                 changed = True
-        if changed and str(chat_id) != str(BACKUP_CHAT_ID):
+        if changed and not is_backup:
             save_db()
     return USER_DATA[key]
+
 
 def get_user_coins(chat_id: int, user_id: int) -> int:
     data = get_user_data_dict(chat_id, user_id)
     return data.get("coins", 50)
+
 
 def add_user_coins(chat_id: int, user_id: int, amount: int):
     if str(chat_id) == str(BACKUP_CHAT_ID):
@@ -322,9 +724,60 @@ def add_user_coins(chat_id: int, user_id: int, amount: int):
     data["coins"] = max(0, data.get("coins", 50) + amount)
     save_db()
 
+
 def add_user_stat(chat_id: int, user_id: int, stat_name: str, amount: int = 1):
     if str(chat_id) == str(BACKUP_CHAT_ID):
         return
     data = get_user_data_dict(chat_id, user_id)
     data[stat_name] = data.get(stat_name, 0) + amount
     save_db()
+
+
+# ----------------------------------------------------------------------------------------------
+# CRONOLOGIA (comando admin /storico)
+# ----------------------------------------------------------------------------------------------
+def log_play(user_id, game: str, bet: int, payout: int, outcome: str = ""):
+    """Aggiunge una giocata alla cronologia circolare dell'utente (ultime HISTORY_MAX).
+    bet = importo puntato; payout = totale restituito al giocatore (0 se persa). outcome: vinta / persa / pareggio."""
+    key = ukey(user_id)
+    if key.startswith("sbx_"):
+        return                                        # le prove dell'admin non lasciano tracce
+    d = USER_DATA.get(key)
+    if d is None:
+        return
+    bet, payout = int(bet), int(payout)
+    if not outcome:
+        outcome = "vinta" if payout > bet else ("pareggio" if payout == bet else "persa")
+    hist = d.setdefault("history", [])
+    hist.append({"t": int(time.time()), "g": str(game), "b": bet, "o": outcome, "w": payout})
+    if len(hist) > HISTORY_MAX:
+        del hist[:-HISTORY_MAX]
+    save_db()
+
+
+def note_username(user):
+    """Ricorda l'@username (e il nome) di chi usa il bot, per cercarlo con /storico @username."""
+    if not user or user.is_bot:
+        return
+    d = USER_DATA.get(str(user.id))
+    if d is None:
+        return
+    uname = (user.username or "").lower()
+    name = (user.first_name or "")[:40]
+    if d.get("username", "") != uname or d.get("name", "") != name:
+        d["username"] = uname
+        d["name"] = name
+        save_db()
+
+
+def find_user_id(query: str):
+    """Trova l'ID di un giocatore da @username (o dall'ID numerico). None se sconosciuto."""
+    q = (query or "").strip().lstrip("@").lower()
+    if not q:
+        return None
+    if q.isdigit() and q in USER_DATA:
+        return q
+    for uid, d in USER_DATA.items():
+        if not uid.startswith("sbx_") and d.get("username") == q:
+            return uid
+    return None
