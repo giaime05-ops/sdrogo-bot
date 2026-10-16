@@ -37,9 +37,11 @@ FLAGS = {"troll": False, "maintenance": False}
 SYSTEM_FLAGS = {"UPDATE_V2_PUBLIC": False}
 
 # BANCO_BALANCE: $SDG persi dai giocatori nei giochi single player. FOLLIA_ATTIVA: evento "Follia Sdrogo" in corso.
-BANCO_STATE = {"BANCO_BALANCE": 0, "FOLLIA_ATTIVA": False}
+# FOLLIA_CONSUMED: $SDG pagati dal Banco durante la Follia in corso. FOLLIA_RESET: la Follia è appena finita e non può
+# ripartire finché il Banco non scende sotto la soglia di attivazione e la raggiunge di nuovo.
+BANCO_STATE = {"BANCO_BALANCE": 0, "FOLLIA_ATTIVA": False, "FOLLIA_CONSUMED": 0, "FOLLIA_END": 0, "FOLLIA_RESET": False}
 
-# Sfida di gruppo (5.000 $SDG spesi in 7 giorni). participants: {user_id (str): $SDG spesi}
+# Sfida di gruppo (quota e durata scelte dall'admin; i rinnovi automatici durano fino al giovedì a mezzanotte). participants: {user_id (str): $SDG spesi}
 GROUP_CHALLENGE = {
     "active": False,
     "goal": 5000,
@@ -50,6 +52,7 @@ GROUP_CHALLENGE = {
     "msg_id": None,       # message_id del messaggio fissato
     "chat_id": None,
     "next_start": 0.0,    # quando parte il ciclo successivo (0 = nessuno programmato)
+    "cfg_goal": 5000, "cfg_days": 1,     # ultima quota scelta dall'admin: la usano anche i rinnovi automatici del giovedì
 }
 
 # Interruttori dei singoli giochi (gestiti da /admin). True = acceso, False = in manutenzione.
