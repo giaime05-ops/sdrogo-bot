@@ -13,7 +13,7 @@ from telegram.ext import (
 
 from config import FRASE_PENITENZA, TARGET_MAP
 from economy import (
-    fmt, game_header, today_str, banco_take, challenge_start, quest_progress,
+    fmt, game_header, today_str, banco_take, challenge_start, quest_progress, follia_line,
 )
 from state import (
     FLAGS, ACTIVE_DUELS, HIGHLOW_DUELS, DICE_DUELS, BLACKJACK_GAMES, WORDLE_GAMES,
@@ -23,7 +23,7 @@ from state import (
     WORK_GAMES, SYSTEM_FLAGS, GROUP_CHALLENGE,
     game_enabled, MAINT_GAME_TEXT,
 )
-from storage import add_user_coins, get_user_coins, add_user_stat, save_db
+from storage import add_user_coins, get_user_coins, add_user_stat, save_db, chat_user_ids
 from utils import is_admin, serialized, smart_edit
 from handlers.hub import apply_title_command, apply_persecute_command
 from handlers.multiplayer import (
@@ -104,14 +104,15 @@ def _admin_view():
     text = (
         "🛠️ <b>DASHBOARD ADMIN</b>\n\n"
         f"🆕 V2 pubblica: <b>{'ON — tutti la vedono' if v2_on else 'OFF — solo tu la vedi'}</b>\n"
-        f"🎯 Sfida di gruppo: <b>{chal}</b>\n\n"
+        f"🎯 Sfida di gruppo: <b>{chal}</b>\n"
+        f"{follia_line() or '🏦 Follia Sdrogo: spenta'}\n\n"
         "🟢 = attivo | 🔴 = in manutenzione\n"
         "Tocca un gioco per accenderlo o spegnerlo. "
         "<i>Le partite già in corso possono sempre finire.</i>"
     )
     rows = [
         [InlineKeyboardButton("🟢 V2 Pubblica: ON" if v2_on else "🔴 V2 Pubblica: OFF", callback_data="adm_v2")],
-        [InlineKeyboardButton("🎯 Avvia/Resetta Sfida di Gruppo", callback_data="adm_chal")],
+        [InlineKeyboardButton("🎯 Configura Sfida di Gruppo", callback_data="adm_cfg")],
     ]
     row = []
     for key, label in ADMIN_GAMES:
@@ -127,6 +128,27 @@ def _admin_view():
         InlineKeyboardButton("🔴 Spegni tutti", callback_data="adm_all_0"),
     ])
     rows.append([InlineKeyboardButton("✖️ Chiudi", callback_data="adm_close")])
+    return text, InlineKeyboardMarkup(rows)
+
+
+CHAL_GOALS = (5000, 10000, 15000, 25000)
+CHAL_DAYS = ((1, "1 Giorno"), (3, "3 Giorni"), (7, "7 Giorni"))
+
+
+def _chal_cfg_view():
+    goal = int(GROUP_CHALLENGE.get("cfg_goal", 5000))
+    days = int(GROUP_CHALLENGE.get("cfg_days", 1))
+    text = (
+        "🎯 <b>CONFIGURA SFIDA DI GRUPPO</b>\n\n"
+        f"Quota target: <b>{fmt(goal)} $SDG</b>\n"
+        f"Durata: <b>{days} {'giorno' if days == 1 else 'giorni'}</b>\n\n"
+        "Scegli quota e durata, poi premi <b>Avvia</b>. "
+        "<i>Una sfida già attiva viene sostituita; il messaggio nel gruppo viene fissato in silenzio.</i>"
+    )
+    rows = [[InlineKeyboardButton(("✅ " if g == goal else "") + fmt(g), callback_data=f"adm_cg_{g}") for g in CHAL_GOALS]]
+    rows.append([InlineKeyboardButton(("✅ " if d == days else "") + lab, callback_data=f"adm_cd_{d}") for d, lab in CHAL_DAYS])
+    rows.append([InlineKeyboardButton("🚀 Avvia sfida", callback_data="adm_chal")])
+    rows.append([InlineKeyboardButton("⬅️ Indietro", callback_data="adm_back")])
     return text, InlineKeyboardMarkup(rows)
 
 
@@ -175,13 +197,41 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_db()                                   # persistente: sopravvive ai riavvii
         await query.answer("🟢 V2 PUBBLICA: tutti la vedono!" if SYSTEM_FLAGS["UPDATE_V2_PUBLIC"]
                            else "🔴 V2 nascosta: solo tu la vedi.", show_alert=True)
+    elif action == "cfg":
+        await query.answer()
+        await smart_edit(query, *_chal_cfg_view())
+        return
+    elif action == "cg":                            # adm_cg_<quota>
+        try:
+            GROUP_CHALLENGE["cfg_goal"] = int(parts[2])
+        except (IndexError, ValueError):
+            pass
+        await query.answer(f"Quota: {fmt(GROUP_CHALLENGE['cfg_goal'])} $SDG")
+        await smart_edit(query, *_chal_cfg_view())
+        return
+    elif action == "cd":                            # adm_cd_<giorni>
+        try:
+            GROUP_CHALLENGE["cfg_days"] = max(1, int(parts[2]))
+        except (IndexError, ValueError):
+            pass
+        await query.answer(f"Durata: {GROUP_CHALLENGE['cfg_days']} g")
+        await smart_edit(query, *_chal_cfg_view())
+        return
     elif action == "chal":
         await query.answer()
-        ok, note = await challenge_start(context.bot)
+        ok, note = await challenge_start(
+            context.bot,
+            goal=int(GROUP_CHALLENGE.get("cfg_goal", 5000)),
+            days=int(GROUP_CHALLENGE.get("cfg_days", 1)),
+        )
         try:
             await context.bot.send_message(chat_id=query.from_user.id, text=("✅ " if ok else "⚠️ ") + note)
         except Exception:
             pass
+        await smart_edit(query, *_admin_view())
+        return
+    elif action == "back":
+        await query.answer()
     else:
         await query.answer()
         return
@@ -255,17 +305,14 @@ async def _find_user_id_by_username(context: ContextTypes.DEFAULT_TYPE, chat_id:
     uid = cache.get(f"{chat_id}_{username}")
     if uid:
         return int(uid)
-    prefix = f"{chat_id}_"
-    for k in list(USER_DATA.keys()):
-        if k.startswith(prefix):
-            candidate = k.rsplit("_", 1)[1]
-            try:
-                m = await context.bot.get_chat_member(chat_id, int(candidate))
-                if m.user.username and m.user.username.lower() == username:
-                    cache[f"{chat_id}_{username}"] = int(candidate)
-                    return int(candidate)
-            except Exception:
-                pass
+    for candidate in chat_user_ids(chat_id):
+        try:
+            m = await context.bot.get_chat_member(chat_id, int(candidate))
+            if m.user.username and m.user.username.lower() == username:
+                cache[f"{chat_id}_{username}"] = int(candidate)
+                return int(candidate)
+        except Exception:
+            pass
     return None
 
 
