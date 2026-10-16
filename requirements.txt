@@ -1,4 +1,4 @@
-python-telegram-bot[job-queue,rate-limiter]==21.7
+python-telegram-bot[job-queue,rate-limiter,webhooks]==21.7
 Flask==3.0.0
 tzdata
 httpx==0.27.2
