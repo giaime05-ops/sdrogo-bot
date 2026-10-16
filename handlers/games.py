@@ -993,7 +993,7 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
             add_user_coins(chat_id, user_id, HEIST_FINAL)
             record_single_result(chat_id, user_id, True, HEIST_FINAL - HEIST_COST)
 
-            inv_key = f"{chat_id}_{user_id}"
+            inv_key = str(user_id)
             if inv_key not in USER_INVENTORIES:
                 USER_INVENTORIES[inv_key] = {"titles": 0, "persecutes": 0, "stars": 0}
             USER_INVENTORIES[inv_key]["stars"] = USER_INVENTORIES[inv_key].get("stars", 0) + 1
@@ -1687,18 +1687,29 @@ def _poker_text(game: dict, user, coins: int, reveal: bool = False, footer: str 
     )
 
 
-def _poker_kb(game: dict, owner_id: int) -> InlineKeyboardMarkup:
+def _poker_kb(game: dict, owner_id: int, coins: int = 0) -> InlineKeyboardMarkup:
+    """Se il saldo non basta per vedere/rilanciare compare il tasto ALL-IN (invece di costringere a lasciare)."""
     b = game["bet"]
     if game["phase"] == "respond":
-        return InlineKeyboardMarkup([[
-            InlineKeyboardButton(f"🃏 Vedi (+{b})", callback_data=f"sp_pkact_check_{owner_id}"),
-            InlineKeyboardButton("🏳️ Lascia", callback_data=f"sp_pkact_fold_{owner_id}"),
-        ]])
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🃏 Parola", callback_data=f"sp_pkact_check_{owner_id}"),
-         InlineKeyboardButton(f"💰 Rilancia (+{b})", callback_data=f"sp_pkact_raise_{owner_id}")],
-        [InlineKeyboardButton("🏳️ Lascia", callback_data=f"sp_pkact_fold_{owner_id}")],
-    ])
+        if coins >= b:
+            return InlineKeyboardMarkup([[
+                InlineKeyboardButton(f"🃏 Vedi (+{b})", callback_data=f"sp_pkact_check_{owner_id}"),
+                InlineKeyboardButton("🏳️ Lascia", callback_data=f"sp_pkact_fold_{owner_id}"),
+            ]])
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(f"🔥 ALL-IN ({fmt(coins)} $SDG)", callback_data=f"sp_pkact_allin_{owner_id}")],
+            [InlineKeyboardButton("🏳️ Lascia", callback_data=f"sp_pkact_fold_{owner_id}")],
+        ])
+    if coins >= b:
+        raise_btn = InlineKeyboardButton(f"💰 Rilancia (+{b})", callback_data=f"sp_pkact_raise_{owner_id}")
+    elif coins > 0:
+        raise_btn = InlineKeyboardButton(f"🔥 ALL-IN ({fmt(coins)} $SDG)", callback_data=f"sp_pkact_allin_{owner_id}")
+    else:
+        raise_btn = None
+    top = [InlineKeyboardButton("🃏 Parola", callback_data=f"sp_pkact_check_{owner_id}")]
+    if raise_btn:
+        top.append(raise_btn)
+    return InlineKeyboardMarkup([top, [InlineKeyboardButton("🏳️ Lascia", callback_data=f"sp_pkact_fold_{owner_id}")]])
 
 
 def _poker_end_kb(bet: int, owner_id: int) -> InlineKeyboardMarkup:
@@ -1755,7 +1766,7 @@ async def _poker_advance(query, user, chat_id: int, game: dict, owner_id: int, c
     game["phase"] = "act"
     game["to_call"] = 0
     await _safe_edit(query, _poker_text(game, user, get_user_coins(chat_id, user.id), footer=footer),
-                     _poker_kb(game, owner_id))
+                     _poker_kb(game, owner_id, get_user_coins(chat_id, user.id)))
 
 
 @serialized("user")
@@ -1823,7 +1834,7 @@ async def handle_sp_poker(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "pot_p": bet, "pot_b": bet, "ts": time.time(), "last": time.time(),
         }
         POKER_GAMES[key] = game
-        await _safe_edit(query, _poker_text(game, user, get_user_coins(chat_id, user.id)), _poker_kb(game, owner_id))
+        await _safe_edit(query, _poker_text(game, user, get_user_coins(chat_id, user.id)), _poker_kb(game, owner_id, get_user_coins(chat_id, user.id)))
         return
 
     # Azione in una mano in corso
@@ -1861,10 +1872,38 @@ async def handle_sp_poker(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await _safe_edit(
                     query,
                     _poker_text(game, user, get_user_coins(chat_id, user.id), footer=f"🤖 Il bot <b>punta {fmt(bet)} $SDG</b>: vedi o lasci?"),
-                    _poker_kb(game, owner_id)
+                    _poker_kb(game, owner_id, get_user_coins(chat_id, user.id))
                 )
             else:
                 await _poker_advance(query, user, chat_id, game, owner_id, context, key, footer="🤖 Il bot passa.")
+            return
+
+        if act == "allin":
+            # Saldo insufficiente per il rilancio/la puntata del bot: si va All-In con quello che resta e subito allo showdown
+            x = get_user_coins(chat_id, user.id)
+            if game["phase"] == "respond":
+                if x >= bet:
+                    await query.answer("Hai abbastanza saldo: usa Vedi.", show_alert=True)
+                    return
+            elif x >= bet or x <= 0:
+                await query.answer()
+                return
+            await query.answer()
+            if x > 0:
+                _charge(chat_id, user.id, x)
+            game["pot_p"] += x
+            if game["phase"] == "respond":
+                game["pot_b"] -= (bet - x)          # il bot riprende la parte che l'All-In non copre (side pot)
+            else:
+                s = _bot_strength(game["hole_b"], game["board"])
+                if not _bot_calls_raise(s):
+                    await _poker_end(context, query, user, chat_id, key, game, "bot_fold", owner_id)
+                    return
+                game["pot_b"] += x
+            while len(game["board"]) < 5:           # si scoprono tutte le carte del tavolo
+                game["board"].append(game["deck"].pop())
+            game["street"] = 3
+            await _poker_end(context, query, user, chat_id, key, game, "showdown", owner_id)
             return
 
         if act == "raise":
