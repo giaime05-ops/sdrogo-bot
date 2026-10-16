@@ -1658,20 +1658,28 @@ def _bot_strength(hole: list, board: list) -> float:
     return base
 
 
-def _bot_calls_raise(s: float) -> bool:
-    if s < 0.30:
-        return random.random() > 0.40
-    if s < 0.50:
-        return random.random() > 0.15
-    return True
+def _bot_calls_raise(s: float, street: int = 0) -> bool:
+    """Il bot vede il rilancio del giocatore. Lascia solo con mani davvero deboli e molto di rado nei primi giri
+    (il rilancio è sempre una puntata fissa: contro un piatto già grosso lasciare è raramente giusto)."""
+    if s < 0.25:
+        fold = 0.30 + 0.05 * street          # mano scarsa: più si avanza, più è facile che lasci
+    elif s < 0.40:
+        fold = 0.10 + 0.03 * street
+    elif s < 0.50:
+        fold = 0.03
+    else:
+        fold = 0.0
+    if street == 0:
+        fold *= 0.5                           # pre-flop quasi mai
+    return random.random() >= fold
 
 
 def _bot_bets(s: float) -> bool:
     if s >= 0.62:
-        return random.random() < 0.70
+        return random.random() < 0.85
     if s < 0.35:
-        return random.random() < 0.12      # bluff
-    return random.random() < 0.20
+        return random.random() < 0.18      # bluff
+    return random.random() < 0.32
 
 
 def _poker_text(game: dict, user, coins: int, reveal: bool = False, footer: str = "") -> str:
@@ -1688,28 +1696,29 @@ def _poker_text(game: dict, user, coins: int, reveal: bool = False, footer: str 
 
 
 def _poker_kb(game: dict, owner_id: int, coins: int = 0) -> InlineKeyboardMarkup:
+    sq = game.get("seq", 0)          # numero di stato: un tasto di uno stato vecchio (doppio tocco) viene ignorato
     """Se il saldo non basta per vedere/rilanciare compare il tasto ALL-IN (invece di costringere a lasciare)."""
     b = game["bet"]
     if game["phase"] == "respond":
         if coins >= b:
             return InlineKeyboardMarkup([[
-                InlineKeyboardButton(f"🃏 Vedi (+{b})", callback_data=f"sp_pkact_check_{owner_id}"),
-                InlineKeyboardButton("🏳️ Lascia", callback_data=f"sp_pkact_fold_{owner_id}"),
+                InlineKeyboardButton(f"🃏 Vedi (+{b})", callback_data=f"sp_pkact_check_{sq}_{owner_id}"),
+                InlineKeyboardButton("🏳️ Lascia", callback_data=f"sp_pkact_fold_{sq}_{owner_id}"),
             ]])
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"🔥 ALL-IN ({fmt(coins)} $SDG)", callback_data=f"sp_pkact_allin_{owner_id}")],
-            [InlineKeyboardButton("🏳️ Lascia", callback_data=f"sp_pkact_fold_{owner_id}")],
+            [InlineKeyboardButton(f"🔥 ALL-IN ({fmt(coins)} $SDG)", callback_data=f"sp_pkact_allin_{sq}_{owner_id}")],
+            [InlineKeyboardButton("🏳️ Lascia", callback_data=f"sp_pkact_fold_{sq}_{owner_id}")],
         ])
     if coins >= b:
-        raise_btn = InlineKeyboardButton(f"💰 Rilancia (+{b})", callback_data=f"sp_pkact_raise_{owner_id}")
+        raise_btn = InlineKeyboardButton(f"💰 Rilancia (+{b})", callback_data=f"sp_pkact_raise_{sq}_{owner_id}")
     elif coins > 0:
-        raise_btn = InlineKeyboardButton(f"🔥 ALL-IN ({fmt(coins)} $SDG)", callback_data=f"sp_pkact_allin_{owner_id}")
+        raise_btn = InlineKeyboardButton(f"🔥 ALL-IN ({fmt(coins)} $SDG)", callback_data=f"sp_pkact_allin_{sq}_{owner_id}")
     else:
         raise_btn = None
-    top = [InlineKeyboardButton("🃏 Parola", callback_data=f"sp_pkact_check_{owner_id}")]
+    top = [InlineKeyboardButton("🃏 Parola", callback_data=f"sp_pkact_check_{sq}_{owner_id}")]
     if raise_btn:
         top.append(raise_btn)
-    return InlineKeyboardMarkup([top, [InlineKeyboardButton("🏳️ Lascia", callback_data=f"sp_pkact_fold_{owner_id}")]])
+    return InlineKeyboardMarkup([top, [InlineKeyboardButton("🏳️ Lascia", callback_data=f"sp_pkact_fold_{sq}_{owner_id}")]])
 
 
 def _poker_end_kb(bet: int, owner_id: int) -> InlineKeyboardMarkup:
@@ -1747,7 +1756,14 @@ async def _poker_end(context, query, user, chat_id: int, key: str, game: dict, r
         else:
             base = game["pot_p"]
             verdict = "⚖️ <b>PAREGGIO!</b> Ti restituisco quanto hai messo."
-    paid, notes = await _settle(context.bot, chat_id, user.id, "poker", game["pot_p"], base)
+    try:
+        paid, notes = await _settle(context.bot, chat_id, user.id, "poker", game["pot_p"], base)
+    except Exception as e:                                   # errore imprevisto: la puntata non va persa
+        logging.error(f"Poker settle: {e}")
+        add_user_coins(chat_id, user.id, game["pot_p"])
+        await _safe_edit(query, "⚠️ Errore nel calcolo della mano: puntata rimborsata.",
+                         _poker_end_kb(game["bet"], owner_id))
+        return
     net = paid - game["pot_p"]
     text = _poker_text(game, user, get_user_coins(chat_id, user.id), reveal=reveal,
                        footer=f"{detail}{verdict} <b>{_sign(net)} $SDG</b>{_notes(notes)}")
@@ -1830,7 +1846,7 @@ async def handle_sp_poker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         game = {
             "name": name, "bet": bet, "deck": deck,
             "hole_p": [deck.pop(), deck.pop()], "hole_b": [deck.pop(), deck.pop()], "board": [],
-            "street": 0, "phase": "act", "to_call": 0,
+            "street": 0, "phase": "act", "to_call": 0, "seq": 0,
             "pot_p": bet, "pot_b": bet, "ts": time.time(), "last": time.time(),
         }
         POKER_GAMES[key] = game
@@ -1841,12 +1857,21 @@ async def handle_sp_poker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action == "pkact":
         game = POKER_GAMES.get(key)
         if not game:
-            await query.answer()
-            await _safe_edit(query, "❌ Mano terminata.", InlineKeyboardMarkup([_sp_back_row(owner_id)]))
+            # mano già chiusa (doppio tocco, tasto vecchio): NON si tocca il messaggio, che mostra già il risultato
+            await query.answer("Questa mano è già terminata.")
             return
         act = parts[2]
+        try:
+            seq = int(parts[3]) if len(parts) > 4 else -1
+        except ValueError:
+            seq = -1
+        if seq != game.get("seq", 0):
+            await query.answer()                              # tasto di uno stato vecchio: ignorato in silenzio
+            return
+        game["seq"] = seq + 1                                 # da qui i vecchi tasti non valgono più
         game["last"] = time.time()
         bet = game["bet"]
+        _undo = lambda: game.__setitem__("seq", seq)          # azione rifiutata: i tasti restano validi
 
         if act == "fold":
             await query.answer()
@@ -1856,7 +1881,8 @@ async def handle_sp_poker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if act == "check":
             if game["phase"] == "respond":                     # il bot ha puntato: vedi
                 if get_user_coins(chat_id, user.id) < bet:
-                    await query.answer("❌ Saldo insufficiente per vedere: puoi solo lasciare.", show_alert=True)
+                    _undo()
+                    await query.answer("❌ Saldo insufficiente per vedere: usa ALL-IN o lascia.", show_alert=True)
                     return
                 await query.answer()
                 _charge(chat_id, user.id, bet)
@@ -1883,9 +1909,11 @@ async def handle_sp_poker(update: Update, context: ContextTypes.DEFAULT_TYPE):
             x = get_user_coins(chat_id, user.id)
             if game["phase"] == "respond":
                 if x >= bet:
+                    _undo()
                     await query.answer("Hai abbastanza saldo: usa Vedi.", show_alert=True)
                     return
             elif x >= bet or x <= 0:
+                _undo()
                 await query.answer()
                 return
             await query.answer()
@@ -1896,7 +1924,7 @@ async def handle_sp_poker(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 game["pot_b"] -= (bet - x)          # il bot riprende la parte che l'All-In non copre (side pot)
             else:
                 s = _bot_strength(game["hole_b"], game["board"])
-                if not _bot_calls_raise(s):
+                if not _bot_calls_raise(s, 3):
                     await _poker_end(context, query, user, chat_id, key, game, "bot_fold", owner_id)
                     return
                 game["pot_b"] += x
@@ -1908,16 +1936,18 @@ async def handle_sp_poker(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if act == "raise":
             if game["phase"] != "act":
+                _undo()
                 await query.answer()
                 return
             if get_user_coins(chat_id, user.id) < bet:
+                _undo()
                 await query.answer(f"❌ Servono {bet} $SDG per rilanciare!", show_alert=True)
                 return
             await query.answer()
             _charge(chat_id, user.id, bet)
             game["pot_p"] += bet
             s = _bot_strength(game["hole_b"], game["board"])
-            if _bot_calls_raise(s):
+            if _bot_calls_raise(s, game["street"]):
                 game["pot_b"] += bet
                 await _poker_advance(query, user, chat_id, game, owner_id, context, key,
                                      footer=f"💰 Hai rilanciato di {fmt(bet)} $SDG: il bot vede.")
