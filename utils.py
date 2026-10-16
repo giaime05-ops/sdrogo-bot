@@ -52,6 +52,20 @@ def is_v2(user_id: int) -> bool:
     return False
 
 
+# --- RITMO DELLE ANIMAZIONI (privato vs gruppo) ---
+# Telegram permette circa 20 messaggi al minuto per gruppo (e 1 al secondo per chat privata): nei gruppi le
+# animazioni vanno più diradate per non incappare nel flood control (HTTP 429). Il rate limiter fa il resto.
+ANIM_GAP_PRIVATE = 0.9      # secondi tra due modifiche in chat privata (0.8-1.0)
+ANIM_GAP_GROUP = 1.7        # secondi tra due modifiche in un gruppo (1.5-2.0)
+
+
+def anim_gap(chat_id) -> float:
+    try:
+        return ANIM_GAP_GROUP if int(chat_id) < 0 else ANIM_GAP_PRIVATE
+    except (TypeError, ValueError):
+        return ANIM_GAP_GROUP
+
+
 def fmt_num(n) -> str:
     """1224 -> '1.224'."""
     return f"{int(n):,}".replace(",", ".")
@@ -68,8 +82,9 @@ def get_formatted_name(chat_id: int, user_id: int, default_name: str) -> str:
     key = f"{chat_id}_{user_id}"          # i titoli attivi sono per chat
     stars_str = ""
 
-    if str(user_id) in USER_INVENTORIES:   # le stelle appartengono al profilo unico
-        stars = USER_INVENTORIES[str(user_id)].get("stars", 0)
+    from storage import ukey               # import ritardato: storage non importa utils, ma resta più sicuro
+    if ukey(user_id) in USER_INVENTORIES:   # le stelle appartengono al profilo unico
+        stars = USER_INVENTORIES[ukey(user_id)].get("stars", 0)
         if stars > 0:
             stars_str = " " + ("⭐" * min(stars, 5))
 
