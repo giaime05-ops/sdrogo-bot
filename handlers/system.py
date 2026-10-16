@@ -5,7 +5,7 @@ import random
 import time
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.error import RetryAfter, BadRequest
+from telegram.error import RetryAfter, BadRequest, TimedOut, NetworkError
 from telegram.ext import (
     CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes,
     ApplicationHandlerStop, TypeHandler,
@@ -20,10 +20,11 @@ from state import (
     MASTERMIND_GAMES, QUIZ_GAMES, QUIZ_DUELS_1V1, GHIGLIOTTINA_DUELS,
     HEIST_GAMES, PENITENZE_ATTIVE, ACTIVE_PERSECUTE, TIC_TAC_TOE_GAMES,
     DAILY_DONATIONS, USER_DATA, GAME_STATUS, AVIATOR_GAMES, SCRATCH_GAMES, POKER_GAMES,
-    WORK_GAMES, SYSTEM_FLAGS, GROUP_CHALLENGE,
+    WORK_GAMES, SYSTEM_FLAGS, GROUP_CHALLENGE, SANDBOX,
     game_enabled, MAINT_GAME_TEXT,
 )
-from storage import add_user_coins, get_user_coins, add_user_stat, save_db, chat_user_ids
+from storage import (add_user_coins, get_user_coins, add_user_stat, save_db, chat_user_ids, log_play,
+                     find_user_id, sandbox_set, is_sandbox)
 from utils import is_admin, serialized, smart_edit
 from handlers.hub import apply_title_command, apply_persecute_command
 from handlers.multiplayer import (
@@ -104,6 +105,7 @@ def _admin_view():
     text = (
         "🛠️ <b>DASHBOARD ADMIN</b>\n\n"
         f"🆕 V2 pubblica: <b>{'ON — tutti la vedono' if v2_on else 'OFF — solo tu la vedi'}</b>\n"
+        f"🛠️ Sandbox: <b>{'ACCESA — giochi su un profilo di prova' if SANDBOX.get('on') else 'spenta'}</b>\n"
         f"🎯 Sfida di gruppo: <b>{chal}</b>\n"
         f"{follia_line() or '🏦 Follia Sdrogo: spenta'}\n\n"
         "🟢 = attivo | 🔴 = in manutenzione\n"
@@ -112,6 +114,8 @@ def _admin_view():
     )
     rows = [
         [InlineKeyboardButton("🟢 V2 Pubblica: ON" if v2_on else "🔴 V2 Pubblica: OFF", callback_data="adm_v2")],
+        [InlineKeyboardButton("🛠️ MODALITÀ SANDBOX: ON" if SANDBOX.get("on") else "🛠️ MODALITÀ SANDBOX: OFF",
+                              callback_data="adm_sbx")],
         [InlineKeyboardButton("🎯 Configura Sfida di Gruppo", callback_data="adm_cfg")],
     ]
     row = []
@@ -197,6 +201,14 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_db()                                   # persistente: sopravvive ai riavvii
         await query.answer("🟢 V2 PUBBLICA: tutti la vedono!" if SYSTEM_FLAGS["UPDATE_V2_PUBLIC"]
                            else "🔴 V2 nascosta: solo tu la vedi.", show_alert=True)
+    elif action == "sbx":
+        sandbox_set(not SANDBOX.get("on"))
+        await query.answer(
+            "🛠️ SANDBOX ACCESA: da ora giochi con un profilo di prova (10.000 $SDG e oggetti). "
+            "Saldo, livello e statistiche veri non cambiano; Banco, Follia e Sfida restano fuori."
+            if SANDBOX.get("on") else
+            "✅ Sandbox spenta: sei tornato al tuo profilo vero. Il profilo di prova è stato cancellato.",
+            show_alert=True)
     elif action == "cfg":
         await query.answer()
         await smart_edit(query, *_chal_cfg_view())
@@ -518,6 +530,17 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         return
     if isinstance(err, BadRequest) and "not modified" in str(err).lower():
         return
+    if isinstance(err, (TimedOut, NetworkError)):
+        # timeout di rete verso Telegram (httpx.ReadTimeout...): succede ogni tanto, non è un bug del codice.
+        # Si registra una riga sola, senza traceback, e si prosegue; il giocatore può riprovare.
+        logging.warning(f"Timeout/rete verso Telegram ({type(err).__name__}): {err}")
+        cq = getattr(update, "callback_query", None)
+        if cq:
+            try:
+                await cq.answer("⚠️ Telegram è lento, riprova tra un attimo.")
+            except Exception:
+                pass
+        return
     logging.error(msg="Eccezione non gestita durante l'update:", exc_info=err)
     print(f"🚨 ERRORE: {err}", flush=True)
 
@@ -699,6 +722,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         reward = quiz_reward(q["step"])
         add_user_coins(chat_id_int, user.id, reward)
         add_user_stat(chat_id_int, user.id, "quizzes_won", 1)
+        log_play(user.id, "quiz", 5, reward)
         qmsg = quest_progress(chat_id_int, user.id, "quiz_win")
         await update.message.reply_text(
             f"🎉 <b>CORRETTO!</b> <b>{uname}</b> indovina <b>{q['target']}</b>! Vinti +💳 {reward} $SDG!"
