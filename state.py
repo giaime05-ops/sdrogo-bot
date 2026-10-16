@@ -31,6 +31,9 @@ ACTIVE_TITLES = {}
 ACTIVE_PERSECUTE = {}
 USER_INVENTORIES = {}
 
+# Modalità Sandbox dell'admin: con "on" le sue giocate usano un profilo di prova (chiave "sbx_<id>", mai salvato nel database)
+SANDBOX = {"on": False}
+
 FLAGS = {"troll": False, "maintenance": False}
 
 # --- V2: stati PERSISTENTI (salvati in database.json da storage.py) ---
