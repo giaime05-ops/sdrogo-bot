@@ -48,6 +48,10 @@ SANDBOX_COINS = 10000       # saldo di partenza del profilo di prova dell'admin
 HEIST_PASS = 150            # costo del pass Heist (per il rimborso in caso di riavvio)
 
 _dirty = False
+_touched_users = set()          # profili usati dopo l'ultimo salvataggio: solo questi vengono riconfrontati ogni 3 secondi
+_touched_inv = set()
+_last_full = 0.0                # ultima scansione completa di tutti i profili (rete di sicurezza ogni 30 s)
+FULL_SCAN_EVERY = 30
 _conn = None
 _db_lock = threading.Lock()                         # un solo accesso alla connessione alla volta
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="sdrogo-db")
@@ -439,6 +443,7 @@ async def recover_sessions(bot):
             u = USER_DATA.get(str(uid))
             if u is not None:
                 u["coins"] = u.get("coins", 0) + amount
+                _touched_users.add(str(uid))
             if data.get("banco"):
                 BANCO_STATE["BANCO_BALANCE"] = max(0, int(BANCO_STATE.get("BANCO_BALANCE", 0)) - int(data["banco"]))
             refunds.setdefault(chat_id, []).append((uid, amount, data.get("label", "partita")))
@@ -477,22 +482,43 @@ def _kv_rows() -> dict:
     }
 
 
-def _build(with_users: bool):
-    """Calcola le righe cambiate. Gira nel loop (fotografia coerente di tutto lo stato)."""
-    cur = {"users": _saved["users"], "inv": _saved["inv"]}
-    if with_users:
-        cur["users"] = {u: _json(d) for u, d in list(USER_DATA.items()) if not u.startswith("sbx_")}
-        cur["inv"] = {u: _json(d) for u, d in list(USER_INVENTORIES.items()) if not u.startswith("sbx_")}
-    cur["kv"] = _kv_rows()
-    cur["sess"] = _collect_sessions()
+def touch_inv(key: str):
+    """Segna un inventario come usato (economy.inv lo chiama): sarà riconfrontato al prossimo salvataggio."""
+    _touched_inv.add(key)
+
+
+def _build(full: bool, touched_u=None, touched_i=None):
+    """Calcola le righe cambiate. Gira nel loop (fotografia coerente di tutto lo stato).
+    full=False: confronta solo i profili toccati di recente (veloce anche con migliaia di giocatori);
+    full=True: confronta tutti (ogni 30 secondi e allo spegnimento)."""
+    if full:
+        uids = [u for u in list(USER_DATA) if not u.startswith("sbx_")]
+        iids = [u for u in list(USER_INVENTORIES) if not u.startswith("sbx_")]
+    else:
+        uids = [u for u in list(touched_u if touched_u is not None else _touched_users) if u in USER_DATA and not u.startswith("sbx_")]
+        iids = [u for u in list(touched_i if touched_i is not None else _touched_inv) if u in USER_INVENTORIES and not u.startswith("sbx_")]
+    u_new, i_new = {}, {}
+    for u in uids:
+        j = _json(USER_DATA[u])
+        if _saved["users"].get(u) != j:
+            u_new[u] = j
+    for u in iids:
+        j = _json(USER_INVENTORIES[u])
+        if _saved["inv"].get(u) != j:
+            i_new[u] = j
+    u_del = [k for k in _saved["users"] if k not in USER_DATA] if full else []
+    i_del = [k for k in _saved["inv"] if k not in USER_INVENTORIES] if full else []
+    kv = _kv_rows()
+    sess = _collect_sessions()
+    cur = {"u_new": u_new, "i_new": i_new, "u_del": u_del, "i_del": i_del, "kv": kv, "sess": sess}
     changes = {
-        "users": [(k, v) for k, v in cur["users"].items() if _saved["users"].get(k) != v],
-        "users_del": [(k,) for k in _saved["users"] if k not in cur["users"]],
-        "inv": [(k, v) for k, v in cur["inv"].items() if _saved["inv"].get(k) != v],
-        "inv_del": [(k,) for k in _saved["inv"] if k not in cur["inv"]],
-        "kv": [(k, v) for k, v in cur["kv"].items() if _saved["kv"].get(k) != v],
-        "sess": [(k[0], k[1], v) for k, v in cur["sess"].items() if _saved["sess"].get(k) != v],
-        "sess_del": [k for k in _saved["sess"] if k not in cur["sess"]],
+        "users": list(u_new.items()),
+        "users_del": [(k,) for k in u_del],
+        "inv": list(i_new.items()),
+        "inv_del": [(k,) for k in i_del],
+        "kv": [(k, v) for k, v in kv.items() if _saved["kv"].get(k) != v],
+        "sess": [(k[0], k[1], v) for k, v in sess.items() if _saved["sess"].get(k) != v],
+        "sess_del": [k for k in _saved["sess"] if k not in sess],
     }
     return cur, changes
 
@@ -531,27 +557,46 @@ def _apply(ch: dict):
 
 
 def _commit_saved(cur: dict):
-    _saved["users"], _saved["inv"], _saved["kv"], _saved["sess"] = cur["users"], cur["inv"], cur["kv"], cur["sess"]
+    _saved["users"].update(cur["u_new"])
+    _saved["inv"].update(cur["i_new"])
+    for k in cur["u_del"]:
+        _saved["users"].pop(k, None)
+    for k in cur["i_del"]:
+        _saved["inv"].pop(k, None)
+    _saved["kv"] = cur["kv"]
+    _saved["sess"] = cur["sess"]
 
 
 async def flush_db(context=None):
-    """Salva su SQLite ciò che è cambiato (profili solo se segnati come modificati; partite e stato di sistema sempre)."""
-    global _dirty, _flush_lock
+    """Salva su SQLite ciò che è cambiato. Profili: solo quelli usati di recente (scansione completa ogni 30 s);
+    partite e stato di sistema: sempre. Il lavoro pesante (scrittura) avviene in un thread."""
+    global _dirty, _flush_lock, _last_full
     if _conn is None:
         return
     if _flush_lock is None:
         _flush_lock = asyncio.Lock()
     async with _flush_lock:
-        with_users = _dirty
+        was_dirty = _dirty
         _dirty = False
+        now = time.time()
+        full = was_dirty and now - _last_full >= FULL_SCAN_EVERY
+        taken_u, taken_i = set(_touched_users), set(_touched_inv)
+        _touched_users.clear()
+        _touched_inv.clear()
         try:
-            cur, ch = _build(with_users)
+            cur, ch = _build(full, taken_u, taken_i)
             if not _has_changes(ch):
+                if full:
+                    _last_full = now
                 return
             await asyncio.get_running_loop().run_in_executor(_executor, _apply, ch)
             _commit_saved(cur)
+            if full:
+                _last_full = now
         except Exception as e:
             _dirty = True
+            _touched_users.update(taken_u)
+            _touched_inv.update(taken_i)
             logging.error(f"Errore salvataggio DB: {e}")
 
 
@@ -689,6 +734,7 @@ def _track_chat(d: dict, chat_id) -> bool:
 
 def get_user_data_dict(chat_id: int, user_id: int) -> dict:
     key = get_user_key(chat_id, user_id)
+    _touched_users.add(key)
     if key.startswith("sbx_"):                       # profilo di prova: niente chat tracciate, mai su disco
         if key not in USER_DATA:
             USER_DATA[key] = _new_profile(SANDBOX_COINS)
@@ -748,6 +794,7 @@ def log_play(user_id, game: str, bet: int, payout: int, outcome: str = ""):
     bet, payout = int(bet), int(payout)
     if not outcome:
         outcome = "vinta" if payout > bet else ("pareggio" if payout == bet else "persa")
+    _touched_users.add(key)
     hist = d.setdefault("history", [])
     hist.append({"t": int(time.time()), "g": str(game), "b": bet, "o": outcome, "w": payout})
     if len(hist) > HISTORY_MAX:
@@ -765,6 +812,7 @@ def note_username(user):
     uname = (user.username or "").lower()
     name = (user.first_name or "")[:40]
     if d.get("username", "") != uname or d.get("name", "") != name:
+        _touched_users.add(str(user.id))
         d["username"] = uname
         d["name"] = name
         save_db()
