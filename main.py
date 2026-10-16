@@ -5,8 +5,10 @@ import os
 import re
 import signal
 import time
+from collections import deque
 
-from telegram.ext import Application
+from telegram.error import RetryAfter
+from telegram.ext import Application, BaseRateLimiter
 from telegram.request import HTTPXRequest
 
 from config import TELEGRAM_TOKEN
@@ -53,8 +55,6 @@ def _clean_webhook_url(raw: str) -> str:
 
 WEBHOOK_URL = _clean_webhook_url(os.environ.get("WEBHOOK_URL"))
 PORT = int(os.environ.get("PORT", "8080"))
-# Messaggi al minuto che il bot si concede in ogni gruppo prima di mettere le richieste in coda (20 = limite di Telegram: alzarlo provoca blocchi di 20+ secondi per tutti)
-GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "20"))
 # Segreto che Telegram allega a ogni richiesta: chi non lo conosce non può mandare finti aggiornamenti al bot
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET") or hashlib.sha256(f"sdrogo:{TELEGRAM_TOKEN}".encode()).hexdigest()[:48]
 
@@ -172,6 +172,95 @@ async def _perf_report(application):
             p[k] = 0 if k.endswith("_n") else 0.0
 
 
+# ======================================================================
+# LIMITATORE DI VELOCITÀ PER CHAT
+# Il limitatore standard di PTB (AIORateLimiter) ha due difetti per questo bot:
+#   1) quando Telegram risponde 429 ("flood control") ferma TUTTE le richieste del bot, anche quelle degli altri gruppi,
+#      delle chat private e i semplici "answerCallbackQuery" (il cerchietto del tasto): così un solo gruppo congela tutto;
+#   2) conta come "messaggi" anche le modifiche e permette raffiche di 20 modifiche di fila, che Telegram punisce.
+# Questo limitatore: ogni chat ha la sua fila (le chat non si disturbano a vicenda); nei gruppi tiene un intervallo minimo
+# tra una richiesta e l'altra (GROUP_GAP) e un tetto di NUOVI messaggi al minuto (GROUP_MAX_PER_MIN); le richieste senza chat
+# (answerCallbackQuery...) passano subito; un 429 mette in pausa SOLO la chat interessata.
+# ======================================================================
+GROUP_GAP = float(os.environ.get("GROUP_GAP", "1.1"))              # secondi minimi tra due richieste nello stesso gruppo
+PRIVATE_GAP = float(os.environ.get("PRIVATE_GAP", "0.3"))          # idem in chat privata
+GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "20"))  # NUOVI messaggi al minuto per gruppo (Telegram: 20)
+
+_SEND_ENDPOINTS = {"sendMessage", "sendPhoto", "sendDocument", "sendAnimation", "sendSticker", "sendDice",
+                   "sendVideo", "sendAudio", "sendVoice", "sendPoll", "sendMediaGroup"}
+_THROTTLED = _SEND_ENDPOINTS | {"editMessageText", "editMessageReplyMarkup", "editMessageCaption", "deleteMessage",
+                                "pinChatMessage", "unpinChatMessage", "editMessageMedia"}
+
+
+class ChatRateLimiter(BaseRateLimiter):
+    def __init__(self, group_gap=GROUP_GAP, private_gap=PRIVATE_GAP, sends_per_min=GROUP_MAX_PER_MIN, max_retries=3):
+        self.group_gap, self.private_gap, self.sends_per_min, self.max_retries = group_gap, private_gap, sends_per_min, max_retries
+        self._locks = {}
+        self._next_ok = {}
+        self._blocked = {}
+        self._sends = {}
+
+    async def initialize(self) -> None:
+        return None
+
+    async def shutdown(self) -> None:
+        return None
+
+    @staticmethod
+    def _chat_of(endpoint, data):
+        if endpoint not in _THROTTLED or not isinstance(data, dict):
+            return None
+        cid = data.get("chat_id")
+        if cid is None:
+            return None                       # modifiche di messaggi inline, risposte ai tasti...: nessuna coda
+        try:
+            return int(cid)
+        except (TypeError, ValueError):
+            return str(cid)
+
+    async def _wait_turn(self, chat, endpoint):
+        group = isinstance(chat, str) or chat < 0
+        lock = self._locks.get(chat)
+        if lock is None:
+            lock = self._locks[chat] = asyncio.Lock()
+        async with lock:                      # la fila è in ordine di arrivo
+            now = time.monotonic()
+            wait = max(self._next_ok.get(chat, 0) - now, self._blocked.get(chat, 0) - now, 0.0)
+            is_send = group and endpoint in _SEND_ENDPOINTS
+            if is_send:
+                dq = self._sends.setdefault(chat, deque())
+                while dq and now - dq[0] > 60:
+                    dq.popleft()
+                if len(dq) >= self.sends_per_min:
+                    wait = max(wait, dq[0] + 60 - now)
+            if wait > 0:
+                await asyncio.sleep(wait)
+            t = time.monotonic()
+            self._next_ok[chat] = t + (self.group_gap if group else self.private_gap)
+            if is_send:
+                self._sends.setdefault(chat, deque()).append(t)
+
+    async def process_request(self, callback, args, kwargs, endpoint, data, rate_limit_args=None, **extra):
+        try:
+            chat = self._chat_of(endpoint, data)
+            if chat is not None:
+                await self._wait_turn(chat, endpoint)
+        except Exception as e:                # mai bloccare una richiesta per un errore del limitatore
+            logging.warning(f"Limitatore: {e}")
+            chat = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                return await callback(*args, **kwargs)
+            except RetryAfter as e:
+                ra = e.retry_after
+                secs = (ra.total_seconds() if hasattr(ra, "total_seconds") else float(ra)) + 0.5
+                if chat is not None:
+                    self._blocked[chat] = time.monotonic() + secs      # pausa solo per questa chat
+                if attempt >= self.max_retries:
+                    raise
+                await asyncio.sleep(secs)
+
+
 def build_application() -> Application:
     # Timeout più larghi per le chiamate a Telegram: evita httpx.ReadTimeout / telegram.error.TimedOut nei momenti lenti.
     # Il pool di connessioni deve stare ben sopra concurrent_updates (32).
@@ -193,11 +282,14 @@ def build_application() -> Application:
         .concurrent_updates(32)          # fino a 32 update elaborati in parallelo
     )
     try:
-        # Mette in coda le richieste e gestisce da solo il flood control di Telegram
-        from telegram.ext import AIORateLimiter
-        builder = builder.rate_limiter(AIORateLimiter(group_max_rate=GROUP_MAX_PER_MIN, group_time_period=60, max_retries=3))
-    except (ImportError, RuntimeError):
-        print("⚠️ Rate limiter non disponibile: installa python-telegram-bot[job-queue,rate-limiter,webhooks].", flush=True)
+        builder = builder.rate_limiter(ChatRateLimiter())
+    except Exception as e:                    # ripiego: limitatore standard di PTB
+        print(f"⚠️ Limitatore per chat non disponibile ({e}): uso quello standard.", flush=True)
+        try:
+            from telegram.ext import AIORateLimiter
+            builder = builder.rate_limiter(AIORateLimiter(group_max_rate=20, group_time_period=60, max_retries=3))
+        except (ImportError, RuntimeError):
+            print("⚠️ Nessun limitatore: installa python-telegram-bot[job-queue,rate-limiter,webhooks].", flush=True)
     return builder.build()
 
 
