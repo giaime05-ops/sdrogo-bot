@@ -15,7 +15,7 @@ from state import (
     WORK_GAMES, PENDING_INPUT, SILENCED, REACT_TARGETS, MUTE_FILTER, USER_DATA,
     game_enabled, MAINT_GAME_TEXT,
 )
-from storage import get_user_coins, add_user_coins, save_db, chat_user_ids
+from storage import get_user_coins, add_user_coins, save_db, chat_user_ids, log_play
 from utils import is_v2, verify_user_lock, serialized, smart_edit, smart_edit_msg
 
 WORK_TICK = 5                 # secondi tra due aggiornamenti del conto alla rovescia (la scadenza è controllata dal server)
@@ -207,6 +207,7 @@ async def handle_work_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             text = "⏰ <b>TROPPO TARDI!</b> Il tempo era scaduto: niente paga. Riprova tra 2 ore."
         elif idx == game["puzzle"]["ans"]:
             add_user_coins(chat_id, uid, WORK_REWARD)
+            log_play(uid, "lavora", 0, WORK_REWARD, "vinta")
             text = (f"🎉 <b>ESATTO!</b> Hai guadagnato <b>+{WORK_REWARD} $SDG</b>!\n"
                     f"💳 Saldo Attuale: <b>{fmt(get_user_coins(chat_id, uid))} $SDG</b>")
         else:
