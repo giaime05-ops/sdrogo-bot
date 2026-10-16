@@ -8,7 +8,7 @@ from config import TELEGRAM_TOKEN
 from keep_alive import start_flask
 from state import FLAGS
 from storage import load_db, auto_restore_from_telegram, backup_to_telegram, flush_db, flush_db_sync
-from economy import challenge_tick
+from economy import challenge_tick, set_bot
 from handlers import system, hub, games, multiplayer, quiz, v2, heist, admin_tools
 
 logging.basicConfig(
@@ -44,6 +44,7 @@ async def main_async():
 
     application = builder.build()
     await auto_restore_from_telegram(application.bot)
+    set_bot(application.bot)              # serve a economy per avvisare in privato le quest completate
 
     # system.register installa error handler e blocco manutenzione (group=-2, prima di tutto il resto)
     system.register(application)
@@ -62,7 +63,7 @@ async def main_async():
         # Backup automatico ogni ora (fissato nella chat di backup)
         application.job_queue.run_repeating(backup_to_telegram, interval=3600, first=3600)
         # Sfida di gruppo: scadenza, annuncio finale e avvio della successiva
-        application.job_queue.run_repeating(challenge_tick, interval=10, first=15)
+        application.job_queue.run_repeating(challenge_tick, interval=30, first=15)
     else:
         print("⚠️ JobQueue non disponibile: installa python-telegram-bot[job-queue]. Senza, il DB non viene salvato!", flush=True)
 
