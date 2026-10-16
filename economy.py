@@ -16,7 +16,7 @@ except Exception:          # tzdata mancante (tipico delle immagini Docker "slim
 from config import GROUP_CHAT_ID
 from state import USER_INVENTORIES, BANCO_STATE, GROUP_CHALLENGE, GAME_STATUS
 from storage import (add_user_coins, get_user_coins, get_user_data_dict, save_db, BANCO_INITIAL,
-                     ukey, in_sandbox, is_sandbox, log_play)
+                     ukey, in_sandbox, is_sandbox, log_play, touch_inv)
 from utils import is_v2, smart_edit_msg
 
 # ======================================================================
@@ -187,6 +187,7 @@ def inv(chat_id: int, user_id: int) -> dict:
     sang_on_me ({"buyer", "left"})."""
     key = ukey(user_id)                   # profilo unico (str(id)): stesso inventario in privato e in tutti i gruppi; Sandbox: "sbx_<id>"
     d = USER_INVENTORIES.setdefault(key, {})
+    touch_inv(key)
     for k, v in (("titles", 0), ("persecutes", 0), ("stars", 0), ("silence", 0), ("mutefilter", 0),
                  ("boost_win", 0), ("boost_luck", 0), ("sang", 0),
                  ("boost_win_left", 0), ("boost_luck_left", 0)):
