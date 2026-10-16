@@ -11,12 +11,13 @@ from telegram.ext import CommandHandler, CallbackQueryHandler, TypeHandler, Cont
 from economy import (
     inv, fmt, charge as eco_charge, banco_add, banco_take, banco_balance, follia_active,
     challenge_text, quests_text, spin_daily, wheel_prizes_text, DAILY_WHEEL, today_str,
+    follia_line, quests_claimable, quest_claim, quests_for,
 )
 from state import (
     USER_DATA, USER_INVENTORIES, ACTIVE_TITLES, ACTIVE_PERSECUTE, HEIST_GAMES, GROUP_CHALLENGE,
     game_enabled, MAINT_GAME_TEXT,
 )
-from storage import get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram
+from storage import get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram, chat_user_ids
 from utils import verify_user_lock, get_formatted_name, serialized, is_v2, smart_edit, set_chat_type
 from handlers.games import HEIST_COST
 from handlers.heist import heist_new_game, heist_intro_text, heist_start_kb
@@ -91,9 +92,7 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💰 <b>Saldo:</b> <code>💳 {fmt(coins)} $SDG</code>\n"
     )
     if v2u:
-        text += f"🏦 <b>Banco Centrale:</b> <code>{fmt(banco_balance())} $SDG</code>\n"
-        if follia_active():
-            text += "🎪 <b>FOLLIA SDROGO ATTIVA!</b> Vincite potenziate! 🎉\n"
+        text += f"🏦 Banco: <code>{fmt(banco_balance())}</code>" + (" · 🎪 <b>FOLLIA ATTIVA!</b>" if follia_active() else "") + "\n"
     text += "\n<i>Seleziona una categoria per iniziare:</i>"
 
     keyboard = [
@@ -131,7 +130,7 @@ async def show_wallet(query, owner_id: int):
     duels_played = u_data.get("duels_played", 0)
     wr_duels = min(100, int(d_wins / duels_played * 100)) if duels_played > 0 else 0
 
-    stars = USER_INVENTORIES.get(f"{chat_id}_{user_id}", {}).get("stars", 0)
+    stars = USER_INVENTORIES.get(str(user_id), {}).get("stars", 0)
     profit_str = f"+{fmt(net_profit)}" if net_profit >= 0 else f"-{fmt(-net_profit)}"
 
     text = (
@@ -166,6 +165,23 @@ async def show_wallet(query, owner_id: int):
         ]
     text += "💸 <i>Usa /dona @username [importo] per regalare da 1 a 50 $SDG a un amico (5 se non indichi l'importo)!</i>"
     await smart_edit(query, text, InlineKeyboardMarkup(keyboard))
+
+
+def _quests_view(chat_id: int, user_id: int, owner_id: int, back_button: list, note: str = ""):
+    """Sezione Sfide & Missioni: sfida di gruppo, missioni di oggi e tasti per riscattare i premi."""
+    parts_txt = []
+    if GROUP_CHALLENGE.get("active"):
+        parts_txt.append(challenge_text())
+    else:
+        parts_txt.append("🎯 <b>SFIDA DI GRUPPO</b>\nNessuna sfida attiva al momento: la prossima partirà presto!")
+    parts_txt.append(quests_text(chat_id, user_id))
+    if note:
+        parts_txt.append(note)
+    lst = quests_for(chat_id, user_id)
+    rows = [[InlineKeyboardButton(f"🎁 RISCATTA {lst[i]['reward']} $SDG", callback_data=f"hub_claim_{owner_id}_{i}")]
+            for i in quests_claimable(chat_id, user_id)]
+    rows.append(back_button)
+    return "\n\n".join(parts_txt), InlineKeyboardMarkup(rows)
 
 
 def _shop_view(chat_id: int, user_id: int, owner_id: int, back_button: list):
@@ -225,7 +241,7 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     v2u = is_v2(query.from_user.id)
-    if action in ("quests", "inv") and not v2u:
+    if action in ("quests", "inv", "claim") and not v2u:
         await query.answer("🎯 Non ancora disponibile!", show_alert=True)
         return
 
@@ -335,13 +351,17 @@ async def hub_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await smart_edit(query, text, kb)
 
     elif action == "quests":
-        parts_txt = []
-        if GROUP_CHALLENGE.get("active"):
-            parts_txt.append(challenge_text())
-        else:
-            parts_txt.append("🎯 <b>SFIDA DI GRUPPO</b>\nNessuna sfida attiva al momento: la prossima partirà presto!")
-        parts_txt.append(quests_text(chat_id, user_id))
-        await smart_edit(query, "\n\n".join(parts_txt), InlineKeyboardMarkup([back_button]))
+        text, kb = _quests_view(chat_id, user_id, owner_id, back_button)
+        await smart_edit(query, text, kb)
+
+    elif action == "claim":               # hub_claim_{owner}_{indice}: riscatto manuale del premio di una missione
+        try:
+            idx = int(parts[3])
+        except (IndexError, ValueError):
+            idx = -1
+        ok, note = quest_claim(chat_id, user_id, idx)
+        text, kb = _quests_view(chat_id, user_id, owner_id, back_button, note=("✅ " if ok else "⚠️ ") + note)
+        await smart_edit(query, text, kb)
 
     elif action == "wallet":
         await show_wallet(query, owner_id)
@@ -373,8 +393,6 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
 
     if query and owner_id and not await verify_user_lock(query, owner_id): return
 
-    prefix = f"{chat_id}_"
-
     LB = {
         "coins":   ("🪙 CLASSIFICA RICCONI $SDG", "coins", "$SDG"),
         "quizzes": ("🧠 RE DEI QUIZ", "quizzes_won", "Quiz vinti"),
@@ -384,9 +402,9 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE, o
     title_name, field, unit = LB.get(category, LB["coins"])
 
     chat_users = [
-        (k.rsplit("_", 1)[1], d.get(field, 0))
-        for k, d in USER_DATA.items()
-        if k.startswith(prefix) and d.get(field, 0) > 0
+        (uid, USER_DATA[uid].get(field, 0))
+        for uid in chat_user_ids(chat_id)
+        if USER_DATA[uid].get(field, 0) > 0
     ]
     chat_users.sort(key=lambda x: x[1], reverse=True)
 
@@ -534,7 +552,7 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             HEIST_GAMES.pop(user_id, None)
             add_user_coins(chat_id, user_id, HEIST_COST)
             if v2u:
-                banco_take(HEIST_COST)
+                banco_take(HEIST_COST, count=False)
             await smart_edit(query, "❌ Devi prima avviare il bot in chat PRIVATA per giocare a Sdrogo Heist!", shop_keyboard)
             return
 
@@ -571,7 +589,7 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = update.effective_user
-    inv_key = f"{chat_id}_{user.id}"
+    inv_key = str(user.id)                      # inventario unico del profilo
     text = (update.message.text or "").strip()
 
     if inv_key not in USER_INVENTORIES or USER_INVENTORIES[inv_key].get("titles", 0) <= 0:
@@ -600,17 +618,14 @@ async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     if not target_id:
-        prefix = f"{chat_id}_"
-        for k in list(USER_DATA.keys()):
-            if k.startswith(prefix):
-                uid = k.rsplit("_", 1)[1]
-                try:
-                    m = await context.bot.get_chat_member(chat_id, int(uid))
-                    if m.user.username and m.user.username.lower() == target_username:
-                        target_id = int(uid)
-                        break
-                except Exception:
-                    pass
+        for uid in chat_user_ids(chat_id):
+            try:
+                m = await context.bot.get_chat_member(chat_id, int(uid))
+                if m.user.username and m.user.username.lower() == target_username:
+                    target_id = int(uid)
+                    break
+            except Exception:
+                pass
 
     if not target_id:
         await update.message.reply_text("❌ Utente non trovato nel registro della chat!", parse_mode="HTML")
@@ -632,7 +647,7 @@ async def apply_persecute_command(update: Update, context: ContextTypes.DEFAULT_
         return
 
     # V1: comportamento originale (risposta fissa ai prossimi 15 messaggi)
-    inv_key = f"{chat_id}_{user.id}"
+    inv_key = str(user.id)                      # inventario unico del profilo
     text = (update.message.text or "").strip()
 
     if inv_key not in USER_INVENTORIES or USER_INVENTORIES[inv_key].get("persecutes", 0) <= 0:
