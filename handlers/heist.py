@@ -35,7 +35,7 @@ from utils import serialized, smart_edit_msg
 # ----------------------------------------------------------------------------------------------
 # PARAMETRI
 # ----------------------------------------------------------------------------------------------
-HEIST_TIME = 360            # timer unico (6 minuti): parte quando premi INIZIA
+HEIST_TIME = 300            # timer unico (300 secondi = 5 minuti): parte quando premi INIZIA
 ALARM_PENALTY = 20          # secondi tolti dal timer a ogni allarme
 MAX_ALARMS = 3              # al terzo allarme la rapina fallisce
 
