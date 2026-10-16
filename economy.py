@@ -15,7 +15,8 @@ except Exception:          # tzdata mancante (tipico delle immagini Docker "slim
 
 from config import GROUP_CHAT_ID
 from state import USER_INVENTORIES, BANCO_STATE, GROUP_CHALLENGE, GAME_STATUS
-from storage import add_user_coins, get_user_coins, get_user_data_dict, save_db, BANCO_INITIAL
+from storage import (add_user_coins, get_user_coins, get_user_data_dict, save_db, BANCO_INITIAL,
+                     ukey, in_sandbox, is_sandbox, log_play)
 from utils import is_v2, smart_edit_msg
 
 # ======================================================================
@@ -160,7 +161,11 @@ async def _announce(bot, text: str):
         return None
 
 
-def record_single_result(chat_id: int, user_id: int, won: bool, profit: int, is_casino: bool = True):
+def record_single_result(chat_id: int, user_id: int, won: bool, profit: int, is_casino: bool = True,
+                         game: str = "", bet: int = 0):
+    """Aggiorna le statistiche. Con game/bet registra anche la giocata nello storico (/storico)."""
+    if game:
+        log_play(user_id, game, bet, bet + profit)
     u = get_user_data_dict(chat_id, user_id)
     u["single_played"] = u.get("single_played", 0) + 1
     u["net_profit"] = u.get("net_profit", 0) + profit
@@ -180,7 +185,7 @@ def inv(chat_id: int, user_id: int) -> dict:
     Oggetti posseduti: titles, persecutes, silence, mutefilter, boost_win, boost_luck, sang.
     Effetti attivi (con le cariche residue, salvate nel database): boost_win_left, boost_luck_left,
     sang_on_me ({"buyer", "left"})."""
-    key = str(user_id)                    # profilo unico: stesso inventario in privato e in tutti i gruppi
+    key = ukey(user_id)                   # profilo unico (str(id)): stesso inventario in privato e in tutti i gruppi; Sandbox: "sbx_<id>"
     d = USER_INVENTORIES.setdefault(key, {})
     for k, v in (("titles", 0), ("persecutes", 0), ("stars", 0), ("silence", 0), ("mutefilter", 0),
                  ("boost_win", 0), ("boost_luck", 0), ("sang", 0),
@@ -201,6 +206,8 @@ def banco_balance() -> int:
 
 
 def banco_add(amount: int):
+    if in_sandbox():
+        return                                        # Sandbox admin: il Banco vero non si tocca
     if amount > 0:
         BANCO_STATE["BANCO_BALANCE"] = banco_balance() + int(amount)
         save_db()
@@ -210,6 +217,8 @@ def banco_take(amount: int, count: bool = True) -> int:
     """Preleva fino a `amount` dal Banco. Restituisce quanto è stato davvero prelevato.
     Durante la Follia Sdrogo ciò che esce dal Banco conta nel consumo (count=False per i rimborsi)."""
     taken = max(0, min(int(amount), banco_balance()))
+    if in_sandbox():
+        return taken                                  # Sandbox: premio simulato, il Banco vero resta intatto
     if taken:
         BANCO_STATE["BANCO_BALANCE"] = banco_balance() - taken
         if count and follia_active():
@@ -290,7 +299,7 @@ def note_spend(chat_id: int, user_id: int, amount: int):
     """Registra una spesa nei giochi per la sfida di gruppo. Il profilo è unico: contano le spese fatte nel
     gruppo della sfida e quelle in chat privata col bot (Heist compreso), ma non quelle di altri gruppi."""
     gc = GROUP_CHALLENGE
-    if not gc.get("active"):
+    if not gc.get("active") or in_sandbox() or is_sandbox(user_id):
         return
     try:
         in_other_group = int(chat_id) < 0 and str(chat_id) != str(gc.get("chat_id"))
@@ -514,6 +523,7 @@ async def settle_single(bot, chat_id: int, user_id: int, game: str, bet: int, ba
     if user_payout > 0:
         add_user_coins(chat_id, user_id, user_payout)
     record_single_result(chat_id, user_id, user_payout > bet, user_payout - bet, is_casino=is_casino)
+    log_play(user_id, game, bet, user_payout)
     qmsg = single_quest_events(chat_id, user_id, game, bet, base_payout, user_payout)
     if qmsg:
         notes.append(qmsg)
