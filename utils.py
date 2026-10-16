@@ -56,7 +56,7 @@ def is_v2(user_id: int) -> bool:
 # Telegram permette circa 20 messaggi al minuto per gruppo (e 1 al secondo per chat privata): nei gruppi le
 # animazioni vanno più diradate per non incappare nel flood control (HTTP 429). Il rate limiter fa il resto.
 ANIM_GAP_PRIVATE = 0.9      # secondi tra due modifiche in chat privata (0.8-1.0)
-ANIM_GAP_GROUP = 1.7        # secondi tra due modifiche in un gruppo (1.5-2.0)
+ANIM_GAP_GROUP = 3.0        # secondi tra due modifiche in un gruppo: Telegram concede ~20 messaggi/min a gruppo = 1 ogni 3 s
 
 
 def anim_gap(chat_id) -> float:
