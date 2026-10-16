@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import signal
+import time
 
 from telegram.ext import Application
 from telegram.request import HTTPXRequest
@@ -52,14 +53,112 @@ def _clean_webhook_url(raw: str) -> str:
 
 WEBHOOK_URL = _clean_webhook_url(os.environ.get("WEBHOOK_URL"))
 PORT = int(os.environ.get("PORT", "8080"))
+# Messaggi al minuto che il bot si concede in ogni gruppo prima di mettere le richieste in coda (Telegram consiglia 20; il limitatore ritenta da solo se arriva un 429)
+GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "30"))
 # Segreto che Telegram allega a ogni richiesta: chi non lo conosce non può mandare finti aggiornamenti al bot
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET") or hashlib.sha256(f"sdrogo:{TELEGRAM_TOKEN}".encode()).hexdigest()[:48]
+
+
+# ======================================================================
+# DIAGNOSTICA DELLE PRESTAZIONI (PERF_LOG=0 per spegnerla)
+# Ogni 60 secondi, se il bot ha lavorato, scrive nel log UNA riga "📊" che dice dove va il tempo:
+#   update  = quanto ci mette il bot a rispondere a un tocco/comando (codice + attese di Telegram)
+#   api     = durata totale delle chiamate a Telegram, compresa l'eventuale coda del limitatore di velocità
+#   rete    = durata della sola richiesta di rete a Telegram (senza la coda)
+#   ritardo = quanto Telegram ha impiegato a consegnare il messaggio al bot
+#   loop    = quanto è rimasto "congelato" il bot (se alto, il problema è nel codice o nel disco)
+# Le singole operazioni lente (oltre 1,5 s) vengono scritte subito con 🐢.
+# ======================================================================
+PERF_LOG = os.environ.get("PERF_LOG", "1") != "0"
+SLOW_SECS = 1.5
+_perf = {"upd_n": 0, "upd_sum": 0.0, "upd_max": 0.0, "api_n": 0, "api_sum": 0.0, "api_max": 0.0,
+         "net_n": 0, "net_sum": 0.0, "net_max": 0.0, "lag_max": 0.0, "loop_max": 0.0}
+
+
+def _perf_add(prefix: str, dt: float):
+    _perf[prefix + "_n"] += 1
+    _perf[prefix + "_sum"] += dt
+    _perf[prefix + "_max"] = max(_perf[prefix + "_max"], dt)
+
+
+class TimedRequest(HTTPXRequest):
+    """Misura la durata della sola richiesta di rete verso Telegram."""
+    async def do_request(self, *args, **kwargs):
+        t = time.perf_counter()
+        try:
+            return await super().do_request(*args, **kwargs)
+        finally:
+            _perf_add("net", time.perf_counter() - t)
+
+
+def _install_perf(application):
+    from telegram.ext import ExtBot
+    orig_post = ExtBot._do_post
+
+    async def timed_post(self, endpoint, *args, **kwargs):
+        t = time.perf_counter()
+        try:
+            return await orig_post(self, endpoint, *args, **kwargs)
+        finally:
+            dt = time.perf_counter() - t
+            _perf_add("api", dt)
+            if dt > SLOW_SECS:
+                logging.warning(f"🐢 Chiamata a Telegram lenta: {endpoint} ha impiegato {dt:.2f}s (rete + coda del limitatore)")
+    ExtBot._do_post = timed_post
+
+    orig_process = application.process_update
+
+    async def timed_process(update):
+        t = time.perf_counter()
+        try:
+            msg = getattr(update, "effective_message", None)
+            if msg is not None and getattr(msg, "date", None) is not None and not update.callback_query:
+                delay = time.time() - msg.date.timestamp()
+                if 0 <= delay < 3600:
+                    _perf["lag_max"] = max(_perf["lag_max"], delay)
+            return await orig_process(update)
+        finally:
+            dt = time.perf_counter() - t
+            _perf_add("upd", dt)
+            if dt > SLOW_SECS:
+                cq = getattr(update, "callback_query", None)
+                what = f"tasto {cq.data}" if cq else (getattr(getattr(update, 'effective_message', None), 'text', None) or "update")
+                logging.warning(f"🐢 Update lento: {str(what)[:60]} ha impiegato {dt:.2f}s")
+    application.process_update = timed_process
+
+
+async def _loop_probe():
+    """Misura quanto l'event loop resta bloccato (se lo è, nessun giocatore riceve risposte)."""
+    while True:
+        t = time.perf_counter()
+        await asyncio.sleep(0.5)
+        lag = time.perf_counter() - t - 0.5
+        _perf["loop_max"] = max(_perf["loop_max"], lag)
+        if lag > 0.4:
+            logging.warning(f"🧊 Il bot è rimasto bloccato per {lag:.2f}s (codice pesante o disco lento)")
+
+
+async def _perf_report(application):
+    while True:
+        await asyncio.sleep(60)
+        p = _perf
+        if p["upd_n"] or p["api_n"]:
+            avg = lambda k: (p[k + "_sum"] / p[k + "_n"] * 1000) if p[k + "_n"] else 0
+            print(
+                f"📊 60s | update {p['upd_n']} (media {avg('upd'):.0f} ms, max {p['upd_max']:.2f}s) | "
+                f"api {p['api_n']} (media {avg('api'):.0f} ms, max {p['api_max']:.2f}s) | "
+                f"rete {p['net_n']} (media {avg('net'):.0f} ms, max {p['net_max']:.2f}s) | "
+                f"ritardo consegna max {p['lag_max']:.1f}s | loop bloccato max {p['loop_max']:.2f}s | "
+                f"coda {application.update_queue.qsize()}",
+                flush=True)
+        for k in p:
+            p[k] = 0 if k.endswith("_n") else 0.0
 
 
 def build_application() -> Application:
     # Timeout più larghi per le chiamate a Telegram: evita httpx.ReadTimeout / telegram.error.TimedOut nei momenti lenti.
     # Il pool di connessioni deve stare ben sopra concurrent_updates (32).
-    request = HTTPXRequest(
+    request = TimedRequest(
         connection_pool_size=64,
         connect_timeout=10.0,
         read_timeout=15.0,
@@ -79,7 +178,7 @@ def build_application() -> Application:
     try:
         # Mette in coda le richieste e gestisce da solo il flood control di Telegram
         from telegram.ext import AIORateLimiter
-        builder = builder.rate_limiter(AIORateLimiter(max_retries=3))
+        builder = builder.rate_limiter(AIORateLimiter(group_max_rate=GROUP_MAX_PER_MIN, group_time_period=60, max_retries=3))
     except (ImportError, RuntimeError):
         print("⚠️ Rate limiter non disponibile: installa python-telegram-bot[job-queue,rate-limiter,webhooks].", flush=True)
     return builder.build()
@@ -122,6 +221,13 @@ async def main_async():
     set_bot(application.bot)                            # serve a economy per avvisare in privato le quest completate
     await recover_sessions(application.bot)             # riprende le partite salvate / rimborsa quelle non riprendibili
     await application.start()
+    if PERF_LOG:
+        try:
+            _install_perf(application)
+            asyncio.get_running_loop().create_task(_loop_probe())
+            asyncio.get_running_loop().create_task(_perf_report(application))
+        except Exception as e:                        # la diagnostica non deve mai fermare il bot
+            print(f"⚠️ Diagnostica prestazioni non attivata: {e}", flush=True)
 
     webhook_ok = False
     if WEBHOOK_URL:
