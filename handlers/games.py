@@ -387,10 +387,11 @@ async def handle_slot_bet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # I tre rulli si fermano uno alla volta: all'inizio girano tutti, poi si fermano in sequenza
         await _safe_edit(query, head + "[ 🔄 | 🔄 | 🔄 ]" + spin)
         await asyncio.sleep(anim_gap(chat_id))
-        await _safe_edit(query, head + f"[ {reels[0]} | 🔄 | 🔄 ]" + spin)
-        await asyncio.sleep(anim_gap(chat_id))
-        await _safe_edit(query, head + f"[ {reels[0]} | {reels[1]} | 🔄 ]" + spin)
-        await asyncio.sleep(anim_gap(chat_id))
+        if chat_id >= 0:                      # in privato i rulli si fermano uno alla volta; nei gruppi si risparmiano le modifiche
+            await _safe_edit(query, head + f"[ {reels[0]} | 🔄 | 🔄 ]" + spin)
+            await asyncio.sleep(anim_gap(chat_id))
+            await _safe_edit(query, head + f"[ {reels[0]} | {reels[1]} | 🔄 ]" + spin)
+            await asyncio.sleep(anim_gap(chat_id))
 
         net = paid - bet
         head = game_header("🎰 <b>SLOT MACHINE 777</b> 🎰", name, get_user_coins(chat_id, user.id), bet)
@@ -1228,6 +1229,8 @@ async def handle_sp_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 "🌀 <i>La pallina rimbalza...</i>",
                 "⏳ <i>Sta rallentando...</i>",
             ]
+            if chat_id < 0:
+                frames = frames[:1]               # gruppi: una sola schermata di attesa (limite di messaggi del gruppo)
             for frame in frames:
                 await _safe_edit(query, head + f"{frame}\n\n[ {_wheel_strip()} ]")
                 await asyncio.sleep(anim_gap(chat_id))
