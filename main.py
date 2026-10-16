@@ -53,8 +53,8 @@ def _clean_webhook_url(raw: str) -> str:
 
 WEBHOOK_URL = _clean_webhook_url(os.environ.get("WEBHOOK_URL"))
 PORT = int(os.environ.get("PORT", "8080"))
-# Messaggi al minuto che il bot si concede in ogni gruppo prima di mettere le richieste in coda (Telegram consiglia 20; il limitatore ritenta da solo se arriva un 429)
-GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "30"))
+# Messaggi al minuto che il bot si concede in ogni gruppo prima di mettere le richieste in coda (20 = limite di Telegram: alzarlo provoca blocchi di 20+ secondi per tutti)
+GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "20"))
 # Segreto che Telegram allega a ogni richiesta: chi non lo conosce non può mandare finti aggiornamenti al bot
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET") or hashlib.sha256(f"sdrogo:{TELEGRAM_TOKEN}".encode()).hexdigest()[:48]
 
@@ -105,6 +105,23 @@ def _install_perf(application):
             if dt > SLOW_SECS:
                 logging.warning(f"🐢 Chiamata a Telegram lenta: {endpoint} ha impiegato {dt:.2f}s (rete + coda del limitatore)")
     ExtBot._do_post = timed_post
+
+    # Il limitatore ritenta da solo quando Telegram risponde 429 e, nel frattempo, BLOCCA TUTTE le richieste del bot:
+    # qui lo rendiamo visibile nel log.
+    from telegram import Bot
+    from telegram.error import RetryAfter
+    orig_base_post = Bot._do_post
+
+    async def base_post(self, endpoint, *args, **kwargs):
+        try:
+            return await orig_base_post(self, endpoint, *args, **kwargs)
+        except RetryAfter as e:
+            ra = e.retry_after
+            secs = int(ra.total_seconds()) if hasattr(ra, "total_seconds") else int(ra)
+            logging.warning(f"⛔ FLOOD CONTROL: Telegram ha imposto {secs}s di pausa (richiesta {endpoint}). "
+                            "Per questo tempo il bot resta fermo per tutti.")
+            raise
+    Bot._do_post = base_post
 
     orig_process = application.process_update
 
