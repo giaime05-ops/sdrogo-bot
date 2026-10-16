@@ -17,8 +17,9 @@ from state import (
     USER_DATA, USER_INVENTORIES, ACTIVE_TITLES, ACTIVE_PERSECUTE, HEIST_GAMES, GROUP_CHALLENGE,
     game_enabled, MAINT_GAME_TEXT,
 )
-from storage import get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram, chat_user_ids
-from utils import verify_user_lock, get_formatted_name, serialized, is_v2, smart_edit, set_chat_type
+from storage import (get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram, chat_user_ids,
+                     ukey, is_sandbox, set_sandbox_ctx, note_username)
+from utils import anim_gap, verify_user_lock, get_formatted_name, serialized, is_v2, smart_edit, set_chat_type
 from handlers.games import HEIST_COST
 from handlers.heist import heist_new_game, heist_intro_text, heist_start_kb
 from handlers import v2
@@ -54,6 +55,9 @@ async def bind_context_and_track(update: Update, context: ContextTypes.DEFAULT_T
     2) mantiene il registro dei messaggi HUB dei gruppi: li rinnova se restano HUB, li toglie se partono i giochi."""
     chat = update.effective_chat
     set_chat_type(chat.type if chat else None)
+    usr = update.effective_user
+    set_sandbox_ctx(usr.id if usr else None)       # Sandbox admin: Banco, Follia e Sfida restano fuori da questo update
+    note_username(usr)                             # per cercare i giocatori con /storico @username
 
     q = update.callback_query
     if not q or not q.message or q.message.chat.type not in GROUP_TYPES:
@@ -87,7 +91,9 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     v2u = is_v2(user.id)
 
     text = (
-        "🎰 <b>SDROGOBOT ARCADE HUB</b> 🎮\n\n"
+        "🎰 <b>SDROGOBOT ARCADE HUB</b> 🎮\n"
+        + ("🛠️ <b>SANDBOX ACCESA</b> — profilo di prova, il tuo vero è al sicuro\n" if is_sandbox(user.id) else "")
+        + "\n"
         f"👤 <b>Player:</b> {display_name}\n"
         f"💰 <b>Saldo:</b> <code>💳 {fmt(coins)} $SDG</code>\n"
     )
@@ -130,7 +136,7 @@ async def show_wallet(query, owner_id: int):
     duels_played = u_data.get("duels_played", 0)
     wr_duels = min(100, int(d_wins / duels_played * 100)) if duels_played > 0 else 0
 
-    stars = USER_INVENTORIES.get(str(user_id), {}).get("stars", 0)
+    stars = USER_INVENTORIES.get(ukey(user_id), {}).get("stars", 0)
     profit_str = f"+{fmt(net_profit)}" if net_profit >= 0 else f"-{fmt(-net_profit)}"
 
     text = (
@@ -475,7 +481,7 @@ async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     for _ in range(WHEEL_FRAMES):
         reel = [random.choice(prizes) for _ in range(3)]
         await smart_edit(query, head + f"[ {reel[0]} | {reel[1]} | {reel[2]} ]\n\n<i>La ruota gira...</i>")
-        await asyncio.sleep(WHEEL_TICK)
+        await asyncio.sleep(anim_gap(query.message.chat_id))
 
     side = [random.choice(prizes), random.choice(prizes)]
     if prize >= 500:
@@ -589,7 +595,7 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def apply_title_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = update.effective_user
-    inv_key = str(user.id)                      # inventario unico del profilo
+    inv_key = ukey(user.id)                     # inventario unico del profilo (Sandbox: profilo di prova)
     text = (update.message.text or "").strip()
 
     if inv_key not in USER_INVENTORIES or USER_INVENTORIES[inv_key].get("titles", 0) <= 0:
@@ -647,7 +653,7 @@ async def apply_persecute_command(update: Update, context: ContextTypes.DEFAULT_
         return
 
     # V1: comportamento originale (risposta fissa ai prossimi 15 messaggi)
-    inv_key = str(user.id)                      # inventario unico del profilo
+    inv_key = ukey(user.id)                     # inventario unico del profilo (Sandbox: profilo di prova)
     text = (update.message.text or "").strip()
 
     if inv_key not in USER_INVENTORIES or USER_INVENTORIES[inv_key].get("persecutes", 0) <= 0:
