@@ -16,7 +16,7 @@ from state import (
     TIC_TAC_TOE_GAMES, DICE_DUELS,
     game_enabled, MAINT_GAME_TEXT,
 )
-from storage import get_user_coins, add_user_coins, get_user_data_dict, save_db
+from storage import get_user_coins, add_user_coins, get_user_data_dict, save_db, log_play
 from utils import verify_user_lock, serialized, is_v2
 
 CHALLENGE_TTL = 120   # secondi dopo i quali una sfida mai accettata scade
@@ -254,8 +254,10 @@ def record_duel_result(chat_id: int, winner_id: int, loser_id: int, bet_amount: 
             u_data["duels_won_count"] = u_data.get("duels_won_count", 0) + 1
             u_data["net_profit"] = u_data.get("net_profit", 0) + bet_amount
             add_user_coins(chat_id, uid, bet_amount * 2)
+            log_play(uid, f"duello {game}".strip(), bet_amount, bet_amount * 2, "vinta")
         else:
             u_data["net_profit"] = u_data.get("net_profit", 0) - bet_amount
+            log_play(uid, f"duello {game}".strip(), bet_amount, 0, "persa")
     save_db()
     return duel_quest_events(chat_id, winner_id, loser_id, bet_amount, game)
 
