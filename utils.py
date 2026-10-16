@@ -3,10 +3,28 @@ import contextvars
 import functools
 from datetime import datetime
 
+from telegram import CallbackQuery
 from telegram.error import BadRequest, RetryAfter
 
 from config import ADMIN_ID
 from state import USER_INVENTORIES, ACTIVE_TITLES, SYSTEM_FLAGS
+
+
+# --- query.answer() A PROVA DI TIMEOUT ---
+# Una callback query scaduta ("query is too old") fa lanciare BadRequest a query.answer(). Questa sostituzione,
+# attiva per OGNI chiamata del progetto (games, hub, system, multiplayer, quiz, v2, heist...), ignora l'errore:
+# l'update non si interrompe e il gioco continua.
+_orig_answer = CallbackQuery.answer
+
+
+async def _safe_answer(self, *args, **kwargs):
+    try:
+        return await _orig_answer(self, *args, **kwargs)
+    except BadRequest:
+        return False
+
+
+CallbackQuery.answer = _safe_answer
 
 
 def is_admin(user_id: int) -> bool:
@@ -47,11 +65,11 @@ async def verify_user_lock(query, owner_id: int) -> bool:
 
 
 def get_formatted_name(chat_id: int, user_id: int, default_name: str) -> str:
-    key = f"{chat_id}_{user_id}"
+    key = f"{chat_id}_{user_id}"          # i titoli attivi sono per chat
     stars_str = ""
 
-    if key in USER_INVENTORIES:
-        stars = USER_INVENTORIES[key].get("stars", 0)
+    if str(user_id) in USER_INVENTORIES:   # le stelle appartengono al profilo unico
+        stars = USER_INVENTORIES[str(user_id)].get("stars", 0)
         if stars > 0:
             stars_str = " " + ("⭐" * min(stars, 5))
 
