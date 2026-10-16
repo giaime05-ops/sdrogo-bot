@@ -143,7 +143,7 @@ async def _fail(bot, uid: int, game: dict, reason: str):
     game["running"] = False
     if HEIST_GAMES.get(uid) is game:
         HEIST_GAMES.pop(uid, None)
-        record_single_result(game["chat_id"], uid, False, -HEIST_COST)
+        record_single_result(game["chat_id"], uid, False, -HEIST_COST, game="heist", bet=HEIST_COST)
     await _edit(bot, game, f"{reason}\n\n💸 Rapina fallita: hai perso il pass da {fmt(HEIST_COST)} $SDG.{HEIST_NOTE}")
 
 
@@ -167,7 +167,7 @@ async def _win(bot, uid: int, game: dict, qmsg: str = ""):
     prize, _ = _prize_amount()
     elapsed = int(time.time() - game["t_start"])
     add_user_coins(chat_id, uid, prize)
-    record_single_result(chat_id, uid, True, prize - HEIST_COST)
+    record_single_result(chat_id, uid, True, prize - HEIST_COST, game="heist", bet=HEIST_COST)
     d = inv(chat_id, uid)
     d["stars"] = d.get("stars", 0) + 1
     d["titles"] = d.get("titles", 0) + 1
