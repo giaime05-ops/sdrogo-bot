@@ -496,7 +496,7 @@ async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     name = escape(query.from_user.first_name or "Giocatore")
     head = f"🎡 <b>RUOTA DAILY</b> 🎡\n👤 Player: <b>{name}</b>\n\n"
     prizes = [p for p, _ in DAILY_WHEEL]
-    for _ in range(WHEEL_FRAMES):
+    for _ in range(WHEEL_FRAMES if query.message.chat_id >= 0 else 2):   # gruppi: meno fotogrammi
         reel = [random.choice(prizes) for _ in range(3)]
         await smart_edit(query, head + f"[ {reel[0]} | {reel[1]} | {reel[2]} ]\n\n<i>La ruota gira...</i>")
         await asyncio.sleep(anim_gap(query.message.chat_id))
