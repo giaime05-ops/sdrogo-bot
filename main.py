@@ -182,9 +182,10 @@ async def _perf_report(application):
 # tra una richiesta e l'altra (GROUP_GAP) e un tetto di NUOVI messaggi al minuto (GROUP_MAX_PER_MIN); le richieste senza chat
 # (answerCallbackQuery...) passano subito; un 429 mette in pausa SOLO la chat interessata.
 # ======================================================================
-GROUP_GAP = float(os.environ.get("GROUP_GAP", "1.1"))              # secondi minimi tra due richieste nello stesso gruppo
-PRIVATE_GAP = float(os.environ.get("PRIVATE_GAP", "0.3"))          # idem in chat privata
-GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "20"))  # NUOVI messaggi al minuto per gruppo (Telegram: 20)
+BACKUP_EVERY = int(os.environ.get("BACKUP_EVERY", "900"))     # secondi tra due backup su Telegram (default 15 minuti)
+GROUP_GAP = float(os.environ.get("GROUP_GAP", "0"))              # secondi minimi tra due richieste nello stesso gruppo
+PRIVATE_GAP = float(os.environ.get("PRIVATE_GAP", "0"))          # idem in chat privata
+GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "0"))  # NUOVI messaggi al minuto per gruppo (Telegram: 20)
 
 _SEND_ENDPOINTS = {"sendMessage", "sendPhoto", "sendDocument", "sendAnimation", "sendSticker", "sendDice",
                    "sendVideo", "sendAudio", "sendVoice", "sendPoll", "sendMediaGroup"}
@@ -231,7 +232,7 @@ class ChatRateLimiter(BaseRateLimiter):
                 dq = self._sends.setdefault(chat, deque())
                 while dq and now - dq[0] > 60:
                     dq.popleft()
-                if len(dq) >= self.sends_per_min:
+                if self.sends_per_min and len(dq) >= self.sends_per_min:
                     wait = max(wait, dq[0] + 60 - now)
             if wait > 0:
                 await asyncio.sleep(wait)
@@ -282,14 +283,16 @@ def build_application() -> Application:
         .concurrent_updates(32)          # fino a 32 update elaborati in parallelo
     )
     try:
-        builder = builder.rate_limiter(ChatRateLimiter())
-    except Exception as e:                    # ripiego: limitatore standard di PTB
-        print(f"⚠️ Limitatore per chat non disponibile ({e}): uso quello standard.", flush=True)
-        try:
+        # Limitatore standard di PTB, identico a quello usato prima della v8 (quando il bot girava bene nei gruppi).
+        # LIMITER=chat attiva invece quello per-chat sperimentale.
+        if os.environ.get("LIMITER", "").lower() == "chat":
+            builder = builder.rate_limiter(ChatRateLimiter())
+        else:
             from telegram.ext import AIORateLimiter
-            builder = builder.rate_limiter(AIORateLimiter(group_max_rate=20, group_time_period=60, max_retries=3))
-        except (ImportError, RuntimeError):
-            print("⚠️ Nessun limitatore: installa python-telegram-bot[job-queue,rate-limiter,webhooks].", flush=True)
+            builder = builder.rate_limiter(AIORateLimiter(max_retries=3))
+    except (ImportError, RuntimeError):
+        print("⚠️ Rate limiter non disponibile: installa python-telegram-bot[job-queue,rate-limiter,webhooks].", flush=True)
+
     return builder.build()
 
 
@@ -319,7 +322,7 @@ async def main_async():
         # Salvataggio su SQLite ogni 3 secondi (solo le righe cambiate, in un thread)
         application.job_queue.run_repeating(flush_db, interval=3, first=3)
         # Backup automatico ogni ora (fissato nella chat di backup)
-        application.job_queue.run_repeating(backup_to_telegram, interval=3600, first=3600)
+        application.job_queue.run_repeating(backup_to_telegram, interval=BACKUP_EVERY, first=BACKUP_EVERY)
         # Sfida di gruppo: scadenza, annuncio finale e avvio della successiva (aggiorna il messaggio solo se è cambiato)
         application.job_queue.run_repeating(challenge_tick, interval=30, first=15)
     else:
