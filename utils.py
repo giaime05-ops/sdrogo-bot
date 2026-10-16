@@ -53,17 +53,26 @@ def is_v2(user_id: int) -> bool:
 
 
 # --- RITMO DELLE ANIMAZIONI (privato vs gruppo) ---
-# Telegram permette circa 20 messaggi al minuto per gruppo (e 1 al secondo per chat privata): nei gruppi le
-# animazioni vanno più diradate per non incappare nel flood control (HTTP 429). Il rate limiter fa il resto.
-ANIM_GAP_PRIVATE = 0.9      # secondi tra due modifiche in chat privata (0.8-1.0)
-ANIM_GAP_GROUP = 3.0        # secondi tra due modifiche in un gruppo: Telegram concede ~20 messaggi/min a gruppo = 1 ogni 3 s
+# Secondi tra due modifiche del messaggio, per gioco: (privato, gruppo).
+# GRUPPO = gli stessi tempi che giravano bene prima della v8 (Telegram concede ~20 messaggi/min a gruppo).
+# PRIVATO = più veloce e fluido (Telegram in privato regge molte più modifiche), ma con la suspense intatta
+# per i giochi "a rulli" (slot, ruota, roulette), dove la pausa tra un risultato e l'altro è voluta.
+ANIM_GAPS = {
+    "slot":     (0.6, 0.8),
+    "wheel":    (0.6, 0.8),
+    "roulette": (0.8, 1.0),
+    "aviator":  (0.5, 0.8),     # il payout dipende dal tempo del server, non da questo ritmo
+}
+ANIM_GAP_PRIVATE = 0.8
+ANIM_GAP_GROUP = 0.8
 
 
-def anim_gap(chat_id) -> float:
+def anim_gap(chat_id, kind: str = "") -> float:
+    priv, grp = ANIM_GAPS.get(kind, (ANIM_GAP_PRIVATE, ANIM_GAP_GROUP))
     try:
-        return ANIM_GAP_GROUP if int(chat_id) < 0 else ANIM_GAP_PRIVATE
+        return grp if int(chat_id) < 0 else priv
     except (TypeError, ValueError):
-        return ANIM_GAP_GROUP
+        return grp
 
 
 def fmt_num(n) -> str:
