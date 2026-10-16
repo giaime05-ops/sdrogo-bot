@@ -10,7 +10,7 @@ from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from database_quiz import CATEGORIE_QUIZ
 from state import QUIZ_GAMES, game_enabled, MAINT_GAME_TEXT
-from storage import get_user_coins, add_user_coins
+from storage import get_user_coins, add_user_coins, log_play
 from economy import charge as eco_charge
 from utils import verify_user_lock, serialized
 
@@ -93,6 +93,7 @@ async def run_quiz_single_timeout(bot, chat_id: int, user_id: int, msg_id: int, 
     quiz_key = f"{chat_id}_{user_id}"
     if quiz_key in QUIZ_GAMES and QUIZ_GAMES[quiz_key].get("msg_id") == msg_id:
         del QUIZ_GAMES[quiz_key]
+        log_play(user_id, "quiz", 5, 0)
         end_keyboard = [[InlineKeyboardButton("🔙 Torna all'HUB", callback_data=f"hub_main_{user_id}")]]
         try:
             await bot.edit_message_text(
