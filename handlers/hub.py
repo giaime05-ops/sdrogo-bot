@@ -69,16 +69,34 @@ async def bind_context_and_track(update: Update, context: ContextTypes.DEFAULT_T
         HUB_MESSAGES.pop(key, None)             # un gioco sta partendo: questo messaggio non va MAI cancellato
 
 
+HUB_DELETE_PER_RUN = 4    # al massimo tante eliminazioni per ciclo: le cancellazioni contano nel limite di messaggi del gruppo
+                          # e, se fatte tutte insieme, mettono in coda (rallentano) i tasti dei giocatori
+HUB_GIVE_UP = 3600        # un HUB abbandonato da più di un'ora non si prova più a eliminare (resta la voce da ripulire)
+
+
 async def cleanup_hub_messages(context: ContextTypes.DEFAULT_TYPE):
-    """Job periodico: elimina gli HUB abbandonati da più di HUB_TTL secondi, solo se sono ancora schermate HUB."""
+    """Job periodico: elimina gli HUB abbandonati da più di HUB_TTL secondi, solo se sono ancora schermate HUB.
+    Poche eliminazioni per volta e ognuna con un tempo massimo: il job finisce sempre entro il ciclo successivo."""
     now = time.time()
-    for key, info in list(HUB_MESSAGES.items()):
-        if now - info["ts"] < HUB_TTL:
+    expired = sorted((info["ts"], key) for key, info in list(HUB_MESSAGES.items()) if now - info["ts"] >= HUB_TTL)
+    done = 0
+    for ts, key in expired:
+        info = HUB_MESSAGES.get(key)
+        if info is None:
             continue
+        if now - ts > HUB_GIVE_UP:
+            HUB_MESSAGES.pop(key, None)
+            continue
+        if done >= HUB_DELETE_PER_RUN:
+            break
         if HUB_MESSAGES.pop(key, None) is None:     # ricontrollo: se un gioco è partito nel frattempo la voce non c'è più
             continue
+        done += 1
         try:
-            await context.bot.delete_message(chat_id=key[0], message_id=key[1])
+            await asyncio.wait_for(context.bot.delete_message(chat_id=key[0], message_id=key[1]), timeout=8)
+        except asyncio.TimeoutError:
+            HUB_MESSAGES[key] = info                # coda del limitatore piena: riprovo al prossimo ciclo
+            break
         except Exception as e:
             logging.debug(f"HUB {key} non eliminato: {e}")
 
