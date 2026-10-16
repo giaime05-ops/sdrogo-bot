@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import os
 import json
 import logging
@@ -67,6 +68,84 @@ def _init_banco():
         _dirty = True
 
 
+# ----------------------------------------------------------------------------------------------
+# PROFILO UNICO: la chiave di ogni giocatore è str(user_id), identica in privato e in tutti i gruppi.
+# I vecchi DB usavano "chat_user": al primo avvio i profili vengono uniti.
+# ----------------------------------------------------------------------------------------------
+_NUM_STATS = ("quizzes_won", "casino_wins", "duels_wins", "net_profit", "duels_played",
+              "single_played", "single_won", "duels_won_count")
+
+
+def _migrate_profiles() -> bool:
+    """Unisce i profili vecchio formato ("chat_user") in uno solo per utente.
+    Saldo e missioni: del profilo col saldo più alto. Statistiche: sommate. Oggetti e cariche: sommati.
+    I saldi degli altri profili restano annotati in 'legacy_coins' (si possono sempre recuperare)."""
+    legacy_users = [k for k in USER_DATA if "_" in k]
+    legacy_invs = [k for k in USER_INVENTORIES if "_" in k]
+    if not legacy_users and not legacy_invs:
+        return False
+
+    by_user = {}
+    for k in legacy_users:
+        chat, uid = k.rsplit("_", 1)
+        by_user.setdefault(uid, []).append((chat, USER_DATA.pop(k)))
+    for uid, cands in by_user.items():
+        if uid in USER_DATA:                                  # profilo già unificato: partecipa all'unione
+            cands.append((None, USER_DATA.pop(uid)))
+        cands.sort(key=lambda c: c[1].get("coins", 0), reverse=True)
+        master = copy.deepcopy(cands[0][1])
+        for stat in _NUM_STATS:
+            total = sum(c[1].get(stat, 0) for c in cands)
+            if total or stat in master:
+                master[stat] = total
+        for field in ("last_daily", "last_work"):
+            vals = [c[1].get(field) for c in cands if c[1].get(field)]
+            if vals:
+                master[field] = max(vals, key=str)
+        chats = set(master.get("chats", []))
+        for chat, d in cands:
+            for c in d.get("chats", []):
+                chats.add(c)
+            try:
+                if chat is not None and str(chat) != str(BACKUP_CHAT_ID):
+                    chats.add(int(chat))
+            except ValueError:
+                pass
+        master["chats"] = sorted(chats)
+        others = {str(c if c is not None else "unificato"): d.get("coins", 0) for c, d in cands[1:]}
+        if others:
+            master.setdefault("legacy_coins", {}).update(others)
+        USER_DATA[uid] = master
+
+    inv_by_user = {}
+    for k in legacy_invs:
+        chat, uid = k.rsplit("_", 1)
+        inv_by_user.setdefault(uid, []).append(USER_INVENTORIES.pop(k))
+    for uid, invs in inv_by_user.items():
+        if uid in USER_INVENTORIES:
+            invs.append(USER_INVENTORIES.pop(uid))
+        merged = {}
+        for d in invs:
+            for key, val in d.items():
+                if isinstance(val, bool) or not isinstance(val, (int, float)):
+                    if key not in merged or (isinstance(val, dict) and val.get("left", 0) > merged[key].get("left", 0)):
+                        merged[key] = copy.deepcopy(val)
+                else:
+                    merged[key] = merged.get(key, 0) + val
+        USER_INVENTORIES[uid] = merged
+    logging.info(f"Profili unificati: {len(by_user)} utenti, {len(inv_by_user)} inventari.")
+    return True
+
+
+def chat_user_ids(chat_id: int) -> list:
+    """ID (stringa) dei giocatori visti in quella chat: per classifiche e ricerca degli @username."""
+    try:
+        cid = int(chat_id)
+    except (TypeError, ValueError):
+        return []
+    return [uid for uid, d in USER_DATA.items() if cid in d.get("chats", ())]
+
+
 def load_db():
     if os.path.exists(DB_FILE):
         try:
@@ -96,6 +175,8 @@ def load_db():
             logging.error(f"Errore caricamento DB: {e}")
             USER_DATA.clear()
             USER_INVENTORIES.clear()
+    if _migrate_profiles():
+        save_db()
     _init_banco()
 
 
@@ -184,10 +265,25 @@ async def backup_to_telegram(context: ContextTypes.DEFAULT_TYPE):
             logging.error(f"Errore backup Telegram: {e}")
 
 def get_user_key(chat_id: int, user_id: int) -> str:
-    return f"{chat_id}_{user_id}"
+    """Chiave del profilo: solo l'ID utente, uguale in chat privata e in ogni gruppo."""
+    return str(user_id)
+
+def _track_chat(d: dict, chat_id) -> bool:
+    """Ricorda in quali chat il giocatore è stato visto (serve a classifiche e ricerca username)."""
+    try:
+        cid = int(chat_id)
+    except (TypeError, ValueError):
+        return False
+    chats = d.setdefault("chats", [])
+    if cid in chats:
+        return False
+    chats.append(cid)
+    return True
+
 
 def get_user_data_dict(chat_id: int, user_id: int) -> dict:
     key = get_user_key(chat_id, user_id)
+    is_backup = str(chat_id) == str(BACKUP_CHAT_ID)
     if key not in USER_DATA:
         USER_DATA[key] = {
             "coins": 50,
@@ -197,12 +293,16 @@ def get_user_data_dict(chat_id: int, user_id: int) -> dict:
             "duels_wins": 0,
             "net_profit": 0,
             "duels_played": 0,
-            "single_played": 0
+            "single_played": 0,
+            "chats": [],
         }
-        if str(chat_id) != str(BACKUP_CHAT_ID):
+        if not is_backup:
+            _track_chat(USER_DATA[key], chat_id)
             save_db()
     else:
         changed = False
+        if not is_backup and _track_chat(USER_DATA[key], chat_id):
+            changed = True
         for stat in ["quizzes_won", "casino_wins", "duels_wins", "net_profit", "duels_played", "single_played"]:
             if stat not in USER_DATA[key]:
                 USER_DATA[key][stat] = 0
