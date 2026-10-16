@@ -11,6 +11,7 @@ from telegram.ext import CallbackQueryHandler, ContextTypes
 from database_quiz import CATEGORIE_QUIZ
 from state import QUIZ_GAMES, game_enabled, MAINT_GAME_TEXT
 from storage import get_user_coins, add_user_coins
+from economy import charge as eco_charge
 from utils import verify_user_lock, serialized
 
 _TASKS = set()
@@ -54,7 +55,7 @@ async def start_quiz_generic(update: Update, context: ContextTypes.DEFAULT_TYPE,
         return
     await query.answer()
 
-    add_user_coins(chat_id, user_id, -5)
+    eco_charge(chat_id, user_id, 5)          # conta anche nella Sfida di Gruppo
     item = random.choice(db_source)
 
     # La partita viene registrata PRIMA di modificare il messaggio: un doppio click trova già il quiz attivo
