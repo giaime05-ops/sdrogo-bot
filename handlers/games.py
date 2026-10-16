@@ -4,6 +4,7 @@ import asyncio
 import html
 import itertools
 import logging
+import math
 import os
 import random
 import time
@@ -21,8 +22,8 @@ from state import (
     AVIATOR_GAMES, SCRATCH_GAMES, LAB_BUSY, POKER_GAMES,
     game_enabled, MAINT_GAME_TEXT,
 )
-from storage import get_user_coins, add_user_coins, save_db
-from utils import verify_user_lock, serialized, is_v2, smart_edit
+from storage import get_user_coins, add_user_coins, save_db, ukey
+from utils import verify_user_lock, serialized, is_v2, smart_edit, anim_gap
 
 # --- PREMI WORDLE / MASTERMIND (costo di ingresso: 10 $SDG) ---
 # Totale restituito in base ai tentativi usati (netti: +50, +40, +30, +20, +10)
@@ -88,7 +89,7 @@ async def _settle(bot, chat_id: int, user_id: int, game: str, bet: int, base_pay
         return await settle_single(bot, chat_id, user_id, game, bet, base_payout, is_casino=is_casino)
     if base_payout > 0:
         add_user_coins(chat_id, user_id, base_payout)
-    record_single_result(chat_id, user_id, base_payout > bet, base_payout - bet, is_casino=is_casino)
+    record_single_result(chat_id, user_id, base_payout > bet, base_payout - bet, is_casino=is_casino, game=game, bet=bet)
     return base_payout, []
 
 
@@ -292,7 +293,7 @@ SLOT_BETS = (10, 25, 50, 100)
 SLOT_SYMBOLS = ["🍒", "🍋", "🔔", "💎", "7️⃣"]
 SLOT_TRIPLE_MULT = {"🍒": 3, "🍋": 4, "🔔": 5, "💎": 6, "7️⃣": 10}
 SLOT_PAIR_MULT = {"💎": 2, "7️⃣": 2}      # le altre doppiette valgono x1 (solo rimborso)
-SLOT_REEL_DELAY = 0.8                    # secondi tra l'arresto di un rullo e il successivo
+SLOT_REEL_DELAY = 0.8                    # (non più usato: il ritmo dipende da anim_gap, 0.9 s privato / 1.7 s gruppo)
 LUCK_REROLL_CHANCE = 0.30                # Boost Fortuna: probabilità di rilanciare una giocata persa
 SLOT_BUSY = set()
 
@@ -385,11 +386,11 @@ async def handle_slot_bet(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # I tre rulli si fermano uno alla volta: all'inizio girano tutti, poi si fermano in sequenza
         await _safe_edit(query, head + "[ 🔄 | 🔄 | 🔄 ]" + spin)
-        await asyncio.sleep(SLOT_REEL_DELAY)
+        await asyncio.sleep(anim_gap(chat_id))
         await _safe_edit(query, head + f"[ {reels[0]} | 🔄 | 🔄 ]" + spin)
-        await asyncio.sleep(SLOT_REEL_DELAY)
+        await asyncio.sleep(anim_gap(chat_id))
         await _safe_edit(query, head + f"[ {reels[0]} | {reels[1]} | 🔄 ]" + spin)
-        await asyncio.sleep(SLOT_REEL_DELAY)
+        await asyncio.sleep(anim_gap(chat_id))
 
         net = paid - bet
         head = game_header("🎰 <b>SLOT MACHINE 777</b> 🎰", name, get_user_coins(chat_id, user.id), bet)
@@ -817,7 +818,7 @@ async def _heist_present(query, game: dict, user):
 
 async def _heist_fail(query, game: dict, user_id: int, reason: str):
     HEIST_GAMES.pop(user_id, None)
-    record_single_result(game["chat_id"], user_id, False, -HEIST_COST)
+    record_single_result(game["chat_id"], user_id, False, -HEIST_COST, game="heist", bet=HEIST_COST)
     await _safe_edit(query, f"{reason}\n\n💸 Rapina fallita: hai perso il pass da {fmt(HEIST_COST)} $SDG.{HEIST_NOTE}")
 
 
@@ -829,7 +830,7 @@ async def _heist_win(context, query, game: dict, user):
     elapsed = HEIST_TIME - _heist_left(game)
     HEIST_GAMES.pop(user_id, None)
     add_user_coins(chat_id, user_id, prize)
-    record_single_result(chat_id, user_id, True, prize - HEIST_COST)
+    record_single_result(chat_id, user_id, True, prize - HEIST_COST, game="heist", bet=HEIST_COST)
     d = inv(chat_id, user_id)
     d["stars"] = d.get("stars", 0) + 1
     d["titles"] = d.get("titles", 0) + 1
@@ -863,7 +864,7 @@ async def expire_heists(context: ContextTypes.DEFAULT_TYPE):
     for uid, g in list(HEIST_GAMES.items()):
         if g.get("v2") and g.get("started") and now > g["deadline"] + 2:
             HEIST_GAMES.pop(uid, None)
-            record_single_result(g["chat_id"], uid, False, -HEIST_COST)
+            record_single_result(g["chat_id"], uid, False, -HEIST_COST, game="heist", bet=HEIST_COST)
             try:
                 await context.bot.send_message(
                     chat_id=uid, parse_mode="HTML",
@@ -985,15 +986,14 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
         if outcome == "fail":
             del HEIST_GAMES[user_id]
-            record_single_result(chat_id, user_id, False, -HEIST_COST)
+            record_single_result(chat_id, user_id, False, -HEIST_COST, game="heist", bet=HEIST_COST)
             await _safe_edit(query, HEIST_FAIL_TEXT[n])
 
         elif n == 5:
             del HEIST_GAMES[user_id]
             add_user_coins(chat_id, user_id, HEIST_FINAL)
-            record_single_result(chat_id, user_id, True, HEIST_FINAL - HEIST_COST)
-
-            inv_key = str(user_id)
+            record_single_result(chat_id, user_id, True, HEIST_FINAL - HEIST_COST, game="heist", bet=HEIST_COST)
+            inv_key = ukey(user_id)
             if inv_key not in USER_INVENTORIES:
                 USER_INVENTORIES[inv_key] = {"titles": 0, "persecutes": 0, "stars": 0}
             USER_INVENTORIES[inv_key]["stars"] = USER_INVENTORIES[inv_key].get("stars", 0) + 1
@@ -1040,7 +1040,7 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
             )
         else:
             del HEIST_GAMES[user_id]
-            record_single_result(chat_id, user_id, False, -HEIST_COST)
+            record_single_result(chat_id, user_id, False, -HEIST_COST, game="heist", bet=HEIST_COST)
             await _safe_edit(
                 query,
                 f"👮 <b>LA GUARDIA TI HA VISTO!</b> ({g_hand} vs {p_hand})\nSei stato arrestato! Fuga fallita."
@@ -1053,7 +1053,7 @@ async def handle_heist_callback(update: Update, context: ContextTypes.DEFAULT_TY
         amount = HEIST_PRIZES[level]
         del HEIST_GAMES[user_id]
         add_user_coins(chat_id, user_id, amount)
-        record_single_result(chat_id, user_id, amount > HEIST_COST, amount - HEIST_COST)
+        record_single_result(chat_id, user_id, amount > HEIST_COST, amount - HEIST_COST, game="heist", bet=HEIST_COST)
         await _safe_edit(
             query,
             f"💰 <b>CASHOUT EFFETTUATO!</b> Ti ritiri dalla rapina incassando <b>+💳 {amount} $SDG</b>!" + HEIST_NOTE
@@ -1230,7 +1230,7 @@ async def handle_sp_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE)
             ]
             for frame in frames:
                 await _safe_edit(query, head + f"{frame}\n\n[ {_wheel_strip()} ]")
-                await asyncio.sleep(ROUL_FRAME_DELAY)
+                await asyncio.sleep(anim_gap(chat_id))
 
             net = paid - bet
             head = game_header(title, name, get_user_coins(chat_id, user.id), bet) + f"🎲 Su: <b>{ROUL_CHOICES[choice]}</b>\n\n"
@@ -1259,8 +1259,14 @@ async def handle_sp_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE)
 # ---------------------------------------------------------------------
 # 2) SDROGO AVIATOR
 # ---------------------------------------------------------------------
-AVIATOR_TICK = 0.8          # secondi tra un aggiornamento del moltiplicatore e il successivo
+AVIATOR_RATE = 0.075        # crescita continua del moltiplicatore: ×(e^(0.075·t)), cioè circa +7,8% al secondo
+AVIATOR_GRACE = 0.25        # secondi di tolleranza a favore del giocatore per il ritardo di rete del clic
 AVIATOR_MAX_CRASH = 100.0
+
+
+def _avi_mult(elapsed: float) -> float:
+    """Moltiplicatore dopo `elapsed` secondi di volo (curva continua, arrotondata per difetto a 2 decimali)."""
+    return max(1.0, math.floor(math.exp(AVIATOR_RATE * max(0.0, elapsed)) * 100) / 100)
 
 
 def aviator_crash_point() -> float:
@@ -1317,24 +1323,34 @@ async def _aviator_flight(query, game: dict, key: str, owner_id: int, chat_id: i
                 await finish_crash()
         return
 
+    # Il moltiplicatore è una funzione del TEMPO (orologio del server): game["t0"] = inizio del volo.
+    # Le modifiche al messaggio mostrano solo il valore del momento (privato ~0,9 s, gruppo ~1,7 s); il CASHOUT
+    # viene invece calcolato sull'istante esatto del clic, quindi il ritmo delle animazioni non cambia il payout.
+    game["t0"] = time.time()
+    crash_t = math.log(crash) / AVIATOR_RATE          # istante (secondi di volo) in cui l'aereo vola via
+    gap = anim_gap(chat_id)
     mult = 1.0
     while True:
-        await asyncio.sleep(AVIATOR_TICK)
+        elapsed = time.time() - game["t0"]
+        await asyncio.sleep(min(gap, max(0.05, crash_t - elapsed + 0.02)))   # il crash compare nell'istante in cui avviene
         async with game["lock"]:
             if game["finished"]:
                 return
-            nxt = round(mult + max(0.05, mult * random.uniform(0.03, 0.09)), 2)
-            if nxt >= crash:
+            elapsed = time.time() - game["t0"]
+            if elapsed >= crash_t:
                 await finish_crash()
                 return
-            await _safe_edit(query, _avi_text(game, nxt, "🚀 <i>Sale... premi CASHOUT prima che voli via!</i>"), cash_kb)
-            game["current"] = nxt          # aggiornato solo dopo la modifica: si incassa solo ciò che si è visto
-            mult = nxt
+            nxt = _avi_mult(elapsed)
+            if nxt > mult:
+                await _safe_edit(query, _avi_text(game, nxt, "🚀 <i>Sale... premi CASHOUT prima che voli via!</i>"), cash_kb)
+                game["current"] = nxt
+                mult = nxt
             if game["finished"]:
                 return
 
 
 async def handle_sp_aviator(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    t_click = time.time()               # istante in cui il server riceve il clic: prima di qualunque altra attesa
     query = update.callback_query
     parts = query.data.split("_")        # sp_avi_OWNER | sp_avibet_BET_OWNER | sp_avicash_OWNER
     action = parts[1]
@@ -1374,11 +1390,26 @@ async def handle_sp_aviator(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         # sincrono, senza await: il ciclo di volo vede subito finished=True
         game["finished"] = True
-        cur = game["current"]
         bet = game["bet"]
-        base = int(bet * cur)
         if AVIATOR_GAMES.get(key) is game:
             del AVIATOR_GAMES[key]
+        t0 = game.get("t0")
+        el_click = max(0.0, t_click - t0 - AVIATOR_GRACE) if t0 else 0.0
+        crash_t = math.log(game["crash"]) / AVIATOR_RATE if game["crash"] > 1.0 else 0.0
+        if t0 and el_click >= crash_t:
+            # il clic è arrivato dopo il crash (anche se il messaggio non era ancora stato aggiornato)
+            await query.answer("💥 Troppo tardi: l'aereo era già volato via!", show_alert=True)
+            _, notes = await _settle(context.bot, chat_id, user.id, "aviator", bet, 0)
+            async with game["lock"]:
+                text = (
+                    game_header("✈️ <b>SDROGO AVIATOR</b> ✈️", name, get_user_coins(chat_id, user.id), bet)
+                    + f"💥 <b>L'aereo è volato via (Crash a {game['crash']:.2f}x)!</b>\n\n"
+                    f"💸 Hai perso {fmt(bet)} $SDG." + _notes(notes)
+                )
+                await _safe_edit(query, text, _avi_end_keyboard(bet, owner_id))
+            return
+        cur = _avi_mult(el_click) if t0 else 1.0
+        base = int(bet * cur)
         await query.answer(f"💰 Incassato a {cur:.2f}x!")
         paid, notes = await _settle(context.bot, chat_id, user.id, "aviator", bet, base)
         async with game["lock"]:
