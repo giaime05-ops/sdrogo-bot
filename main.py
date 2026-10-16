@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import re
 import signal
 
 from telegram.ext import Application
@@ -27,8 +28,29 @@ FLAGS.setdefault("maintenance", False)
 # WEBHOOK_URL = indirizzo pubblico HTTPS del servizio, es. https://site--sdrogobot--xxxx.code.run
 # Telegram manda gli aggiornamenti a WEBHOOK_URL/webhook; il bot li riceve sulla porta PORT (default 8080).
 # Senza WEBHOOK_URL il bot parte in polling (utile in locale) e usa il vecchio keep-alive Flask.
-WEBHOOK_URL = (os.environ.get("WEBHOOK_URL") or "").strip().rstrip("/")
 WEBHOOK_PATH = "webhook"
+
+
+def _clean_webhook_url(raw: str) -> str:
+    """Ripulisce il valore della variabile: toglie spazi, virgolette, '/webhook' già incluso e aggiunge https:// se manca.
+    Telegram accetta solo indirizzi HTTPS completi, senza spazi."""
+    url = (raw or "").strip().strip("'\"").strip()
+    m = re.search(r"https?://[^\s\[\]()<>\"']+", url)       # es. "[https://x](https://x)" incollato come link Markdown
+    if m:
+        url = m.group(0)
+    if not url:
+        return ""
+    if "://" not in url:
+        url = "https://" + url
+    if url.startswith("http://"):
+        url = "https://" + url[len("http://"):]
+    url = url.rstrip("/")
+    if url.endswith("/" + WEBHOOK_PATH):
+        url = url[: -len(WEBHOOK_PATH) - 1].rstrip("/")
+    return url
+
+
+WEBHOOK_URL = _clean_webhook_url(os.environ.get("WEBHOOK_URL"))
 PORT = int(os.environ.get("PORT", "8080"))
 # Segreto che Telegram allega a ogni richiesta: chi non lo conosce non può mandare finti aggiornamenti al bot
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET") or hashlib.sha256(f"sdrogo:{TELEGRAM_TOKEN}".encode()).hexdigest()[:48]
@@ -101,19 +123,34 @@ async def main_async():
     await recover_sessions(application.bot)             # riprende le partite salvate / rimborsa quelle non riprendibili
     await application.start()
 
+    webhook_ok = False
     if WEBHOOK_URL:
-        await application.updater.start_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            url_path=WEBHOOK_PATH,
-            webhook_url=f"{WEBHOOK_URL}/{WEBHOOK_PATH}",
-            secret_token=WEBHOOK_SECRET,
-            drop_pending_updates=True,
-        )
-        print(f"SdrogoBot v8.0 operativo in WEBHOOK su {WEBHOOK_URL}/{WEBHOOK_PATH} (porta {PORT}).", flush=True)
-    else:
+        full_url = f"{WEBHOOK_URL}/{WEBHOOK_PATH}"
+        print(f"Imposto il webhook su: {full_url}", flush=True)
+        try:
+            await application.updater.start_webhook(
+                listen="0.0.0.0",
+                port=PORT,
+                url_path=WEBHOOK_PATH,
+                webhook_url=full_url,
+                secret_token=WEBHOOK_SECRET,
+                drop_pending_updates=True,
+                bootstrap_retries=3,
+            )
+            webhook_ok = True
+            print(f"SdrogoBot v8.0 operativo in WEBHOOK su {full_url} (porta {PORT}).", flush=True)
+        except Exception as e:
+            # Il bot non deve restare spento: se Telegram rifiuta l'indirizzo, riparte in polling e lo scrive nel log
+            print(f"⚠️ Webhook rifiutato da Telegram ({e}) per l'indirizzo '{full_url}'. "
+                  "Controlla la variabile WEBHOOK_URL. Riparto in POLLING.", flush=True)
+            try:
+                await application.updater.stop()
+            except Exception:
+                pass
+    if not webhook_ok:
+        await application.bot.delete_webhook(drop_pending_updates=True)
         await application.updater.start_polling(drop_pending_updates=True)
-        print("SdrogoBot v8.0 operativo in POLLING (WEBHOOK_URL non impostata).", flush=True)
+        print("SdrogoBot v8.0 operativo in POLLING.", flush=True)
 
     # Arresto pulito: Northflank manda SIGTERM a ogni deploy, e senza questo si perderebbero gli ultimi salvataggi
     stop = asyncio.Event()
