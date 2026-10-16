@@ -293,7 +293,7 @@ SLOT_BETS = (10, 25, 50, 100)
 SLOT_SYMBOLS = ["🍒", "🍋", "🔔", "💎", "7️⃣"]
 SLOT_TRIPLE_MULT = {"🍒": 3, "🍋": 4, "🔔": 5, "💎": 6, "7️⃣": 10}
 SLOT_PAIR_MULT = {"💎": 2, "7️⃣": 2}      # le altre doppiette valgono x1 (solo rimborso)
-SLOT_REEL_DELAY = 0.8                    # (non più usato: il ritmo dipende da anim_gap, 0.9 s privato / 1.7 s gruppo)
+SLOT_REEL_DELAY = 0.8                    # (non più usato: i ritmi sono in utils.ANIM_GAPS)
 LUCK_REROLL_CHANCE = 0.30                # Boost Fortuna: probabilità di rilanciare una giocata persa
 SLOT_BUSY = set()
 
@@ -386,12 +386,12 @@ async def handle_slot_bet(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # I tre rulli si fermano uno alla volta: all'inizio girano tutti, poi si fermano in sequenza
         await _safe_edit(query, head + "[ 🔄 | 🔄 | 🔄 ]" + spin)
-        await asyncio.sleep(anim_gap(chat_id))
-        if chat_id >= 0:                      # in privato i rulli si fermano uno alla volta; nei gruppi si risparmiano le modifiche
+        await asyncio.sleep(anim_gap(chat_id, "slot"))
+        if True:                              # i rulli si fermano uno alla volta (anche nei gruppi)
             await _safe_edit(query, head + f"[ {reels[0]} | 🔄 | 🔄 ]" + spin)
-            await asyncio.sleep(anim_gap(chat_id))
+            await asyncio.sleep(anim_gap(chat_id, "slot"))
             await _safe_edit(query, head + f"[ {reels[0]} | {reels[1]} | 🔄 ]" + spin)
-            await asyncio.sleep(anim_gap(chat_id))
+            await asyncio.sleep(anim_gap(chat_id, "slot"))
 
         net = paid - bet
         head = game_header("🎰 <b>SLOT MACHINE 777</b> 🎰", name, get_user_coins(chat_id, user.id), bet)
@@ -1229,11 +1229,9 @@ async def handle_sp_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 "🌀 <i>La pallina rimbalza...</i>",
                 "⏳ <i>Sta rallentando...</i>",
             ]
-            if chat_id < 0:
-                frames = frames[:1]               # gruppi: una sola schermata di attesa (limite di messaggi del gruppo)
             for frame in frames:
                 await _safe_edit(query, head + f"{frame}\n\n[ {_wheel_strip()} ]")
-                await asyncio.sleep(anim_gap(chat_id))
+                await asyncio.sleep(anim_gap(chat_id, "roulette"))
 
             net = paid - bet
             head = game_header(title, name, get_user_coins(chat_id, user.id), bet) + f"🎲 Su: <b>{ROUL_CHOICES[choice]}</b>\n\n"
@@ -1327,11 +1325,11 @@ async def _aviator_flight(query, game: dict, key: str, owner_id: int, chat_id: i
         return
 
     # Il moltiplicatore è una funzione del TEMPO (orologio del server): game["t0"] = inizio del volo.
-    # Le modifiche al messaggio mostrano solo il valore del momento (privato ~0,9 s, gruppo ~1,7 s); il CASHOUT
+    # Le modifiche al messaggio mostrano solo il valore del momento (privato 0,5 s, gruppo 0,8 s); il CASHOUT
     # viene invece calcolato sull'istante esatto del clic, quindi il ritmo delle animazioni non cambia il payout.
     game["t0"] = time.time()
     crash_t = math.log(crash) / AVIATOR_RATE          # istante (secondi di volo) in cui l'aereo vola via
-    gap = anim_gap(chat_id)
+    gap = anim_gap(chat_id, "aviator")
     mult = 1.0
     while True:
         elapsed = time.time() - game["t0"]
