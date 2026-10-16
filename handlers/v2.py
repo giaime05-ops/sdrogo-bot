@@ -15,7 +15,7 @@ from state import (
     WORK_GAMES, PENDING_INPUT, SILENCED, REACT_TARGETS, MUTE_FILTER, USER_DATA,
     game_enabled, MAINT_GAME_TEXT,
 )
-from storage import get_user_coins, add_user_coins, save_db
+from storage import get_user_coins, add_user_coins, save_db, chat_user_ids
 from utils import is_v2, verify_user_lock, serialized, smart_edit, smart_edit_msg
 
 WORK_TICK = 5                 # secondi tra due aggiornamenti del conto alla rovescia (la scadenza è controllata dal server)
@@ -24,12 +24,14 @@ SILENCE_MESSAGES = 15
 SILENCE_DEFAULT_PHRASE = "Chiedo scusa, sono uno sdrogo pentito"
 REACT_MINUTES = 15
 MUTE_FILTER_MINUTES = 10
-MUTE_FILTER_LABEL = "💦 Filtro anti-napoletani"
+MUTE_FILTER_LABEL = "💦 Filtro Silenzio Totale"
 
 REACTIONS = [("🤡", "Pagliaccio"), ("💩", "Cacca"), ("🔥", "Fuoco"), ("🤮", "Vomito"), ("🤬", "Rabbia"), ("❤️", "Cuore")]
 
 # (chiave, campo inventario, prezzo, etichetta, descrizione breve, come si usa)
 SHOP_ITEMS = [
+    ("title", "titles", 100, "🏷️ Titolo Umiliante", "Titolo umiliante per 24 ore",
+     "Per assegnarlo per 24 ORE a una vittima, scrivi in chat:\n👉 <code>titolo @username</code> (oppure rispondi al suo messaggio con <code>titolo</code>)"),
     ("persecute", "persecutes", 120, "🤡 Perseguita", "Il bot reagisce a tutti i messaggi della vittima per 15 minuti",
      "Scrivi in chat <code>perseguita @username</code> (o rispondi al suo messaggio con <code>perseguita</code>): sceglierai tu la reazione."),
     ("silence", "silence", 150, "🤐 Silenzia", "Cancello i suoi prossimi 15 messaggi finché non scrive la frase",
@@ -38,9 +40,9 @@ SHOP_ITEMS = [
      "Attivalo dall'Inventario 🎒: per 10 minuti cancello i messaggi dei bersagli configurati."),
     ("boostwin", "boost_win", 150, "🚀 Boost Vincita ×1.5", "+50% sul profitto di 10 partite Single Player",
      "Attivalo dall'Inventario 🎒: vale per le tue prossime 10 partite Single Player."),
-    ("boostluck", "boost_luck", 175, "🍀 Boost Fortuna", "Il caso ti aiuta per 15 partite da casinò",
+    ("boostluck", "boost_luck", 200, "🍀 Boost Fortuna", "Il caso ti aiuta per 15 partite da casinò",
      "Attivalo dall'Inventario 🎒: vale per le prossime 15 partite a Blackjack, Slot, Roulette e Gratta e Vinci."),
-    ("sang", "sang", 200, "🧛 Sanguisuga", "Rubi il 25% delle vincite della vittima per 10 partite",
+    ("sang", "sang", 250, "🧛 Sanguisuga", "Rubi il 25% delle vincite della vittima per 10 partite",
      "Scrivi in chat <code>sanguisuga @username</code> (o rispondi al suo messaggio): per le sue prossime 10 partite Single Player il 25% di ogni vincita va a te."),
 ]
 SHOP_BY_KEY = {s[0]: s for s in SHOP_ITEMS}
@@ -68,17 +70,15 @@ async def resolve_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
             label = f"@{html.escape(uname)}"
             uid = context.bot_data.get("usernames", {}).get(f"{chat_id}_{uname}")
             if not uid:
-                for k in list(USER_DATA.keys()):
-                    if k.startswith(f"{chat_id}_"):
-                        cand = k.rsplit("_", 1)[1]
-                        try:
-                            m = await context.bot.get_chat_member(chat_id, int(cand))
-                            if m.user.username and m.user.username.lower() == uname:
-                                uid = int(cand)
-                                context.bot_data.setdefault("usernames", {})[f"{chat_id}_{uname}"] = uid
-                                break
-                        except Exception:
-                            pass
+                for cand in chat_user_ids(chat_id):
+                    try:
+                        m = await context.bot.get_chat_member(chat_id, int(cand))
+                        if m.user.username and m.user.username.lower() == uname:
+                            uid = int(cand)
+                            context.bot_data.setdefault("usernames", {})[f"{chat_id}_{uname}"] = uid
+                            break
+                    except Exception:
+                        pass
             if not uid:
                 return None, label, "❌ Utente non trovato nel registro della chat!"
             return int(uid), label, None
@@ -224,6 +224,7 @@ def inventory_view(chat_id: int, user_id: int, owner_id: int):
     d = inv(chat_id, user_id)
     lines = [
         "🎒 <b>INVENTARIO</b>\n",
+        f"🏷️ Titoli Umilianti: <b>{d['titles']}</b>",
         f"🤡 Perseguita: <b>{d['persecutes']}</b>",
         f"🤐 Silenzia: <b>{d['silence']}</b>",
         f"{MUTE_FILTER_LABEL}: <b>{d['mutefilter']}</b>",
@@ -253,7 +254,7 @@ def inventory_view(chat_id: int, user_id: int, owner_id: int):
         rows.append([InlineKeyboardButton(f"{MUTE_FILTER_LABEL} — Attiva ({d['mutefilter']})", callback_data=f"inv_mf_{owner_id}")])
     helps = []
     for key, field, label in (("silence", "silence", "🤐 Silenzia"), ("persecute", "persecutes", "🤡 Perseguita"),
-                              ("sang", "sang", "🧛 Sanguisuga")):
+                              ("sang", "sang", "🧛 Sanguisuga"), ("title", "titles", "🏷️ Titolo")):
         if d[field] > 0:
             helps.append(InlineKeyboardButton(f"{label}: come si usa", callback_data=f"inv_help_{key}_{owner_id}"))
     for i in range(0, len(helps), 2):
