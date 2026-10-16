@@ -1,4 +1,5 @@
 """Economia V2: Banco Centrale, Follia Sdrogo, boost/malus, sfida di gruppo, missioni, enigmi di /lavora, ruota daily."""
+import asyncio
 import html
 import logging
 import os
@@ -20,8 +21,8 @@ from utils import is_v2, smart_edit_msg
 # ======================================================================
 # COSTANTI
 # ======================================================================
-FOLLIA_ON = 7000          # il Banco raggiunge questa soglia: parte la Follia Sdrogo
-FOLLIA_OFF = 4500         # la Follia finisce solo quando il Banco scende sotto questa soglia
+FOLLIA_ON = 15000         # il Banco raggiunge questa soglia: parte la Follia Sdrogo
+FOLLIA_HOURS = 12         # la Follia dura esattamente 12 ore da quando scatta (timer, non soglia di consumo)
 FOLLIA_MULT = {"default": 1.5, "aviator": 2.0, "scratch": 2.0}   # moltiplicatore sulle vincite (parte di profitto)
 
 BOOST_WIN_GAMES = 10      # Boost Vincita (x1.5): partite single player
@@ -50,8 +51,16 @@ MUTE_FILTER_TARGETS = {
     for u in os.environ.get("MUTE_FILTER_TARGETS", "").split(",") if u.strip()
 }
 
-_chal_dirty = False
+_chal_shown = None        # progresso mostrato nel messaggio fissato (None = sconosciuto, es. dopo un riavvio)
 _chal_last_edit = 0.0
+
+# Bot per i messaggi privati di notifica (impostato da main.py con set_bot)
+_BOT = None
+
+
+def set_bot(bot):
+    global _BOT
+    _BOT = bot
 
 
 # ======================================================================
@@ -171,7 +180,7 @@ def inv(chat_id: int, user_id: int) -> dict:
     Oggetti posseduti: titles, persecutes, silence, mutefilter, boost_win, boost_luck, sang.
     Effetti attivi (con le cariche residue, salvate nel database): boost_win_left, boost_luck_left,
     sang_on_me ({"buyer", "left"})."""
-    key = f"{chat_id}_{user_id}"
+    key = str(user_id)                    # profilo unico: stesso inventario in privato e in tutti i gruppi
     d = USER_INVENTORIES.setdefault(key, {})
     for k, v in (("titles", 0), ("persecutes", 0), ("stars", 0), ("silence", 0), ("mutefilter", 0),
                  ("boost_win", 0), ("boost_luck", 0), ("sang", 0),
@@ -197,11 +206,14 @@ def banco_add(amount: int):
         save_db()
 
 
-def banco_take(amount: int) -> int:
-    """Preleva fino a `amount` dal Banco. Restituisce quanto è stato davvero prelevato."""
+def banco_take(amount: int, count: bool = True) -> int:
+    """Preleva fino a `amount` dal Banco. Restituisce quanto è stato davvero prelevato.
+    Durante la Follia Sdrogo ciò che esce dal Banco conta nel consumo (count=False per i rimborsi)."""
     taken = max(0, min(int(amount), banco_balance()))
     if taken:
         BANCO_STATE["BANCO_BALANCE"] = banco_balance() - taken
+        if count and follia_active():
+            BANCO_STATE["FOLLIA_CONSUMED"] = int(BANCO_STATE.get("FOLLIA_CONSUMED", 0)) + taken
         save_db()
     return taken
 
@@ -210,15 +222,42 @@ def follia_active() -> bool:
     return bool(BANCO_STATE.get("FOLLIA_ATTIVA"))
 
 
+def follia_consumed() -> int:
+    return int(BANCO_STATE.get("FOLLIA_CONSUMED", 0))
+
+
+def follia_left_text() -> str:
+    left = max(0, int(BANCO_STATE.get("FOLLIA_END", 0) - time.time()))
+    return f"{left // 3600}h {left % 3600 // 60:02d}m"
+
+
+def follia_line() -> str:
+    """Una riga discreta con lo stato della Follia (per HUB, portafoglio e pannello admin)."""
+    if follia_active():
+        return f"🎪 Follia Sdrogo ATTIVA · finisce tra {follia_left_text()}"
+    return f"🎪 Follia Sdrogo: Banco {fmt(banco_balance())}/{fmt(FOLLIA_ON)} per l'attivazione"
+
+
 async def banco_check(bot):
-    """Se il Banco è a zero lo riporta al valore iniziale. Isteresi della Follia: parte a >= 7.000 e finisce
-    solo sotto 4.500. Annuncia nel gruppo principale."""
+    """Se il Banco è a zero lo riporta al valore iniziale.
+    FOLLIA: scatta quando il Banco arriva a FOLLIA_ON (15.000) e parte un timer di FOLLIA_HOURS (12 ore).
+    Allo scadere si spegne, il contatore si azzera del tutto e per la successiva il Banco deve scendere sotto
+    la soglia e accumulare di nuovo FOLLIA_ON. Annuncia nel gruppo principale."""
     if banco_balance() <= 0:
         BANCO_STATE["BANCO_BALANCE"] = BANCO_INITIAL
         save_db()
     bal = banco_balance()
-    if not follia_active() and bal >= FOLLIA_ON:
+    now = time.time()
+
+    # dopo una Follia il sistema si riarma solo quando il Banco è sceso sotto la soglia di attivazione
+    if BANCO_STATE.get("FOLLIA_RESET") and not follia_active() and bal < FOLLIA_ON:
+        BANCO_STATE["FOLLIA_RESET"] = False
+        save_db()
+
+    if not follia_active() and not BANCO_STATE.get("FOLLIA_RESET") and bal >= FOLLIA_ON:
         BANCO_STATE["FOLLIA_ATTIVA"] = True
+        BANCO_STATE["FOLLIA_CONSUMED"] = 0
+        BANCO_STATE["FOLLIA_END"] = now + FOLLIA_HOURS * 3600
         save_db()
         await _announce(
             bot,
@@ -227,17 +266,20 @@ async def banco_check(bot):
             f"🏦 Il Banco Centrale ha accumulato <b>{fmt(bal)} $SDG</b>: è FESTA!\n\n"
             "💥 Vincite dei giochi Single Player <b>×1.5</b> (<b>×2</b> su Aviator e Gratta e Vinci)!\n"
             "🏢 La Sdrogo Heist può <b>svuotare il Banco</b>!\n\n"
-            f"<i>La Follia dura finché il Banco non scende sotto {fmt(FOLLIA_OFF)} $SDG.</i>\n"
+            f"<i>La Follia dura <b>{FOLLIA_HOURS} ore</b>: poi si spegne.</i>\n"
             "🎰🃏🎡✈️🎟️ Giocate, giocate, giocate!"
         )
-    elif follia_active() and bal < FOLLIA_OFF:
+    elif follia_active() and now >= float(BANCO_STATE.get("FOLLIA_END", 0)):
         BANCO_STATE["FOLLIA_ATTIVA"] = False
+        BANCO_STATE["FOLLIA_CONSUMED"] = 0
+        BANCO_STATE["FOLLIA_END"] = 0
+        BANCO_STATE["FOLLIA_RESET"] = True          # la prossima parte solo dopo aver riaccumulato FOLLIA_ON
         save_db()
         await _announce(
             bot,
             "🌙 <b>La Follia Sdrogo è finita!</b>\n"
-            f"Il Banco Centrale è sceso a {fmt(bal)} $SDG. "
-            "Le vincite tornano normali... fino alla prossima Follia! 🎪"
+            f"Il Banco Centrale è a {fmt(bal)} $SDG. "
+            f"Per la prossima Follia servono di nuovo {fmt(FOLLIA_ON)} $SDG nel Banco. 🎪"
         )
 
 
@@ -245,17 +287,22 @@ async def banco_check(bot):
 # SPESA / SFIDA DI GRUPPO
 # ======================================================================
 def note_spend(chat_id: int, user_id: int, amount: int):
-    """Registra una spesa nei giochi per la sfida di gruppo (solo nella chat della sfida)."""
-    global _chal_dirty
+    """Registra una spesa nei giochi per la sfida di gruppo. Il profilo è unico: contano le spese fatte nel
+    gruppo della sfida e quelle in chat privata col bot (Heist compreso), ma non quelle di altri gruppi."""
     gc = GROUP_CHALLENGE
-    if not gc.get("active") or str(chat_id) != str(gc.get("chat_id")):
+    if not gc.get("active"):
+        return
+    try:
+        in_other_group = int(chat_id) < 0 and str(chat_id) != str(gc.get("chat_id"))
+    except (TypeError, ValueError):
+        in_other_group = True
+    if in_other_group:
         return
     if time.time() > gc.get("end", 0) or amount <= 0:
         return
     gc["spent"] = int(gc.get("spent", 0)) + int(amount)
     p = gc.setdefault("participants", {})
     p[str(user_id)] = int(p.get(str(user_id), 0)) + int(amount)
-    _chal_dirty = True
     save_db()
 
 
@@ -289,9 +336,11 @@ def challenge_text(footer: str = "") -> str:
     )
 
 
-async def challenge_start(bot, chat_id=None):
-    """Avvia (o resetta) la sfida di gruppo: invia, fissa e salva il messaggio. Restituisce (ok, nota)."""
-    global _chal_dirty
+async def challenge_start(bot, chat_id=None, goal=None, days=None):
+    """Avvia (o resetta) la sfida di gruppo: invia, fissa (in silenzio) e salva il messaggio. Restituisce (ok, nota).
+    Avvio manuale dell'admin: quota `goal` e durata `days` scelte da lui (la fine è esattamente tra `days` giorni).
+    Rinnovo automatico (nessun parametro): ultima quota scelta, fino alla mezzanotte tra mercoledì e giovedì."""
+    global _chal_shown
     gc = GROUP_CHALLENGE
     cid = chat_id or main_chat_id()
     if not cid:
@@ -305,8 +354,10 @@ async def challenge_start(bot, chat_id=None):
             pass
 
     now = time.time()
+    goal = int(goal or gc.get("cfg_goal") or CHALLENGE_GOAL)
+    end = now + int(days) * 86400 if days else challenge_end_ts(now)
     gc.update({
-        "active": True, "goal": CHALLENGE_GOAL, "start": now, "end": challenge_end_ts(now),
+        "active": True, "goal": goal, "cfg_goal": goal, "start": now, "end": end,
         "spent": 0, "participants": {}, "chat_id": int(cid), "msg_id": None, "next_start": 0.0,
     })
     note = "Sfida avviata."
@@ -314,14 +365,15 @@ async def challenge_start(bot, chat_id=None):
         msg = await bot.send_message(chat_id=int(cid), text=challenge_text(), parse_mode="HTML")
         gc["msg_id"] = msg.message_id
         try:
-            await bot.pin_chat_message(chat_id=int(cid), message_id=msg.message_id, disable_notification=False)
+            # pin SILENZIOSO: nessuna notifica ai membri del gruppo
+            await bot.pin_chat_message(chat_id=int(cid), message_id=msg.message_id, disable_notification=True)
         except Exception as e:
             note = f"Sfida avviata, ma non sono riuscito a fissare il messaggio ({e}). Dammi il permesso di fissare messaggi."
     except Exception as e:
         gc["active"] = False
         save_db()
         return False, f"Impossibile inviare il messaggio nel gruppo: {e}"
-    _chal_dirty = False
+    _chal_shown = 0
     save_db()
     return True, note
 
@@ -373,20 +425,30 @@ async def _challenge_finish(bot, success: bool):
 async def challenge_tick(context):
     """Job ogni ~10 secondi: aggiorna la barra sul messaggio fissato (con limite di frequenza),
     chiude la sfida a obiettivo raggiunto o a scadenza, avvia quella programmata."""
-    global _chal_dirty, _chal_last_edit
+    global _chal_shown, _chal_last_edit
     bot = context.bot
     gc = GROUP_CHALLENGE
     now = time.time()
+
+    try:
+        await banco_check(bot)             # spegne la Follia allo scadere delle 12 ore anche se nessuno sta giocando
+    except Exception as e:
+        logging.error(f"banco_check nel tick: {e}")
 
     if gc.get("active"):
         if int(gc.get("spent", 0)) >= int(gc.get("goal", CHALLENGE_GOAL)):
             await _challenge_finish(bot, True)
         elif now >= gc.get("end", 0):
             await _challenge_finish(bot, False)
-        elif _chal_dirty and now - _chal_last_edit >= CHALLENGE_EDIT_EVERY and gc.get("msg_id"):
-            _chal_dirty = False
-            _chal_last_edit = now
-            await smart_edit_msg(bot, gc["chat_id"], gc["msg_id"], challenge_text(), None)
+        elif gc.get("msg_id"):
+            spent = int(gc.get("spent", 0))
+            if _chal_shown is None:
+                _chal_shown = spent                  # dopo un riavvio: non so cosa c'è scritto, nessuna modifica inutile
+            elif spent != _chal_shown and now - _chal_last_edit >= CHALLENGE_EDIT_EVERY:
+                # il messaggio fissato si modifica SOLO se il progresso è cambiato dal tick precedente
+                _chal_shown = spent
+                _chal_last_edit = now
+                await smart_edit_msg(bot, gc["chat_id"], gc["msg_id"], challenge_text(), None)
     elif gc.get("next_start") and now >= gc["next_start"]:
         await challenge_start(bot)
 
@@ -536,6 +598,11 @@ def quests_for(chat_id: int, user_id: int) -> list:
     stale = (not q or q.get("date") != today_str()
              or any(x.get("id") not in QUEST_IDS for x in q.get("list", [])))
     if stale:
+        # premi completati ma mai riscattati prima della mezzanotte: vengono accreditati, non si perdono
+        if q:
+            for old in q.get("list", []):
+                if old.get("done") and not old.get("claimed", True) and old.get("id") in QUEST_IDS:
+                    add_user_coins(chat_id, user_id, old.get("reward", 0))
         # "/lavora" è proponibile solo a chi può davvero usarlo (saldo sotto la soglia)
         can_work = WORK_MAX_BALANCE is None or get_user_coins(chat_id, user_id) < WORK_MAX_BALANCE
         picked = [x for x in (_pick_quest("sp", can_work), _pick_quest("mp", can_work)) if x]
@@ -567,12 +634,56 @@ def quest_progress(chat_id: int, user_id: int, event: str, n=1) -> str:
         else:
             qst["progress"] += n
         if qst["progress"] >= qst["target"]:
+            # il premio NON viene accreditato: va riscattato a mano dalla sezione Sfide dell'HUB
             qst["done"] = True
-            add_user_coins(chat_id, user_id, qst["reward"])
-            msgs.append(f"🎯 Missione completata: {qst['text']}! +{qst['reward']} $SDG")
+            qst["claimed"] = False
+            msgs.append(f"🎯 Quest completata: {qst['text']}! Vai in Sfide & Missioni a riscattare {qst['reward']} $SDG")
+            _notify_quest_dm(chat_id, user_id)
     if msgs:
         save_db()
     return "\n".join(msgs)
+
+
+QUEST_DM_TEXT = "🎯 Quest Completata! Vai nella sezione Sfide a riscattare il premio!"
+
+
+def _notify_quest_dm(chat_id: int, user_id: int):
+    """Messaggio privato di avviso (se possibile: l'utente deve aver avviato il bot in privato).
+    In chat privata non serve: il giocatore sta già guardando il bot."""
+    if _BOT is None or str(chat_id) == str(user_id):
+        return
+    try:
+        asyncio.get_running_loop().create_task(_send_dm(user_id, QUEST_DM_TEXT))
+    except RuntimeError:
+        pass
+
+
+async def _send_dm(user_id: int, text: str):
+    try:
+        await _BOT.send_message(chat_id=user_id, text=text)
+    except Exception:
+        pass                                   # utente che non ha mai scritto al bot, o l'ha bloccato
+
+
+def quests_claimable(chat_id: int, user_id: int) -> list:
+    """Indici delle missioni completate e non ancora riscattate."""
+    return [i for i, q in enumerate(quests_for(chat_id, user_id)) if q.get("done") and not q.get("claimed", True)]
+
+
+def quest_claim(chat_id: int, user_id: int, idx: int):
+    """Riscatta il premio della missione `idx`. Restituisce (ok, messaggio)."""
+    lst = quests_for(chat_id, user_id)
+    if idx < 0 or idx >= len(lst):
+        return False, "Missione non trovata."
+    q = lst[idx]
+    if not q.get("done"):
+        return False, "Questa missione non è ancora completata."
+    if q.get("claimed", True):
+        return False, "Premio già riscattato."
+    q["claimed"] = True                        # prima di accreditare: un doppio tocco non paga due volte
+    add_user_coins(chat_id, user_id, q["reward"])
+    save_db()
+    return True, f"🎁 Hai riscattato {q['reward']} $SDG!"
 
 
 def _streak(chat_id: int, user_id: int, key: str, won: bool) -> int:
@@ -628,11 +739,16 @@ def duel_quest_events(chat_id: int, winner_id: int, loser_id: int, bet: int, gam
 def quests_text(chat_id: int, user_id: int) -> str:
     lines = ["🎯 <b>MISSIONI GIORNALIERE</b>\n"]
     for qst in quests_for(chat_id, user_id):
-        icon = "✅" if qst["done"] else "🔸"
         kind = "🎮" if qst["kind"] == "sp" else "⚔️"
         unit = qst.get("unit", "")
         prog = min(qst["progress"], qst["target"])
-        lines.append(f"{icon} {kind} {qst['text']} — <b>{_fmt_val(prog, unit)}/{_fmt_val(qst['target'], unit)}</b> · 🎁 {qst['reward']} $SDG")
+        if qst["done"] and not qst.get("claimed", True):
+            icon, state = "🎁", "<b>COMPLETATA — da riscattare!</b>"
+        elif qst["done"]:
+            icon, state = "✅", f"riscattata (+{qst['reward']} $SDG)"
+        else:
+            icon, state = "🔸", f"<b>{_fmt_val(prog, unit)}/{_fmt_val(qst['target'], unit)}</b> · 🎁 {qst['reward']} $SDG"
+        lines.append(f"{icon} {kind} {qst['text']} — {state}")
     lines.append("\n<i>🎮 single player · ⚔️ multiplayer. Le missioni si rinnovano ogni giorno a mezzanotte (ora italiana) "
                  "e sono diverse da giocatore a giocatore.</i>")
     return "\n".join(lines)
