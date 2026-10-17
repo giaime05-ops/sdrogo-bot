@@ -7,6 +7,8 @@ import signal
 import time
 from collections import deque
 
+from utils import note_flood, note_group_req
+
 from telegram.error import RetryAfter
 from telegram.ext import Application, BaseRateLimiter
 from telegram.request import HTTPXRequest
@@ -118,8 +120,14 @@ def _install_perf(application):
         except RetryAfter as e:
             ra = e.retry_after
             secs = int(ra.total_seconds()) if hasattr(ra, "total_seconds") else int(ra)
-            logging.warning(f"⛔ FLOOD CONTROL: Telegram ha imposto {secs}s di pausa (richiesta {endpoint}). "
-                            "Questa chat resta in pausa per questo tempo (le altre no).")
+            data = args[0] if args else kwargs.get("data")
+            try:
+                cid = int((data or {}).get("chat_id"))
+                note_flood(cid, secs)
+            except (TypeError, ValueError, AttributeError):
+                cid = None
+            logging.warning(f"⛔ FLOOD CONTROL: Telegram ha imposto {secs}s di pausa (richiesta {endpoint}, chat {cid}). "
+                            "Quella chat resta in pausa (le altre no) e le sue animazioni si riducono per un minuto.")
             raise
     Bot._do_post = base_post
 
@@ -183,9 +191,9 @@ async def _perf_report(application):
 # (answerCallbackQuery...) passano subito; un 429 mette in pausa SOLO la chat interessata.
 # ======================================================================
 BACKUP_EVERY = int(os.environ.get("BACKUP_EVERY", "900"))     # secondi tra due backup su Telegram (default 15 minuti)
-GROUP_GAP = float(os.environ.get("GROUP_GAP", "0"))              # secondi minimi tra due richieste nello stesso gruppo
+GROUP_GAP = float(os.environ.get("GROUP_GAP", "1.0"))              # secondi minimi tra due richieste nello stesso gruppo
 PRIVATE_GAP = float(os.environ.get("PRIVATE_GAP", "0"))          # idem in chat privata
-GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "0"))  # NUOVI messaggi al minuto per gruppo (Telegram: 20)
+GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "20"))  # NUOVI messaggi al minuto per gruppo (Telegram: 20)
 
 _SEND_ENDPOINTS = {"sendMessage", "sendPhoto", "sendDocument", "sendAnimation", "sendSticker", "sendDice",
                    "sendVideo", "sendAudio", "sendVoice", "sendPoll", "sendMediaGroup"}
@@ -236,6 +244,8 @@ class ChatRateLimiter(BaseRateLimiter):
                     wait = max(wait, dq[0] + 60 - now)
             if wait > 0:
                 await asyncio.sleep(wait)
+            if group:
+                note_group_req(chat)
             t = time.monotonic()
             self._next_ok[chat] = t + (self.group_gap if group else self.private_gap)
             if is_send:
@@ -255,6 +265,8 @@ class ChatRateLimiter(BaseRateLimiter):
             except RetryAfter as e:
                 ra = e.retry_after
                 secs = (ra.total_seconds() if hasattr(ra, "total_seconds") else float(ra)) + 0.5
+                logging.warning(f"⛔ Flood control su chat {chat} ({'gruppo' if isinstance(chat, int) and chat < 0 else 'privato'}): "
+                                f"{endpoint}, pausa {secs:.0f}s")
                 if chat is not None:
                     self._blocked[chat] = time.monotonic() + secs      # pausa solo per questa chat
                 if attempt >= self.max_retries:
