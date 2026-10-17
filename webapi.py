@@ -5,12 +5,72 @@ import os
 import urllib.parse
 from flask import Blueprint, jsonify, request
 import config
-from economy import get_balance, get_bank_balance, is_follia_active
+import state
+import storage
+import economy
 
 webapi = Blueprint('webapi', __name__)
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", getattr(config, "TELEGRAM_TOKEN", ""))
 ADMIN_ID = getattr(config, "ADMIN_ID", None)
+
+def _get_user_balance(user_id):
+    """Trova il saldo dell'utente cercando in modo dinamico in economy, storage o state."""
+    # 1. Prova funzioni in economy.py
+    for name in ['get_balance', 'get_saldo', 'get_user_balance', 'get_user_saldo']:
+        if hasattr(economy, name):
+            try:
+                return getattr(economy, name)(user_id)
+            except Exception:
+                pass
+    
+    # 2. Prova funzioni in storage.py
+    for name in ['get_balance', 'get_saldo', 'get_user']:
+        if hasattr(storage, name):
+            try:
+                res = getattr(storage, name)(user_id)
+                if isinstance(res, (int, float)):
+                    return res
+                if isinstance(res, dict):
+                    return res.get('balance', res.get('saldo', 0))
+            except Exception:
+                pass
+
+    # 3. Prova direttamente la cache in state.py (USER_DATA)
+    uid_str = str(user_id)
+    user_data = getattr(state, 'USER_DATA', {})
+    if isinstance(user_data, dict):
+        u_info = user_data.get(uid_str) or user_data.get(user_id)
+        if isinstance(u_info, dict):
+            return u_info.get('balance', u_info.get('saldo', 0))
+            
+    return 0
+
+def _get_bank_balance():
+    """Trova il saldo del Banco."""
+    for name in ['get_bank_balance', 'get_banco', 'get_bank']:
+        if hasattr(economy, name):
+            try:
+                return getattr(economy, name)()
+            except Exception:
+                pass
+    if hasattr(state, 'BANCO'):
+        return getattr(state, 'BANCO', 0)
+    if hasattr(state, 'FLAGS') and isinstance(state.FLAGS, dict):
+        return state.FLAGS.get('banco', 0)
+    return 0
+
+def _is_follia_active():
+    """Verifica lo stato della Follia Sdrogo."""
+    for name in ['is_follia_active', 'is_follia', 'check_follia']:
+        if hasattr(economy, name):
+            try:
+                return getattr(economy, name)()
+            except Exception:
+                pass
+    if hasattr(state, 'FLAGS') and isinstance(state.FLAGS, dict):
+        return bool(state.FLAGS.get('follia') or state.FLAGS.get('follia_active'))
+    return False
 
 def validate_telegram_data(init_data: str):
     """Verifica l'autenticità dei dati inviati dalla Mini App di Telegram tramite HMAC-SHA256."""
@@ -53,9 +113,9 @@ def api_me():
             "error": "Sdrogo Arcade è attualmente in fase di manutenzione/sviluppo riservato all'admin."
         }), 403
 
-    balance = get_balance(user_id)
-    bank = get_bank_balance()
-    follia = is_follia_active()
+    balance = _get_user_balance(user_id)
+    bank = _get_bank_balance()
+    follia = _is_follia_active()
 
     return jsonify({
         "success": True,
