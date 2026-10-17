@@ -23,7 +23,7 @@ from state import (
     game_enabled, MAINT_GAME_TEXT,
 )
 from storage import get_user_coins, add_user_coins, save_db, ukey
-from utils import verify_user_lock, serialized, is_v2, smart_edit, anim_gap
+from utils import verify_user_lock, serialized, is_v2, smart_edit, anim_gap, frame_ok
 
 # --- PREMI WORDLE / MASTERMIND (costo di ingresso: 10 $SDG) ---
 # Totale restituito in base ai tentativi usati (netti: +50, +40, +30, +20, +10)
@@ -387,9 +387,10 @@ async def handle_slot_bet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # I tre rulli si fermano uno alla volta: all'inizio girano tutti, poi si fermano in sequenza
         await _safe_edit(query, head + "[ 🔄 | 🔄 | 🔄 ]" + spin)
         await asyncio.sleep(anim_gap(chat_id, "slot"))
-        if True:                              # i rulli si fermano uno alla volta (anche nei gruppi)
+        if frame_ok(chat_id):                 # i rulli si fermano uno alla volta; se il gruppo è al limite di Telegram si salta
             await _safe_edit(query, head + f"[ {reels[0]} | 🔄 | 🔄 ]" + spin)
             await asyncio.sleep(anim_gap(chat_id, "slot"))
+        if frame_ok(chat_id):
             await _safe_edit(query, head + f"[ {reels[0]} | {reels[1]} | 🔄 ]" + spin)
             await asyncio.sleep(anim_gap(chat_id, "slot"))
 
@@ -1229,7 +1230,9 @@ async def handle_sp_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 "🌀 <i>La pallina rimbalza...</i>",
                 "⏳ <i>Sta rallentando...</i>",
             ]
-            for frame in frames:
+            for i, frame in enumerate(frames):
+                if i > 0 and not frame_ok(chat_id):
+                    continue                  # gruppo al limite di Telegram: si salta il fotogramma
                 await _safe_edit(query, head + f"{frame}\n\n[ {_wheel_strip()} ]")
                 await asyncio.sleep(anim_gap(chat_id, "roulette"))
 
@@ -1342,7 +1345,7 @@ async def _aviator_flight(query, game: dict, key: str, owner_id: int, chat_id: i
                 await finish_crash()
                 return
             nxt = _avi_mult(elapsed)
-            if nxt > mult:
+            if nxt > mult and frame_ok(chat_id):      # gruppo al limite di Telegram: si salta l'aggiornamento
                 await _safe_edit(query, _avi_text(game, nxt, "🚀 <i>Sale... premi CASHOUT prima che voli via!</i>"), cash_kb)
                 game["current"] = nxt
                 mult = nxt
