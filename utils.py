@@ -82,8 +82,9 @@ def anim_gap(chat_id, kind: str = "") -> float:
 # Telegram limita le modifiche ai messaggi di un gruppo (circa 20 al minuto; se si eccede arriva un 429 con pause di
 # decine di secondi). Il bot conta le richieste di ogni gruppo: finché c'è margine le animazioni sono complete; se il
 # gruppo sta per superare il limite (o ha appena preso un 429) si saltano i fotogrammi intermedi e si mostra subito il risultato.
-GROUP_FRAME_BUDGET = int(os.environ.get("GROUP_FRAME_BUDGET", "12"))     # richieste/minuto oltre le quali si saltano i fotogrammi
+GROUP_FRAME_BUDGET = int(os.environ.get("GROUP_FRAME_BUDGET", "10"))     # richieste/minuto oltre le quali si saltano i fotogrammi
 FLOOD_UNTIL = {}
+PENDING_GROUP = {}          # richieste in coda per ogni gruppo (le scrive il limitatore)
 _GROUP_REQS = {}
 
 
@@ -109,6 +110,8 @@ def frame_ok(chat_id) -> bool:
         return True
     now = time.monotonic()
     if FLOOD_UNTIL.get(cid, 0) > now:
+        return False
+    if PENDING_GROUP.get(cid, 0) >= 2:        # c'è già coda: un fotogramma in più la allungherebbe soltanto
         return False
     q = _GROUP_REQS.get(cid)
     if q:
