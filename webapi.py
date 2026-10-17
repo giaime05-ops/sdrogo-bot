@@ -610,3 +610,33 @@ def api_multi(game, action):
     body = {"success": True}
     body.update(out)
     return jsonify(body)
+
+
+# ----------------------------------------------------------------------------------------------
+# FASE 5: classifiche e diario (sola lettura)  ->  /api/social/leaderboard?cat=...   /api/social/diary
+# ----------------------------------------------------------------------------------------------
+async def _social_call(fn, *args):
+    return fn(*args)
+
+
+@webapi.route("/api/social/<what>", methods=["GET", "OPTIONS"])
+def api_social(what):
+    if request.method == "OPTIONS":
+        return "", 204
+    user, err = require_admin()
+    if err:
+        return err
+    import websocial
+    uid = int(user["id"])
+    if what == "leaderboard":
+        coro = _social_call(websocial.leaderboard, uid, request.args.get("cat", "coins"))
+    elif what == "diary":
+        coro = _social_call(websocial.diary, uid)
+    else:
+        return _err("Sezione sconosciuta.", 404)
+    resp, out = _avi_call(coro)
+    if resp is not None:
+        return resp
+    body = {"success": True}
+    body.update(out)
+    return jsonify(body)
