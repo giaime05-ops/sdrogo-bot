@@ -4,6 +4,8 @@ import logging
 import random
 import time
 
+from types import SimpleNamespace
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import RetryAfter, BadRequest, TimedOut, NetworkError
 from telegram.ext import (
@@ -23,7 +25,7 @@ from state import (
     WORK_GAMES, SYSTEM_FLAGS, GROUP_CHALLENGE, SANDBOX,
     game_enabled, MAINT_GAME_TEXT,
 )
-from storage import (add_user_coins, get_user_coins, add_user_stat, save_db, chat_user_ids, log_play,
+from storage import (LAST_SEEN, add_user_coins, get_user_coins, add_user_stat, save_db, chat_user_ids, log_play,
                      find_user_id, sandbox_set, is_sandbox)
 from utils import is_admin, serialized, smart_edit
 from handlers.hub import apply_title_command, apply_persecute_command
@@ -116,7 +118,8 @@ def _admin_view():
         [InlineKeyboardButton("🟢 V2 Pubblica: ON" if v2_on else "🔴 V2 Pubblica: OFF", callback_data="adm_v2")],
         [InlineKeyboardButton("🛠️ MODALITÀ SANDBOX: ON" if SANDBOX.get("on") else "🛠️ MODALITÀ SANDBOX: OFF",
                               callback_data="adm_sbx")],
-        [InlineKeyboardButton("🎯 Configura Sfida di Gruppo", callback_data="adm_cfg")],
+        [InlineKeyboardButton("🎯 Configura Sfida di Gruppo", callback_data="adm_cfg"),
+         InlineKeyboardButton("👥 Utenti online", callback_data="adm_on_0")],
     ]
     row = []
     for key, label in ADMIN_GAMES:
@@ -133,6 +136,123 @@ def _admin_view():
     ])
     rows.append([InlineKeyboardButton("✖️ Chiudi", callback_data="adm_close")])
     return text, InlineKeyboardMarkup(rows)
+
+
+# --- UTENTI ONLINE ---
+ONLINE_WINDOW = 300      # "online" = ha usato il bot negli ultimi 5 minuti
+ONLINE_PAGE = 15
+
+
+def _ago(secs: float) -> str:
+    secs = int(max(0, secs))
+    if secs < 60:
+        return "ora"
+    if secs < 3600:
+        return f"{secs // 60} min fa"
+    if secs < 86400:
+        return f"{secs // 3600} h fa"
+    return f"{secs // 86400} g fa"
+
+
+def _online_view(page: int = 0):
+    now = time.time()
+    rows_u = []
+    for uid, d in USER_DATA.items():
+        if not str(uid).isdigit():
+            continue                                    # profili di prova (Sandbox) esclusi
+        seen = LAST_SEEN.get(uid) or d.get("seen") or 0
+        rows_u.append((seen, uid, d))
+    rows_u.sort(key=lambda r: r[0], reverse=True)
+    online = sum(1 for r in rows_u if r[0] and now - r[0] <= ONLINE_WINDOW)
+    total = len(rows_u)
+    pages = max(1, (total + ONLINE_PAGE - 1) // ONLINE_PAGE)
+    page = max(0, min(page, pages - 1))
+    lines = []
+    for seen, uid, d in rows_u[page * ONLINE_PAGE:(page + 1) * ONLINE_PAGE]:
+        on = bool(seen) and now - seen <= ONLINE_WINDOW
+        label = f"@{d['username']}" if d.get("username") else (d.get("name") or f"ID {uid}")
+        when = "online ora" if on else (_ago(now - seen) if seen else "mai visto")
+        lines.append(f"{'🟢' if on else '🔴'} {html.escape(label)} · <i>{when}</i>")
+    text = (
+        "👥 <b>UTENTI ONLINE</b>\n\n"
+        f"🟢 Online (ultimi {ONLINE_WINDOW // 60} min): <b>{online}</b> · 🔴 Offline: <b>{total - online}</b> · Totale: <b>{total}</b>\n\n"
+        + ("\n".join(lines) if lines else "Nessun giocatore registrato.")
+        + f"\n\n<i>Pagina {page + 1}/{pages}. Vedi solo chi sta usando il bot, non cosa fa.</i>"
+    )
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("⬅️", callback_data=f"adm_on_{page - 1}"))
+    nav.append(InlineKeyboardButton("🔄 Aggiorna", callback_data=f"adm_on_{page}"))
+    if page < pages - 1:
+        nav.append(InlineKeyboardButton("➡️", callback_data=f"adm_on_{page + 1}"))
+    return text, InlineKeyboardMarkup([nav, [InlineKeyboardButton("⬅️ Dashboard", callback_data="adm_back")]])
+
+
+# --- MENU COMANDI ADMIN (/com) ---
+def _com_view():
+    maint = FLAGS.get("maintenance", False)
+    troll = FLAGS.get("troll", False)
+    text = (
+        "🧰 <b>COMANDI ADMIN</b>\n\n"
+        "Tocca un tasto: i comandi senza parametri partono subito, per gli altri ti mostro come scriverli.\n\n"
+        "🛠️ <b>/admin</b> – dashboard: giochi ON/OFF, V2, Sandbox, Sfida\n"
+        "👥 <b>Utenti online</b> – chi sta usando il bot adesso\n"
+        "🚧 <b>/manutenzione</b> – blocca il bot per tutti tranne te\n"
+        "🧹 <b>/pen</b> – toglie le penitenze attive\n"
+        "🙉 <b>/troll</b> – attiva/disattiva l'Auto-Troll\n"
+        "🔄 <b>/resetduello</b> – annulla tutte le partite e rimborsa\n"
+        "📜 <b>/storico</b> <code>@utente</code> – ultime giocate di un giocatore\n"
+        "📣 <b>/annuncio</b> <code>testo</code> (o /dici) – scrive nel gruppo\n"
+        "💰 <b>/ricarica</b> <code>[@utente] [quantità]</code> – regala $SDG\n"
+    )
+    rows = [
+        [InlineKeyboardButton("🛠️ Dashboard", callback_data="adm_c_admin"),
+         InlineKeyboardButton("👥 Utenti online", callback_data="adm_on_0")],
+        [InlineKeyboardButton("🚧 Manutenzione: " + ("ON" if maint else "OFF"), callback_data="adm_c_manut"),
+         InlineKeyboardButton("🙉 Troll: " + ("ON" if troll else "OFF"), callback_data="adm_c_troll")],
+        [InlineKeyboardButton("🧹 Togli penitenze", callback_data="adm_c_pen"),
+         InlineKeyboardButton("🔄 Reset partite", callback_data="adm_c_reset")],
+        [InlineKeyboardButton("📜 Storico", callback_data="adm_c_storico"),
+         InlineKeyboardButton("📣 Annuncio", callback_data="adm_c_annuncio"),
+         InlineKeyboardButton("💰 Ricarica", callback_data="adm_c_ricarica")],
+        [InlineKeyboardButton("✖️ Chiudi", callback_data="adm_close")],
+    ]
+    return text, InlineKeyboardMarkup(rows)
+
+
+async def com_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user, chat = update.effective_user, update.effective_chat
+    if not user or not is_admin(user.id):
+        return
+    if chat.type != "private":
+        await update.message.reply_text("🔒 /com funziona solo in chat privata col bot.")
+        return
+    text, markup = _com_view()
+    await update.message.reply_text(text, reply_markup=markup, parse_mode="HTML")
+
+
+_COM_HELP = {
+    "storico": "📜 Scrivi: <code>/storico @username</code> (oppure l'ID numerico).",
+    "annuncio": "📣 Scrivi: <code>/annuncio il tuo testo</code> (o <code>/dici ...</code>): il bot lo pubblica nel gruppo.",
+    "ricarica": "💰 Scrivi: <code>/ricarica 100</code> (a te) oppure <code>/ricarica @username 100</code>.",
+}
+
+
+async def _com_action(query, context, cmd: str):
+    """Esegue dal menu /com un comando senza parametri, come se l'admin l'avesse scritto."""
+    shim = SimpleNamespace(effective_user=query.from_user, effective_chat=query.message.chat,
+                           effective_message=query.message, message=query.message, callback_query=None)
+    if cmd == "admin":
+        await admin_dashboard(shim, context)
+    elif cmd == "manut":
+        await toggle_maintenance(shim, context)
+    elif cmd == "troll":
+        await toggle_troll(shim, context)
+    elif cmd == "pen":
+        await clear_penalties(shim, context)
+    elif cmd == "reset":
+        await reset_duello(shim, context)
+
 
 
 CHAL_GOALS = (5000, 10000, 15000, 25000)
@@ -241,6 +361,38 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             pass
         await smart_edit(query, *_admin_view())
+        return
+    elif action == "on":                            # adm_on_<pagina>
+        await query.answer()
+        try:
+            page = int(parts[2])
+        except (IndexError, ValueError):
+            page = 0
+        await smart_edit(query, *_online_view(page))
+        return
+    elif action == "c":                             # adm_c_<comando> (menu /com)
+        cmd = parts[2] if len(parts) > 2 else ""
+        if cmd in _COM_HELP:
+            await query.answer()
+            await query.message.reply_text(_COM_HELP[cmd], parse_mode="HTML")
+            return
+        if cmd == "reset":
+            await query.answer()
+            await smart_edit(query, "🔄 <b>Reset partite</b>\n\nAnnulla TUTTE le partite in corso (duelli, blackjack, poker...) "
+                             "e rimborsa le puntate. Vuoi procedere?",
+                             InlineKeyboardMarkup([[InlineKeyboardButton("✅ Sì, resetta", callback_data="adm_c_resetok"),
+                                                    InlineKeyboardButton("❌ Annulla", callback_data="adm_com")]]))
+            return
+        await query.answer()
+        await _com_action(query, context, "reset" if cmd == "resetok" else cmd)
+        if cmd == "resetok":
+            await smart_edit(query, *_com_view())
+        elif cmd in ("manut", "troll"):
+            await smart_edit(query, *_com_view())
+        return
+    elif action == "com":
+        await query.answer()
+        await smart_edit(query, *_com_view())
         return
     elif action == "back":
         await query.answer()
@@ -802,6 +954,7 @@ def register(app):
     app.add_handler(CommandHandler("manutenzione", toggle_maintenance))
     app.add_handler(CommandHandler("ricarica", ricarica_command))
     app.add_handler(CommandHandler("admin", admin_dashboard))
+    app.add_handler(CommandHandler(["com", "comandi"], com_command))
     app.add_handler(CallbackQueryHandler(admin_callback, pattern="^adm_"))
 
 
