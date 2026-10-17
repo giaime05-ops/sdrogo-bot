@@ -19,7 +19,7 @@ from state import (
 )
 from storage import (get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram, chat_user_ids,
                      ukey, is_sandbox, set_sandbox_ctx, note_username)
-from utils import anim_gap, verify_user_lock, get_formatted_name, serialized, is_v2, smart_edit, set_chat_type
+from utils import anim_gap, frame_ok, verify_user_lock, get_formatted_name, serialized, is_v2, smart_edit, set_chat_type
 from handlers.games import HEIST_COST
 from handlers.heist import heist_new_game, heist_intro_text, heist_start_kb
 from handlers import v2
@@ -496,7 +496,9 @@ async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     name = escape(query.from_user.first_name or "Giocatore")
     head = f"🎡 <b>RUOTA DAILY</b> 🎡\n👤 Player: <b>{name}</b>\n\n"
     prizes = [p for p, _ in DAILY_WHEEL]
-    for _ in range(WHEEL_FRAMES):
+    for i in range(WHEEL_FRAMES):
+        if i > 0 and not frame_ok(query.message.chat_id):
+            continue                          # gruppo al limite di Telegram: si salta il fotogramma
         reel = [random.choice(prizes) for _ in range(3)]
         await smart_edit(query, head + f"[ {reel[0]} | {reel[1]} | {reel[2]} ]\n\n<i>La ruota gira...</i>")
         await asyncio.sleep(anim_gap(query.message.chat_id, "wheel"))
