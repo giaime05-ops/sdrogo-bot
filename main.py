@@ -20,6 +20,7 @@ from storage import (
 )
 from economy import challenge_tick, set_bot
 from handlers import system, hub, games, multiplayer, quiz, v2, heist, admin_tools
+from webapi import webapi
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -196,7 +197,7 @@ PRIVATE_GAP = float(os.environ.get("PRIVATE_GAP", "0"))          # idem in chat 
 GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "20"))  # NUOVI messaggi al minuto per gruppo (Telegram: 20)
 
 _SEND_ENDPOINTS = {"sendMessage", "sendPhoto", "sendDocument", "sendAnimation", "sendSticker", "sendDice",
-                   "sendVideo", "sendAudio", "sendVoice", "sendPoll", "sendMediaGroup"}
+                    "sendVideo", "sendAudio", "sendVoice", "sendPoll", "sendMediaGroup"}
 _THROTTLED = _SEND_ENDPOINTS | {"editMessageText", "editMessageReplyMarkup", "editMessageCaption", "deleteMessage",
                                 "pinChatMessage", "unpinChatMessage", "editMessageMedia"}
 
@@ -317,7 +318,24 @@ async def main_async():
 
     load_db()
     if not WEBHOOK_URL:
-        from keep_alive import start_flask      # il keep-alive serve solo in polling: in webhook la porta è del webhook
+        from keep_alive import app, start_flask
+
+        @app.after_request
+        def add_cors_headers(response):
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-Telegram-Init-Data'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+            return response
+
+        @app.route('/api/<path:dummy>', methods=['OPTIONS'])
+        def options_handler(dummy):
+            return '', 200
+
+        try:
+            app.register_blueprint(webapi)
+        except ValueError:
+            pass
+
         start_flask()
 
     application = build_application()
@@ -405,7 +423,7 @@ async def main_async():
 
     await application.updater.stop()
     await application.stop()
-    flush_db_sync()                                      # stato e partite in corso al sicuro su disco
+    flush_db_sync()                                     # stato e partite in corso al sicuro su disco
     try:
         await asyncio.wait_for(backup_now(application.bot), timeout=20)   # copia nella chat di backup anche allo spegnimento
     except Exception as e:
