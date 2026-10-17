@@ -9,7 +9,7 @@ from collections import deque
 
 from utils import note_flood, note_group_req
 
-from telegram.error import RetryAfter
+from telegram.error import RetryAfter, TimedOut, NetworkError
 from telegram.ext import Application, BaseRateLimiter
 from telegram.request import HTTPXRequest
 
@@ -342,7 +342,16 @@ async def main_async():
     else:
         print("⚠️ JobQueue non disponibile: installa python-telegram-bot[job-queue]. Senza, il DB non viene salvato!", flush=True)
 
-    await application.initialize()
+    # Avvio robusto: se Telegram non risponde subito (rete lenta, riavvio del container) si riprova invece di spegnersi.
+    for attempt in range(1, 9):
+        try:
+            await application.initialize()
+            break
+        except (TimedOut, NetworkError) as e:
+            print(f"⚠️ Telegram non risponde all'avvio (tentativo {attempt}/8): {e}. Riprovo tra 5 s...", flush=True)
+            if attempt == 8:
+                raise
+            await asyncio.sleep(5)
     await auto_restore_from_telegram(application.bot)   # container nuovo e vuoto: ripristina dal backup fissato
     set_bot(application.bot)                            # serve a economy per avvisare in privato le quest completate
     await recover_sessions(application.bot)             # riprende le partite salvate / rimborsa quelle non riprendibili
