@@ -12,7 +12,14 @@ def home():
 def run_flask():
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.ERROR)
-    app.run(host='0.0.0.0', port=PORT)
+    try:
+        from waitress import serve                     # server vero (a thread fissi): regge molte richieste insieme
+    except ImportError:                                # se il pacchetto manca si torna al server di sviluppo di Flask
+        logging.warning("waitress non installato: uso il server di sviluppo di Flask")
+        app.run(host='0.0.0.0', port=PORT)
+        return
+    logging.getLogger('waitress').setLevel(logging.ERROR)
+    serve(app, host='0.0.0.0', port=PORT, threads=16, max_request_body_size=65536)
 
 def start_flask():
     Thread(target=run_flask, daemon=True).start()

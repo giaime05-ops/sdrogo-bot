@@ -21,10 +21,11 @@ import logging
 import math
 import os
 import re
+import threading
 import time
 import urllib.parse
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 
 import config
 from state import USER_DATA, AVIATOR_GAMES, game_enabled
@@ -56,6 +57,8 @@ def _cors(response):
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
         response.headers["Access-Control-Max-Age"] = "600"
     response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
     return response
 
 
@@ -100,9 +103,20 @@ def require_admin():
     """Restituisce (utente, None) se la richiesta è dell'admin; altrimenti (None, risposta di errore)."""
     user = validate_init_data(_init_data_from_request())
     if not user:
+        if not _take("bad:" + _ip(), BAD_RATE, BAD_BURST):
+            return None, (jsonify({"success": False, "error": "Troppi tentativi, riprova tra poco."}), 429)
         return None, (jsonify({"success": False, "error": "Autenticazione non valida o scaduta."}), 401)
     if not ADMIN_ID or str(user["id"]) != str(ADMIN_ID):
         return None, (jsonify({"success": False, "error": "Sdrogo Arcade è ancora in sviluppo: per ora è riservata all'admin."}), 403)
+    uid = str(user["id"])
+    if not _take("u:" + uid, USER_RATE, USER_BURST):
+        return None, (jsonify({"success": False, "error": "Troppe richieste, rallenta un attimo."}), 429)
+    if request.method == "POST":                      # una sola mossa alla volta per giocatore: niente doppi tocchi né richieste parallele
+        with _B_LOCK:
+            if uid in _INFLIGHT:
+                return None, (jsonify({"success": False, "error": "Un'altra operazione è ancora in corso."}), 429)
+            _INFLIGHT.add(uid)
+        g.inflight_uid = uid
     return user, None
 
 
@@ -137,6 +151,65 @@ def api_me():
         },
         "daily": {"available": (profile.get("last_daily") or "") != today_str()},
     })
+
+
+# ----------------------------------------------------------------------------------------------
+# FASE 6: protezioni (limiti di richieste, una sola mossa alla volta, dimensione massima, errori senza dettagli)
+# ----------------------------------------------------------------------------------------------
+MAX_BODY = 4096                                  # byte: nessuna richiesta legittima è più grande
+IP_RATE, IP_BURST = 20.0, 60                     # per indirizzo: richieste/secondo a regime e raffica massima
+USER_RATE, USER_BURST = 8.0, 20                  # per giocatore autenticato
+BAD_RATE, BAD_BURST = 0.5, 10                    # tentativi con identità non valida, per indirizzo
+_BUCKETS = {}
+_B_LOCK = threading.Lock()
+_INFLIGHT = set()
+
+
+def _take(key: str, rate: float, burst: int) -> bool:
+    """Secchiello di gettoni: True se la richiesta può passare."""
+    now = time.monotonic()
+    with _B_LOCK:
+        tokens, last = _BUCKETS.get(key, (float(burst), now))
+        tokens = min(float(burst), tokens + (now - last) * rate)
+        ok = tokens >= 1.0
+        _BUCKETS[key] = (tokens - 1.0 if ok else tokens, now)
+        if len(_BUCKETS) > 4000:                 # pulizia: via chi non si fa vivo da 5 minuti
+            for k in [k for k, (_, t) in _BUCKETS.items() if now - t > 300]:
+                _BUCKETS.pop(k, None)
+        return ok
+
+
+def _ip() -> str:
+    xff = (request.headers.get("X-Forwarded-For") or "").split(",")[-1].strip()   # l'ultimo lo aggiunge il proxy; il primo lo può scrivere il client
+    return xff or request.remote_addr or "?"
+
+
+@webapi.before_request
+def _guard_request():
+    if request.method == "OPTIONS":
+        return None
+    if (request.content_length or 0) > MAX_BODY:
+        return _err("Richiesta troppo grande.", 413)
+    if not _take("ip:" + _ip(), IP_RATE, IP_BURST):
+        return _err("Troppe richieste, rallenta un attimo.", 429)
+    return None
+
+
+@webapi.teardown_request
+def _release_inflight(exc=None):
+    uid = g.pop("inflight_uid", None) if g else None
+    if uid is not None:
+        with _B_LOCK:
+            _INFLIGHT.discard(uid)
+
+
+@webapi.errorhandler(Exception)
+def _any_error(e):
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        return _err(e.description or "Errore.", e.code or 400)
+    logging.exception("Errore non gestito nella mini app")      # il dettaglio resta nel log, al client non arriva
+    return _err("Errore interno, riprova.", 500)
 
 
 # ----------------------------------------------------------------------------------------------
