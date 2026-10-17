@@ -235,7 +235,7 @@ class ChatRateLimiter(BaseRateLimiter):
         async with lock:                      # la fila è in ordine di arrivo
             now = time.monotonic()
             wait = max(self._next_ok.get(chat, 0) - now, self._blocked.get(chat, 0) - now, 0.0)
-            is_send = group and endpoint in _SEND_ENDPOINTS
+            is_send = group                       # nei gruppi OGNI richiesta (anche le modifiche) conta nel tetto al minuto
             if is_send:
                 dq = self._sends.setdefault(chat, deque())
                 while dq and now - dq[0] > 60:
