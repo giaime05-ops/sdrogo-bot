@@ -108,6 +108,7 @@ def _admin_view():
         "🛠️ <b>DASHBOARD ADMIN</b>\n\n"
         f"🆕 V2 pubblica: <b>{'ON — tutti la vedono' if v2_on else 'OFF — solo tu la vedi'}</b>\n"
         f"🛠️ Sandbox: <b>{'ACCESA — giochi su un profilo di prova' if SANDBOX.get('on') else 'spenta'}</b>\n"
+        f"📱 Mini app Arcade: <b>{'APERTA ai membri del gruppo' if SYSTEM_FLAGS.get('ARCADE_PUBLIC') else 'CHIUSA — solo tu'}</b>\n"
         f"🎯 Sfida di gruppo: <b>{chal}</b>\n"
         f"{follia_line() or '🏦 Follia Sdrogo: spenta'}\n\n"
         "🟢 = attivo | 🔴 = in manutenzione\n"
@@ -118,6 +119,8 @@ def _admin_view():
         [InlineKeyboardButton("🟢 V2 Pubblica: ON" if v2_on else "🔴 V2 Pubblica: OFF", callback_data="adm_v2")],
         [InlineKeyboardButton("🛠️ MODALITÀ SANDBOX: ON" if SANDBOX.get("on") else "🛠️ MODALITÀ SANDBOX: OFF",
                               callback_data="adm_sbx")],
+        [InlineKeyboardButton("🟢 Mini app Arcade: APERTA" if SYSTEM_FLAGS.get("ARCADE_PUBLIC") else "🔴 Mini app Arcade: CHIUSA",
+                              callback_data="adm_arc")],
         [InlineKeyboardButton("🎯 Configura Sfida di Gruppo", callback_data="adm_cfg"),
          InlineKeyboardButton("👥 Utenti online", callback_data="adm_on_0")],
     ]
@@ -321,6 +324,11 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_db()                                   # persistente: sopravvive ai riavvii
         await query.answer("🟢 V2 PUBBLICA: tutti la vedono!" if SYSTEM_FLAGS["UPDATE_V2_PUBLIC"]
                            else "🔴 V2 nascosta: solo tu la vedi.", show_alert=True)
+    elif action == "arc":
+        SYSTEM_FLAGS["ARCADE_PUBLIC"] = not SYSTEM_FLAGS.get("ARCADE_PUBLIC", False)
+        save_db()                                   # persistente: sopravvive ai riavvii
+        await query.answer("🟢 Mini app APERTA ai membri del gruppo." if SYSTEM_FLAGS["ARCADE_PUBLIC"]
+                           else "🔴 Mini app CHIUSA: solo tu.", show_alert=True)
     elif action == "sbx":
         sandbox_set(not SANDBOX.get("on"))
         await query.answer(

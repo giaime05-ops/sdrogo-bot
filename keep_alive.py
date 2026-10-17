@@ -15,10 +15,11 @@ def run_flask():
     try:
         from waitress import serve                     # server vero (a thread fissi): regge molte richieste insieme
     except ImportError:                                # se il pacchetto manca si torna al server di sviluppo di Flask
-        logging.warning("waitress non installato: uso il server di sviluppo di Flask")
+        print("ATTENZIONE: waitress non installato, uso il server di sviluppo di Flask", flush=True)
         app.run(host='0.0.0.0', port=PORT)
         return
     logging.getLogger('waitress').setLevel(logging.ERROR)
+    print(f"Server web: waitress (16 thread) sulla porta {PORT}", flush=True)
     serve(app, host='0.0.0.0', port=PORT, threads=16, max_request_body_size=65536)
 
 def start_flask():

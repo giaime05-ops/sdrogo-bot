@@ -32,7 +32,7 @@ from state import USER_DATA, AVIATOR_GAMES, game_enabled
 from storage import ukey, get_user_data_dict, add_user_coins
 import economy
 from economy import today_str, spin_daily, DAILY_WHEEL
-from state import SCRATCH_GAMES
+from state import SCRATCH_GAMES, SYSTEM_FLAGS
 from utils import is_v2
 from economy import banco_balance, follia_active, follia_left_text
 
@@ -99,15 +99,63 @@ def _init_data_from_request() -> str:
     return request.args.get("initData", "")
 
 
+# ----------------------------------------------------------------------------------------------
+# Chi può entrare: l'admin sempre; gli altri solo se l'admin ha acceso "Mini app aperta" (da /admin) E sono nel gruppo
+# GROUP_CHAT_ID (oppure negli ID extra di ARCADE_EXTRA_IDS). Spegnendo l'interruttore gli altri escono subito.
+# ----------------------------------------------------------------------------------------------
+GROUP_CHAT_ID = os.environ.get("GROUP_CHAT_ID") or getattr(config, "GROUP_CHAT_ID", None)
+EXTRA_IDS = {x.strip() for x in (os.environ.get("ARCADE_EXTRA_IDS") or "").split(",") if x.strip()}
+MEMBER_TTL_OK, MEMBER_TTL_NO = 600, 60              # secondi: quanto si ricorda "è nel gruppo" / "non è nel gruppo"
+_MEMBER_CACHE = {}
+
+
+def _is_admin_id(uid) -> bool:
+    return bool(ADMIN_ID) and str(uid) == str(ADMIN_ID)
+
+
+async def _member_check(uid: int) -> bool:
+    m = await _bot().get_chat_member(int(GROUP_CHAT_ID), int(uid))
+    return m.status in ("member", "administrator", "creator") or (m.status == "restricted" and bool(getattr(m, "is_member", False)))
+
+
+def _is_member(uid) -> bool:
+    """True se la persona fa parte del gruppo. Errore di Telegram = NO (si nega, mai si ammette per errore)."""
+    if str(uid) in EXTRA_IDS:
+        return True
+    if not GROUP_CHAT_ID:
+        return False
+    now = time.time()
+    hit = _MEMBER_CACHE.get(str(uid))
+    if hit and now < hit[1]:
+        return hit[0]
+    try:
+        ok = bool(_run(_member_check(uid), timeout=6.0))
+    except Exception as e:
+        logging.warning(f"Controllo membro gruppo fallito per {uid}: {e}")
+        return False
+    _MEMBER_CACHE[str(uid)] = (ok, now + (MEMBER_TTL_OK if ok else MEMBER_TTL_NO))
+    return ok
+
+
+def arcade_open() -> bool:
+    return bool(SYSTEM_FLAGS.get("ARCADE_PUBLIC"))
+
+
 def require_admin():
-    """Restituisce (utente, None) se la richiesta è dell'admin; altrimenti (None, risposta di errore)."""
+    """(Nome storico: lo usano tutte le rotte.) Restituisce (utente, None) se la richiesta è di chi può entrare;
+    altrimenti (None, risposta di errore). L'admin entra sempre; gli altri solo con la mini app aperta e nel gruppo."""
     user = validate_init_data(_init_data_from_request())
     if not user:
         if not _take("bad:" + _ip(), BAD_RATE, BAD_BURST):
             return None, (jsonify({"success": False, "error": "Troppi tentativi, riprova tra poco."}), 429)
         return None, (jsonify({"success": False, "error": "Autenticazione non valida o scaduta."}), 401)
-    if not ADMIN_ID or str(user["id"]) != str(ADMIN_ID):
-        return None, (jsonify({"success": False, "error": "Sdrogo Arcade è ancora in sviluppo: per ora è riservata all'admin."}), 403)
+    if not _is_admin_id(user["id"]):
+        if not arcade_open():
+            return None, (jsonify({"success": False, "error": "Sdrogo Arcade è ancora in sviluppo: per ora è riservata all'admin."}), 403)
+        if not _take("nm:" + str(user["id"]), 1.0, 10):          # limite stretto sulle verifiche di appartenenza
+            return None, (jsonify({"success": False, "error": "Troppe richieste, rallenta un attimo."}), 429)
+        if not _is_member(user["id"]):
+            return None, (jsonify({"success": False, "error": "Sdrogo Arcade è riservata ai membri del gruppo."}), 403)
     uid = str(user["id"])
     if not _take("u:" + uid, USER_RATE, USER_BURST):
         return None, (jsonify({"success": False, "error": "Troppe richieste, rallenta un attimo."}), 429)
