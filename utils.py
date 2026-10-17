@@ -82,7 +82,7 @@ def anim_gap(chat_id, kind: str = "") -> float:
 # Telegram limita le modifiche ai messaggi di un gruppo (circa 20 al minuto; se si eccede arriva un 429 con pause di
 # decine di secondi). Il bot conta le richieste di ogni gruppo: finché c'è margine le animazioni sono complete; se il
 # gruppo sta per superare il limite (o ha appena preso un 429) si saltano i fotogrammi intermedi e si mostra subito il risultato.
-GROUP_FRAME_BUDGET = int(os.environ.get("GROUP_FRAME_BUDGET", "18"))     # richieste/minuto oltre le quali si saltano i fotogrammi
+GROUP_FRAME_BUDGET = int(os.environ.get("GROUP_FRAME_BUDGET", "12"))     # richieste/minuto oltre le quali si saltano i fotogrammi
 FLOOD_UNTIL = {}
 _GROUP_REQS = {}
 
