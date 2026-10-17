@@ -296,8 +296,8 @@ def _avi_call(coro):
         return _err("Il bot non risponde, riprova.", 503), None
     if isinstance(out, dict) and out.get("error"):
         body = {"success": False, "error": out["error"]}
-        if out.get("view"):
-            body["state"] = out["view"]
+        if out.get("view") or out.get("state"):
+            body["state"] = out.get("view") or out.get("state")
         return (jsonify(body), out.get("code", 400)), None
     return None, out
 
@@ -585,3 +585,28 @@ def api_wheel_spin():
         return err
     resp, out = _avi_call(_wheel_spin(int(user["id"])))
     return resp if resp is not None else jsonify(out["view"])
+
+
+# ----------------------------------------------------------------------------------------------
+# FASE 4: Blackjack, Wordle, Mastermind, Poker  ->  /api/g/<bj|wd|mm|pk>/<azione>   (logica in webgames.py)
+# ----------------------------------------------------------------------------------------------
+@webapi.route("/api/g/<game>/<action>", methods=["GET", "POST", "OPTIONS"])
+def api_multi(game, action):
+    if request.method == "OPTIONS":
+        return "", 204
+    import webgames
+    fn = webgames.ACTIONS.get(game, {}).get(action)
+    if fn is None:
+        return _err("Azione sconosciuta.", 404)
+    user, err = require_admin()
+    if err:
+        return err
+    if (action == "state") != (request.method == "GET"):
+        return _err("Metodo non consentito.", 405)
+    data = request.get_json(silent=True) or {}
+    resp, out = _avi_call(fn(int(user["id"]), user.get("first_name") or "Giocatore", data))
+    if resp is not None:
+        return resp
+    body = {"success": True}
+    body.update(out)
+    return jsonify(body)
