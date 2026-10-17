@@ -9,11 +9,12 @@ from collections import deque
 
 from utils import note_flood, note_group_req
 
+from telegram import MenuButtonWebApp, WebAppInfo
 from telegram.error import RetryAfter, TimedOut, NetworkError
 from telegram.ext import Application, BaseRateLimiter
 from telegram.request import HTTPXRequest
 
-from config import TELEGRAM_TOKEN
+from config import TELEGRAM_TOKEN, ADMIN_ID
 from state import FLAGS
 from storage import (
     load_db, auto_restore_from_telegram, recover_sessions, backup_to_telegram, backup_now, flush_db, flush_db_sync,
@@ -27,21 +28,15 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# La manutenzione vive in FLAGS["maintenance"] (state.py) ed è gestita da handlers/system.py
 FLAGS.setdefault("maintenance", False)
 
-# --- WEBHOOK (Northflank) ---
-# WEBHOOK_URL = indirizzo pubblico HTTPS del servizio, es. https://site--sdrogobot--xxxx.code.run
-# Telegram manda gli aggiornamenti a WEBHOOK_URL/webhook; il bot li riceve sulla porta PORT (default 8080).
-# Senza WEBHOOK_URL il bot parte in polling (utile in locale) e usa il vecchio keep-alive Flask.
 WEBHOOK_PATH = "webhook"
 
 
 def _clean_webhook_url(raw: str) -> str:
-    """Ripulisce il valore della variabile: toglie spazi, virgolette, '/webhook' già incluso e aggiunge https:// se manca.
-    Telegram accetta solo indirizzi HTTPS completi, senza spazi."""
+    """Ripulisce il valore della variabile webhook."""
     url = (raw or "").strip().strip("'\"").strip()
-    m = re.search(r"https?://[^\s\[\]()<>\"']+", url)       # es. "[https://x](https://x)" incollato come link Markdown
+    m = re.search(r"https?://[^\s\[\]()<>\"']+", url)
     if m:
         url = m.group(0)
     if not url:
@@ -58,20 +53,9 @@ def _clean_webhook_url(raw: str) -> str:
 
 WEBHOOK_URL = _clean_webhook_url(os.environ.get("WEBHOOK_URL"))
 PORT = int(os.environ.get("PORT", "8080"))
-# Segreto che Telegram allega a ogni richiesta: chi non lo conosce non può mandare finti aggiornamenti al bot
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET") or hashlib.sha256(f"sdrogo:{TELEGRAM_TOKEN}".encode()).hexdigest()[:48]
 
 
-# ======================================================================
-# DIAGNOSTICA DELLE PRESTAZIONI (PERF_LOG=0 per spegnerla)
-# Ogni 60 secondi, se il bot ha lavorato, scrive nel log UNA riga "📊" che dice dove va il tempo:
-#   update  = quanto ci mette il bot a rispondere a un tocco/comando (codice + attese di Telegram)
-#   api     = durata totale delle chiamate a Telegram, compresa l'eventuale coda del limitatore di velocità
-#   rete    = durata della sola richiesta di rete a Telegram (senza la coda)
-#   ritardo = quanto Telegram ha impiegato a consegnare il messaggio al bot
-#   loop    = quanto è rimasto "congelato" il bot (se alto, il problema è nel codice o nel disco)
-# Le singole operazioni lente (oltre 1,5 s) vengono scritte subito con 🐢.
-# ======================================================================
 PERF_LOG = os.environ.get("PERF_LOG", "1") != "0"
 SLOW_SECS = 1.5
 _perf = {"upd_n": 0, "upd_sum": 0.0, "upd_max": 0.0, "api_n": 0, "api_sum": 0.0, "api_max": 0.0,
@@ -109,8 +93,6 @@ def _install_perf(application):
                 logging.warning(f"🐢 Chiamata a Telegram lenta: {endpoint} ha impiegato {dt:.2f}s (rete + coda del limitatore)")
     ExtBot._do_post = timed_post
 
-    # Il limitatore ritenta da solo quando Telegram risponde 429 e, nel frattempo, BLOCCA TUTTE le richieste del bot:
-    # qui lo rendiamo visibile nel log.
     from telegram import Bot
     from telegram.error import RetryAfter
     orig_base_post = Bot._do_post
@@ -154,7 +136,7 @@ def _install_perf(application):
 
 
 async def _loop_probe():
-    """Misura quanto l'event loop resta bloccato (se lo è, nessun giocatore riceve risposte)."""
+    """Misura quanto l'event loop resta bloccato."""
     while True:
         t = time.perf_counter()
         await asyncio.sleep(0.5)
@@ -181,20 +163,10 @@ async def _perf_report(application):
             p[k] = 0 if k.endswith("_n") else 0.0
 
 
-# ======================================================================
-# LIMITATORE DI VELOCITÀ PER CHAT
-# Il limitatore standard di PTB (AIORateLimiter) ha due difetti per questo bot:
-#   1) quando Telegram risponde 429 ("flood control") ferma TUTTE le richieste del bot, anche quelle degli altri gruppi,
-#      delle chat private e i semplici "answerCallbackQuery" (il cerchietto del tasto): così un solo gruppo congela tutto;
-#   2) conta come "messaggi" anche le modifiche e permette raffiche di 20 modifiche di fila, che Telegram punisce.
-# Questo limitatore: ogni chat ha la sua fila (le chat non si disturbano a vicenda); nei gruppi tiene un intervallo minimo
-# tra una richiesta e l'altra (GROUP_GAP) e un tetto di NUOVI messaggi al minuto (GROUP_MAX_PER_MIN); le richieste senza chat
-# (answerCallbackQuery...) passano subito; un 429 mette in pausa SOLO la chat interessata.
-# ======================================================================
-BACKUP_EVERY = int(os.environ.get("BACKUP_EVERY", "900"))     # secondi tra due backup su Telegram (default 15 minuti)
-GROUP_GAP = float(os.environ.get("GROUP_GAP", "1.0"))              # secondi minimi tra due richieste nello stesso gruppo
-PRIVATE_GAP = float(os.environ.get("PRIVATE_GAP", "0"))          # idem in chat privata
-GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "20"))  # NUOVI messaggi al minuto per gruppo (Telegram: 20)
+BACKUP_EVERY = int(os.environ.get("BACKUP_EVERY", "900"))
+GROUP_GAP = float(os.environ.get("GROUP_GAP", "1.0"))
+PRIVATE_GAP = float(os.environ.get("PRIVATE_GAP", "0"))
+GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "20"))
 
 _SEND_ENDPOINTS = {"sendMessage", "sendPhoto", "sendDocument", "sendAnimation", "sendSticker", "sendDice",
                     "sendVideo", "sendAudio", "sendVoice", "sendPoll", "sendMediaGroup"}
@@ -222,7 +194,7 @@ class ChatRateLimiter(BaseRateLimiter):
             return None
         cid = data.get("chat_id")
         if cid is None:
-            return None                       # modifiche di messaggi inline, risposte ai tasti...: nessuna coda
+            return None
         try:
             return int(cid)
         except (TypeError, ValueError):
@@ -233,10 +205,10 @@ class ChatRateLimiter(BaseRateLimiter):
         lock = self._locks.get(chat)
         if lock is None:
             lock = self._locks[chat] = asyncio.Lock()
-        async with lock:                      # la fila è in ordine di arrivo
+        async with lock:
             now = time.monotonic()
             wait = max(self._next_ok.get(chat, 0) - now, self._blocked.get(chat, 0) - now, 0.0)
-            is_send = group                       # nei gruppi OGNI richiesta (anche le modifiche) conta nel tetto al minuto
+            is_send = group
             if is_send:
                 dq = self._sends.setdefault(chat, deque())
                 while dq and now - dq[0] > 60:
@@ -257,7 +229,7 @@ class ChatRateLimiter(BaseRateLimiter):
             chat = self._chat_of(endpoint, data)
             if chat is not None:
                 await self._wait_turn(chat, endpoint)
-        except Exception as e:                # mai bloccare una richiesta per un errore del limitatore
+        except Exception as e:
             logging.warning(f"Limitatore: {e}")
             chat = None
         for attempt in range(self.max_retries + 1):
@@ -269,15 +241,13 @@ class ChatRateLimiter(BaseRateLimiter):
                 logging.warning(f"⛔ Flood control su chat {chat} ({'gruppo' if isinstance(chat, int) and chat < 0 else 'privato'}): "
                                 f"{endpoint}, pausa {secs:.0f}s")
                 if chat is not None:
-                    self._blocked[chat] = time.monotonic() + secs      # pausa solo per questa chat
+                    self._blocked[chat] = time.monotonic() + secs
                 if attempt >= self.max_retries:
                     raise
                 await asyncio.sleep(secs)
 
 
 def build_application() -> Application:
-    # Timeout più larghi per le chiamate a Telegram: evita httpx.ReadTimeout / telegram.error.TimedOut nei momenti lenti.
-    # Il pool di connessioni deve stare ben sopra concurrent_updates (32).
     request = TimedRequest(
         connection_pool_size=64,
         connect_timeout=10.0,
@@ -285,7 +255,6 @@ def build_application() -> Application:
         write_timeout=10.0,
         pool_timeout=10.0,
     )
-    # Il long polling ha bisogno di un read timeout più lungo (Telegram tiene aperta la richiesta fino a 30 s)
     updates_request = HTTPXRequest(connection_pool_size=4, connect_timeout=10.0, read_timeout=40.0,
                                    write_timeout=10.0, pool_timeout=10.0)
     builder = (
@@ -293,13 +262,9 @@ def build_application() -> Application:
         .token(TELEGRAM_TOKEN)
         .request(request)
         .get_updates_request(updates_request)
-        .concurrent_updates(32)          # fino a 32 update elaborati in parallelo
+        .concurrent_updates(32)
     )
     try:
-        # Prima della v8 il bot NON usava il limitatore globale di PTB (AIORateLimiter): ogni chiamata gestiva da sola il 429.
-        # Il limitatore globale, quando Telegram impone una pausa (es. 16 s) a UN gruppo, ferma TUTTE le richieste del bot
-        # (anche gli altri giocatori e le chat private): è la causa dei blocchi visti nei log ("FLOOD CONTROL ... fermo per tutti").
-        # Il limitatore per chat (default) sospende invece solo la chat colpita. LIMITER=ptb ripristina quello standard.
         if os.environ.get("LIMITER", "").lower() == "ptb":
             from telegram.ext import AIORateLimiter
             builder = builder.rate_limiter(AIORateLimiter(max_retries=3))
@@ -339,28 +304,23 @@ async def main_async():
         start_flask()
 
     application = build_application()
-    # system.register installa error handler (anche per TimedOut) e blocco manutenzione (group=-2, prima di tutto il resto)
     system.register(application)
     v2.register(application)
     hub.register(application)
     games.register(application)
-    heist.register(application)          # Sdrogo Heist V3 (callback "hst_" + controllo timer)
+    heist.register(application)
     multiplayer.register(application)
     quiz.register(application)
-    admin_tools.register(application)    # /annuncio, /dici e /storico (solo Admin, in privato)
+    admin_tools.register(application)
     system.register_text(application)
 
     if application.job_queue:
-        # Salvataggio su SQLite ogni 3 secondi (solo le righe cambiate, in un thread)
         application.job_queue.run_repeating(flush_db, interval=3, first=3)
-        # Backup automatico ogni ora (fissato nella chat di backup)
         application.job_queue.run_repeating(backup_to_telegram, interval=BACKUP_EVERY, first=BACKUP_EVERY)
-        # Sfida di gruppo: scadenza, annuncio finale e avvio della successiva (aggiorna il messaggio solo se è cambiato)
         application.job_queue.run_repeating(challenge_tick, interval=30, first=15)
     else:
-        print("⚠️ JobQueue non disponibile: installa python-telegram-bot[job-queue]. Senza, il DB non viene salvato!", flush=True)
+        print("⚠️ JobQueue non disponibile: installa python-telegram-bot[job-queue].", flush=True)
 
-    # Avvio robusto: se Telegram non risponde subito (rete lenta, riavvio del container) si riprova invece di spegnersi.
     for attempt in range(1, 9):
         try:
             await application.initialize()
@@ -370,16 +330,31 @@ async def main_async():
             if attempt == 8:
                 raise
             await asyncio.sleep(5)
-    await auto_restore_from_telegram(application.bot)   # container nuovo e vuoto: ripristina dal backup fissato
-    set_bot(application.bot)                            # serve a economy per avvisare in privato le quest completate
-    await recover_sessions(application.bot)             # riprende le partite salvate / rimborsa quelle non riprendibili
+    await auto_restore_from_telegram(application.bot)
+    set_bot(application.bot)
+    await recover_sessions(application.bot)
     await application.start()
+
+    # IMPOSTAZIONE MENU BUTTON: VISIBILE SOLO PER L'ADMIN IN CHAT PRIVATA
+    if ADMIN_ID:
+        try:
+            await application.bot.set_chat_menu_button(
+                chat_id=int(ADMIN_ID),
+                menu_button=MenuButtonWebApp(
+                    text="🎮 Apri Arcade",
+                    web_app=WebAppInfo(url="https://giaime05-ops.github.io/sdrogobot-arcade/")
+                )
+            )
+            print(f"Menu Button Arcade impostato riservatamente per ADMIN_ID {ADMIN_ID}", flush=True)
+        except Exception as e:
+            print(f"⚠️ Impossibile impostare menu button admin: {e}", flush=True)
+
     if PERF_LOG:
         try:
             _install_perf(application)
             asyncio.get_running_loop().create_task(_loop_probe())
             asyncio.get_running_loop().create_task(_perf_report(application))
-        except Exception as e:                        # la diagnostica non deve mai fermare il bot
+        except Exception as e:
             print(f"⚠️ Diagnostica prestazioni non attivata: {e}", flush=True)
 
     webhook_ok = False
@@ -399,9 +374,7 @@ async def main_async():
             webhook_ok = True
             print(f"SdrogoBot v8.0 operativo in WEBHOOK su {full_url} (porta {PORT}).", flush=True)
         except Exception as e:
-            # Il bot non deve restare spento: se Telegram rifiuta l'indirizzo, riparte in polling e lo scrive nel log
-            print(f"⚠️ Webhook rifiutato da Telegram ({e}) per l'indirizzo '{full_url}'. "
-                  "Controlla la variabile WEBHOOK_URL. Riparto in POLLING.", flush=True)
+            print(f"⚠️ Webhook rifiutato da Telegram ({e}). Riparto in POLLING.", flush=True)
             try:
                 await application.updater.stop()
             except Exception:
@@ -411,7 +384,6 @@ async def main_async():
         await application.updater.start_polling(drop_pending_updates=True)
         print("SdrogoBot v8.0 operativo in POLLING.", flush=True)
 
-    # Arresto pulito: Northflank manda SIGTERM a ogni deploy, e senza questo si perderebbero gli ultimi salvataggi
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
@@ -423,9 +395,9 @@ async def main_async():
 
     await application.updater.stop()
     await application.stop()
-    flush_db_sync()                                     # stato e partite in corso al sicuro su disco
+    flush_db_sync()
     try:
-        await asyncio.wait_for(backup_now(application.bot), timeout=20)   # copia nella chat di backup anche allo spegnimento
+        await asyncio.wait_for(backup_now(application.bot), timeout=20)
     except Exception as e:
         logging.warning(f"Backup di arresto non inviato: {e}")
     await application.shutdown()
