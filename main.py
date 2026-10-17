@@ -119,7 +119,7 @@ def _install_perf(application):
             ra = e.retry_after
             secs = int(ra.total_seconds()) if hasattr(ra, "total_seconds") else int(ra)
             logging.warning(f"⛔ FLOOD CONTROL: Telegram ha imposto {secs}s di pausa (richiesta {endpoint}). "
-                            "Per questo tempo il bot resta fermo per tutti.")
+                            "Questa chat resta in pausa per questo tempo (le altre no).")
             raise
     Bot._do_post = base_post
 
@@ -283,13 +283,15 @@ def build_application() -> Application:
         .concurrent_updates(32)          # fino a 32 update elaborati in parallelo
     )
     try:
-        # Limitatore standard di PTB, identico a quello usato prima della v8 (quando il bot girava bene nei gruppi).
-        # LIMITER=chat attiva invece quello per-chat sperimentale.
-        if os.environ.get("LIMITER", "").lower() == "chat":
-            builder = builder.rate_limiter(ChatRateLimiter())
-        else:
+        # Prima della v8 il bot NON usava il limitatore globale di PTB (AIORateLimiter): ogni chiamata gestiva da sola il 429.
+        # Il limitatore globale, quando Telegram impone una pausa (es. 16 s) a UN gruppo, ferma TUTTE le richieste del bot
+        # (anche gli altri giocatori e le chat private): è la causa dei blocchi visti nei log ("FLOOD CONTROL ... fermo per tutti").
+        # Il limitatore per chat (default) sospende invece solo la chat colpita. LIMITER=ptb ripristina quello standard.
+        if os.environ.get("LIMITER", "").lower() == "ptb":
             from telegram.ext import AIORateLimiter
             builder = builder.rate_limiter(AIORateLimiter(max_retries=3))
+        else:
+            builder = builder.rate_limiter(ChatRateLimiter())
     except (ImportError, RuntimeError):
         print("⚠️ Rate limiter non disponibile: installa python-telegram-bot[job-queue,rate-limiter,webhooks].", flush=True)
 
