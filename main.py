@@ -376,6 +376,11 @@ async def main_async():
     set_bot(application.bot)                            # serve a economy per avvisare in privato le quest completate
     await recover_sessions(application.bot)             # riprende le partite salvate / rimborsa quelle non riprendibili
     await application.start()
+    try:
+        import webapi as _webapi
+        _webapi.set_runtime(asyncio.get_running_loop())   # le scritture della mini app (puntate, cashout) girano sul loop del bot
+    except Exception as e:
+        print(f"⚠️ Ponte mini app non attivato: {e}", flush=True)
 
     # Pulsante "Apri Arcade": visibile SOLO nella chat privata dell'admin
     if ADMIN_ID and ARCADE_URL:
