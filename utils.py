@@ -1,3 +1,6 @@
+from collections import deque
+import time
+import os
 import asyncio
 import contextvars
 import functools
@@ -58,10 +61,10 @@ def is_v2(user_id: int) -> bool:
 # PRIVATO = più veloce e fluido (Telegram in privato regge molte più modifiche), ma con la suspense intatta
 # per i giochi "a rulli" (slot, ruota, roulette), dove la pausa tra un risultato e l'altro è voluta.
 ANIM_GAPS = {
-    "slot":     (0.6, 0.8),
-    "wheel":    (0.6, 0.8),
-    "roulette": (0.8, 1.0),
-    "aviator":  (0.5, 0.8),     # il payout dipende dal tempo del server, non da questo ritmo
+    "slot":     (0.8, 0.8),
+    "wheel":    (0.8, 0.8),
+    "roulette": (1.0, 1.0),
+    "aviator":  (0.9, 0.9),     # il payout dipende dal tempo del server, non da questo ritmo
 }
 ANIM_GAP_PRIVATE = 0.8
 ANIM_GAP_GROUP = 0.8
@@ -73,6 +76,46 @@ def anim_gap(chat_id, kind: str = "") -> float:
         return grp if int(chat_id) < 0 else priv
     except (TypeError, ValueError):
         return grp
+
+
+# --- ANIMAZIONI ADATTIVE NEI GRUPPI ---
+# Telegram limita le modifiche ai messaggi di un gruppo (circa 20 al minuto; se si eccede arriva un 429 con pause di
+# decine di secondi). Il bot conta le richieste di ogni gruppo: finché c'è margine le animazioni sono complete; se il
+# gruppo sta per superare il limite (o ha appena preso un 429) si saltano i fotogrammi intermedi e si mostra subito il risultato.
+GROUP_FRAME_BUDGET = int(os.environ.get("GROUP_FRAME_BUDGET", "18"))     # richieste/minuto oltre le quali si saltano i fotogrammi
+FLOOD_UNTIL = {}
+_GROUP_REQS = {}
+
+
+def note_group_req(chat_id):
+    q = _GROUP_REQS.setdefault(chat_id, deque())
+    now = time.monotonic()
+    q.append(now)
+    while q and now - q[0] > 60:
+        q.popleft()
+
+
+def note_flood(chat_id, secs):
+    FLOOD_UNTIL[chat_id] = time.monotonic() + secs + 60      # dopo un 429, un minuto di animazioni ridotte
+
+
+def frame_ok(chat_id) -> bool:
+    """True se si può mostrare un fotogramma intermedio dell'animazione (sempre vero in privato)."""
+    try:
+        cid = int(chat_id)
+    except (TypeError, ValueError):
+        return True
+    if cid >= 0:
+        return True
+    now = time.monotonic()
+    if FLOOD_UNTIL.get(cid, 0) > now:
+        return False
+    q = _GROUP_REQS.get(cid)
+    if q:
+        while q and now - q[0] > 60:
+            q.popleft()
+        return len(q) < GROUP_FRAME_BUDGET
+    return True
 
 
 def fmt_num(n) -> str:
