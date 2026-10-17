@@ -802,19 +802,31 @@ def log_play(user_id, game: str, bet: int, payout: int, outcome: str = ""):
     save_db()
 
 
+LAST_SEEN = {}            # user_id (str) -> istante dell'ultimo messaggio/tasto (solo memoria)
+SEEN_SAVE_EVERY = 600     # sul profilo l'ultimo accesso si aggiorna al massimo ogni 10 minuti (per non scrivere a ogni tocco)
+
+
 def note_username(user):
-    """Ricorda l'@username (e il nome) di chi usa il bot, per cercarlo con /storico @username."""
+    """Ricorda @username e nome (per /storico) e l'ultimo momento in cui la persona ha usato il bot (per 'Utenti online')."""
     if not user or user.is_bot:
         return
+    now = time.time()
+    LAST_SEEN[str(user.id)] = now
     d = USER_DATA.get(str(user.id))
     if d is None:
         return
     uname = (user.username or "").lower()
     name = (user.first_name or "")[:40]
+    changed = False
     if d.get("username", "") != uname or d.get("name", "") != name:
-        _touched_users.add(str(user.id))
         d["username"] = uname
         d["name"] = name
+        changed = True
+    if now - d.get("seen", 0) > SEEN_SAVE_EVERY:
+        d["seen"] = int(now)
+        changed = True
+    if changed:
+        _touched_users.add(str(user.id))
         save_db()
 
 
