@@ -5,7 +5,8 @@ import logging
 import random
 import time
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import CommandHandler, CallbackQueryHandler, TypeHandler, ContextTypes
 
 from economy import (
@@ -101,6 +102,27 @@ async def cleanup_hub_messages(context: ContextTypes.DEFAULT_TYPE):
             logging.debug(f"HUB {key} non eliminato: {e}")
 
 
+def _single_button(update: Update, user_id: int):
+    """Tasto Single Player. Se la mini app Arcade è accessibile a questo utente (admin, oppure aperta ai membri dall'interruttore
+    in /admin) il tasto apre la mini app: con un pulsante web-app in chat privata, con il link diretto (ARCADE_LINK) nei gruppi.
+    Altrimenti (o se nei gruppi manca il link) resta il vecchio menu Single Player nel bot."""
+    try:
+        from config import ADMIN_ID
+        from state import SYSTEM_FLAGS
+        allowed = (bool(ADMIN_ID) and str(user_id) == str(ADMIN_ID)) or bool(SYSTEM_FLAGS.get("ARCADE_PUBLIC"))
+        if allowed:
+            chat = update.effective_chat
+            if chat is not None and chat.type == "private":
+                url = os.environ.get("ARCADE_URL", "https://giaime05-ops.github.io/sdrogobot-arcade/")
+                return InlineKeyboardButton("🕹️ Single Player", web_app=WebAppInfo(url=url))
+            link = os.environ.get("ARCADE_LINK")
+            if link:
+                return InlineKeyboardButton("🕹️ Single Player", url=link)
+    except Exception as e:
+        logging.debug(f"tasto Arcade non disponibile: {e}")
+    return InlineKeyboardButton("🕹️ Single Player", callback_data=f"hub_single_{user_id}")
+
+
 async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = update.effective_user
@@ -120,7 +142,7 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += "\n<i>Seleziona una categoria per iniziare:</i>"
 
     keyboard = [
-        [InlineKeyboardButton("🕹️ Single Player", callback_data=f"hub_single_{user.id}"), InlineKeyboardButton("⚔️ Multiplayer", callback_data=f"hub_multi_{user.id}")],
+        [_single_button(update, user.id), InlineKeyboardButton("⚔️ Multiplayer", callback_data=f"hub_multi_{user.id}")],
         [InlineKeyboardButton("🧠 Quiz Show", callback_data=f"hub_quiz_{user.id}"), InlineKeyboardButton("🛒 SdrogoShop", callback_data=f"hub_shop_{user.id}")],
         [InlineKeyboardButton("💳 Portafoglio", callback_data=f"hub_wallet_{user.id}"), InlineKeyboardButton("🏆 Classifiche", callback_data=f"hub_lead_{user.id}")]
     ]

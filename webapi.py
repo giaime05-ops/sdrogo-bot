@@ -753,9 +753,31 @@ def api_social(what):
         coro = _social_call(websocial.leaderboard, uid, request.args.get("cat", "coins"))
     elif what == "diary":
         coro = _social_call(websocial.diary, uid)
+    elif what == "quests":
+        coro = _social_call(websocial.quests, uid)
     else:
         return _err("Sezione sconosciuta.", 404)
     resp, out = _avi_call(coro)
+    if resp is not None:
+        return resp
+    body = {"success": True}
+    body.update(out)
+    return jsonify(body)
+
+
+@webapi.route("/api/social/claim", methods=["POST", "OPTIONS"])
+def api_quest_claim():
+    if request.method == "OPTIONS":
+        return "", 204
+    user, data, err = _post_json()
+    if err:
+        return err
+    import websocial
+    try:
+        idx = int(data.get("idx"))
+    except (TypeError, ValueError):
+        return _err("Missione non valida.")
+    resp, out = _avi_call(_social_call(websocial.quest_claim_web, int(user["id"]), idx))
     if resp is not None:
         return resp
     body = {"success": True}

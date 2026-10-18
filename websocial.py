@@ -57,3 +57,33 @@ def diary(uid: int) -> dict:
             "stats": {"net_profit": int(d.get("net_profit", 0) or 0), "casino_wins": int(d.get("casino_wins", 0) or 0),
                       "quizzes_won": int(d.get("quizzes_won", 0) or 0), "duels_wins": int(d.get("duels_wins", 0) or 0),
                       "single_played": int(d.get("single_played", 0) or 0), "duels_played": int(d.get("duels_played", 0) or 0)}}
+
+
+def quests(uid: int) -> dict:
+    """Sfida di gruppo e missioni di oggi (le stesse del bot). Le missioni esistono solo per chi ha la V2."""
+    from economy import GROUP_CHALLENGE, CHALLENGE_REWARD, quests_for
+    from utils import is_v2
+    gc = GROUP_CHALLENGE
+    ch = {"active": bool(gc.get("active"))}
+    if ch["active"]:
+        goal = max(1, int(gc.get("goal", 1)))
+        parts = gc.get("participants", {}) or {}
+        ch.update({"goal": goal, "spent": int(gc.get("spent", 0)), "end": int(gc.get("end", 0)),
+                   "players": len(parts), "reward": int(CHALLENGE_REWARD),
+                   "mine": int(parts.get(str(uid), 0) or 0) if isinstance(parts, dict) else 0})
+    lst = []
+    if is_v2(uid):
+        for i, q in enumerate(quests_for(uid, uid)):
+            lst.append({"idx": i, "kind": q.get("kind"), "text": str(q.get("text", "")), "unit": q.get("unit", ""),
+                        "progress": min(q.get("progress", 0), q.get("target", 0)), "target": q.get("target", 0),
+                        "reward": int(q.get("reward", 0)), "done": bool(q.get("done")),
+                        "claimed": bool(q.get("claimed", False)) if q.get("done") else False})
+    return {"challenge": ch, "quests": lst, "v2": is_v2(uid)}
+
+
+def quest_claim_web(uid: int, idx: int) -> dict:
+    from economy import quest_claim
+    ok, msg = quest_claim(uid, uid, idx)
+    if not ok:
+        return {"error": msg, "code": 409}
+    return {"message": msg, "balance": int((USER_DATA.get(ukey(uid)) or {}).get("coins", 0))}
