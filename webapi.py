@@ -536,8 +536,8 @@ async def _slot_spin(uid: int, bet: int):
         luck_used = True
     paid, notes = await G._settle(_bot(), uid, uid, "slot", 0 if is_free else bet, payout)
     notes = list(notes)
-    if luck_used:
-        notes.insert(0, "🍀 Boost Fortuna: giro rilanciato!")
+    if luck_used and paid > 0:
+        notes.insert(0, "🍀 Boost Fortuna: la fortuna ti ha aiutato!")
     q = G.quest_progress(uid, uid, "slot_play")
     left = int((u.get("slot_free") or {}).get("n", 0))
     return {"result": {"reels": reels, "kind": kind, "bet": bet, "paid": paid, "net": paid - (0 if is_free else bet), "free": is_free,
@@ -564,8 +564,8 @@ async def _roul_spin(uid: int, bet: int, choice: str):
         luck_used = True
     paid, notes = await G._settle(_bot(), uid, uid, "roulette", bet, bet * mult)
     notes = list(notes)
-    if luck_used:
-        notes.insert(0, "🍀 Boost Fortuna: giro rilanciato!")
+    if luck_used and paid > 0:
+        notes.insert(0, "🍀 Boost Fortuna: la fortuna ti ha aiutato!")
     q = G.quest_progress(uid, uid, "roulette_play")
     return {"result": {"number": n, "color": G.roulette_color(n), "choice": choice, "mult": mult, "bet": bet,
                        "paid": paid, "net": paid - bet, "notes": _quest_note(notes, q), "balance": _balance(uid)}}

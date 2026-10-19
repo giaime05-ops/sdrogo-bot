@@ -34,7 +34,8 @@ SHOP_ITEMS = [
      "Scrivi in chat <code>perseguita @username</code> (o rispondi al suo messaggio con <code>perseguita</code>): sceglierai tu la reazione."),
     ("silence", "silence", 400, "🤐 Silenzia", "Cancello i suoi prossimi 15 messaggi finché non scrive la frase",
      "Scrivi in chat <code>silenzia @username</code> (o rispondi al suo messaggio): ti scrivo in privato per scegliere durata (1-15 min) e frase d'umiliazione."),
-    ("mutefilter", "mutefilter", 500, MUTE_FILTER_LABEL, "Muta per 10 minuti i bersagli configurati",
+    ("mutefilter", "mutefilter", 500, MUTE_FILTER_LABEL,
+     "Silenzia per 10 minuti " + (", ".join("@" + str(t).lstrip("@") for t in MUTE_FILTER_TARGETS) if MUTE_FILTER_TARGETS else "i bersagli configurati"),
      "Attivalo dall'Inventario 🎒: per 10 minuti cancello i messaggi dei bersagli configurati."),
     ("boostwin", "boost_win", 400, "🚀 Boost Vincita ×1.5", "+50% sul profitto di 10 partite Single Player",
      "Attivalo dall'Inventario 🎒: vale per le tue prossime 10 partite Single Player."),
@@ -78,6 +79,22 @@ def shop_record(chat_id, user_id, key: str):
         sd = u["shop_day"] = {"date": today_str(), "n": {}}
     sd["n"][key] = int(sd["n"].get(key, 0)) + 1
     save_db()
+
+
+def boost_used_today(chat_id, user_id) -> bool:
+    """Un solo boost (Vincita OPPURE Fortuna) può essere attivato al giorno."""
+    from storage import get_user_data_dict
+    from economy import today_str
+    return get_user_data_dict(chat_id, user_id).get("boost_day") == today_str()
+
+
+def boost_mark(chat_id, user_id):
+    from storage import get_user_data_dict
+    from economy import today_str
+    get_user_data_dict(chat_id, user_id)["boost_day"] = today_str()
+
+
+BOOST_DAY_MSG = "Oggi hai già attivato un boost: ne puoi attivare solo uno al giorno (Vincita OPPURE Fortuna)."
 
 
 def shop_left_today(chat_id, user_id, key: str) -> int:
@@ -333,6 +350,10 @@ async def handle_inv_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         if d["boost_win_left"] > 0:
             await query.answer(f"Hai già un Boost Vincita attivo ({d['boost_win_left']} partite).", show_alert=True)
             return
+        if boost_used_today(chat_id, query.from_user.id):
+            await query.answer(BOOST_DAY_MSG, show_alert=True)
+            return
+        boost_mark(chat_id, query.from_user.id)
         d["boost_win"] -= 1
         d["boost_win_left"] = 10
         save_db()
@@ -344,6 +365,10 @@ async def handle_inv_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         if d["boost_luck_left"] > 0:
             await query.answer(f"Hai già un Boost Fortuna attivo ({d['boost_luck_left']} partite).", show_alert=True)
             return
+        if boost_used_today(chat_id, query.from_user.id):
+            await query.answer(BOOST_DAY_MSG, show_alert=True)
+            return
+        boost_mark(chat_id, query.from_user.id)
         d["boost_luck"] -= 1
         d["boost_luck_left"] = 15
         save_db()

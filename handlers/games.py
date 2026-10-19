@@ -294,7 +294,7 @@ SLOT_SYMBOLS = ["🍒", "🍋", "🔔", "💎", "7️⃣"]
 SLOT_TRIPLE_MULT = {"🍒": 3, "🍋": 4, "🔔": 5, "💎": 6, "7️⃣": 10}
 SLOT_PAIR_MULT = {"💎": 2, "7️⃣": 2}      # le altre doppiette valgono x1 (solo rimborso)
 SLOT_REEL_DELAY = 0.8                    # (non più usato: i ritmi sono in utils.ANIM_GAPS)
-LUCK_REROLL_CHANCE = 0.30                # Boost Fortuna: probabilità di rilanciare una giocata persa
+LUCK_REROLL_CHANCE = 0.25                # Boost Fortuna: probabilità di rilanciare una giocata persa
 SLOT_BUSY = set()
 
 

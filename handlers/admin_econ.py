@@ -35,12 +35,18 @@ def reset_all_players(amount: int) -> int:
     n = 0
     for ik, inv_d in USER_INVENTORIES.items():          # le Stelle Heist ripartono da zero insieme ai saldi
         if not str(ik).startswith("sbx_") and isinstance(inv_d, dict):
-            inv_d["stars"] = 0
+            for fld in ("titles", "persecutes", "stars", "silence", "mutefilter", "boost_win", "boost_luck", "sang",
+                        "boost_win_left", "boost_luck_left"):
+                if fld in inv_d:
+                    inv_d[fld] = 0
+            inv_d.pop("sang_on_me", None)
             _touched_inv.add(ik)
     for k, d in USER_DATA.items():
         if k.startswith("sbx_") or not isinstance(d, dict):
             continue
         d["coins"] = int(amount)
+        d.pop("shop_day", None)
+        d.pop("boost_day", None)
         _touched_users.add(k)
         n += 1
     save_db()

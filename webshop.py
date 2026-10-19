@@ -101,6 +101,9 @@ def inv_activate(uid: int, key: str) -> dict:
             return {"error": "Non hai Boost Vincita.", "code": 409}
         if d["boost_win_left"] > 0:
             return {"error": f"Boost Vincita già attivo ({d['boost_win_left']} partite).", "code": 409}
+        if v2.boost_used_today(uid, uid):
+            return {"error": v2.BOOST_DAY_MSG, "code": 409}
+        v2.boost_mark(uid, uid)
         d["boost_win"] -= 1
         d["boost_win_left"] = 10
         msg = "Boost Vincita attivo per 10 partite!"
@@ -109,6 +112,9 @@ def inv_activate(uid: int, key: str) -> dict:
             return {"error": "Non hai Boost Fortuna.", "code": 409}
         if d["boost_luck_left"] > 0:
             return {"error": f"Boost Fortuna già attivo ({d['boost_luck_left']} partite).", "code": 409}
+        if v2.boost_used_today(uid, uid):
+            return {"error": v2.BOOST_DAY_MSG, "code": 409}
+        v2.boost_mark(uid, uid)
         d["boost_luck"] -= 1
         d["boost_luck_left"] = 15
         msg = "Boost Fortuna attivo per 15 partite!"
