@@ -30,7 +30,7 @@ from flask import Blueprint, g, jsonify, request
 import config
 from state import USER_DATA, AVIATOR_GAMES, game_enabled
 from state import USER_INVENTORIES
-from storage import ukey, get_user_data_dict, add_user_coins, set_web_sandbox, ensure_web_sandbox, is_web_sandbox
+from storage import save_db, ukey, get_user_data_dict, add_user_coins, set_web_sandbox, ensure_web_sandbox, is_web_sandbox
 import economy
 from economy import today_str, spin_daily, DAILY_WHEEL
 from state import SCRATCH_GAMES, SYSTEM_FLAGS
@@ -483,16 +483,49 @@ def _quest_note(notes: list, q):
     return _clean(notes)
 
 
+SLOT_BONUS_P = 1 / 40          # probabilità che un giro normale sia "BONUS" (tre stelle): regala 3 giri gratis alla stessa puntata
+SLOT_BONUS_SPINS = 3
+SLOT_BONUS_SYM = "⭐"
+
+
+def _slot_free(uid: int) -> dict:
+    return get_user_data_dict(uid, uid).get("slot_free") or {}
+
+
+async def _slot_state(uid: int):
+    f = _slot_free(uid)
+    return {"free_left": int(f.get("n", 0)), "free_bet": int(f.get("bet", 0)), "balance": _balance(uid)}
+
+
 async def _slot_spin(uid: int, bet: int):
     G = _g()
     if not game_enabled("slot"):
         return {"error": "La Slot è in manutenzione.", "code": 503}
-    if bet not in G.SLOT_BETS:
-        return {"error": "Puntata non valida.", "code": 400}
-    if _balance(uid) < bet:
-        return {"error": f"Servono {bet} $SDG per questa puntata.", "code": 400}
+    u = get_user_data_dict(uid, uid)
+    free = u.get("slot_free") or {}
+    is_free = int(free.get("n", 0)) > 0
+    if is_free:
+        bet = int(free.get("bet", bet))               # giro gratuito: si gioca alla puntata che ha fatto scattare il bonus
+    else:
+        if bet not in G.SLOT_BETS:
+            return {"error": "Puntata non valida.", "code": 400}
+        if _balance(uid) < bet:
+            return {"error": f"Servono {bet} $SDG per questa puntata.", "code": 400}
     luck = G.has_luck(uid, uid, "slot")
-    G._charge(uid, uid, bet)
+    if is_free:
+        free["n"] = int(free["n"]) - 1
+        u["slot_free"] = free if free["n"] > 0 else None
+        save_db()
+    else:
+        G._charge(uid, uid, bet)
+    # giro BONUS: tre stelle, nessuna vincita subito ma 3 giri gratis
+    if not is_free and random.random() < SLOT_BONUS_P:
+        u["slot_free"] = {"n": SLOT_BONUS_SPINS, "bet": bet}
+        save_db()
+        paid, notes = await G._settle(_bot(), uid, uid, "slot", bet, 0)
+        G.quest_progress(uid, uid, "slot_play")
+        return {"result": {"reels": [SLOT_BONUS_SYM] * 3, "kind": "bonus", "bet": bet, "paid": 0, "net": -bet, "notes": list(notes),
+                           "free_left": SLOT_BONUS_SPINS, "free_bet": bet, "balance": _balance(uid)}}
     reels = [random.choice(G.SLOT_SYMBOLS) for _ in range(3)]
     payout, kind = G.slot_payout(reels, bet)
     luck_used = False
@@ -500,12 +533,14 @@ async def _slot_spin(uid: int, bet: int):
         reels = [random.choice(G.SLOT_SYMBOLS) for _ in range(3)]
         payout, kind = G.slot_payout(reels, bet)
         luck_used = True
-    paid, notes = await G._settle(_bot(), uid, uid, "slot", bet, payout)
+    paid, notes = await G._settle(_bot(), uid, uid, "slot", 0 if is_free else bet, payout)
     notes = list(notes)
     if luck_used:
         notes.insert(0, "🍀 Boost Fortuna: giro rilanciato!")
     q = G.quest_progress(uid, uid, "slot_play")
-    return {"result": {"reels": reels, "kind": kind, "bet": bet, "paid": paid, "net": paid - bet,
+    left = int((u.get("slot_free") or {}).get("n", 0))
+    return {"result": {"reels": reels, "kind": kind, "bet": bet, "paid": paid, "net": paid - (0 if is_free else bet), "free": is_free,
+                       "free_left": left, "free_bet": bet if left else 0,
                        "notes": _quest_note(notes, q), "balance": _balance(uid)}}
 
 
@@ -539,6 +574,7 @@ def _scr_view(uid: int, game=None) -> dict:
     G = _g()
     game = game if game is not None else SCRATCH_GAMES.get(f"{uid}_{uid}")
     out = {"success": True, "balance": _balance(uid), "cost": G.SCRATCH_COST, "picks": G.SCRATCH_PICKS,
+           "free": int(get_user_data_dict(uid, uid).get("scratch_free", 0) or 0),
            "enabled": bool(game_enabled("scratch")), "active": False}
     if game and time.time() - game["ts"] < 600:
         out.update(active=True, picked=[{"i": i, "sym": game["grid"][i]} for i in game["picked"]])
@@ -561,10 +597,23 @@ async def _scr_buy(uid: int, name: str):
     if _balance(uid) < G.SCRATCH_COST:
         return {"error": f"Servono {G.SCRATCH_COST} $SDG per un biglietto.", "code": 400}
     luck = G.has_luck(uid, uid, "scratch")
-    G._charge(uid, uid, G.SCRATCH_COST)
-    game = {"grid": G.scratch_grid(luck), "picked": [], "ts": time.time(), "name": name}
+    u = get_user_data_dict(uid, uid)
+    free = int(u.get("scratch_free", 0) or 0) > 0
+    if free:                                         # biglietto gratuito vinto in precedenza
+        u["scratch_free"] = int(u["scratch_free"]) - 1
+        save_db()
+    else:
+        G._charge(uid, uid, G.SCRATCH_COST)
+    grid = G.scratch_grid(luck)
+    grid = [(SCRATCH_RARE if (g == "💀" and random.random() < SCRATCH_RARE_P) else g) for g in grid]
+    game = {"grid": grid, "picked": [], "ts": time.time(), "name": name, "free": free}
     SCRATCH_GAMES[key] = game
     return {"view": _scr_view(uid, game)}
+
+
+SCRATCH_RARE = "🎟️"          # casella rarissima: 10 biglietti gratuiti
+SCRATCH_RARE_P = 0.0016
+SCRATCH_RARE_TICKETS = 10
 
 
 async def _scr_pick(uid: int, idx: int):
@@ -580,12 +629,27 @@ async def _scr_pick(uid: int, idx: int):
     sym = game["grid"][idx]
     if len(game["picked"]) < G.SCRATCH_PICKS:
         return {"view": _scr_view(uid, game), "sym": sym, "idx": idx}
-    base = sum(G.SCRATCH_PRIZE[game["grid"][i]] for i in game["picked"])
+    picked_syms = [game["grid"][i] for i in game["picked"]]
+    base = sum(G.SCRATCH_PRIZE.get(x, 0) for x in picked_syms)
     del SCRATCH_GAMES[key]
-    paid, notes = await G._settle(_bot(), uid, uid, "scratch", G.SCRATCH_COST, base)
+    cost = 0 if game.get("free") else G.SCRATCH_COST
+    paid, notes = await G._settle(_bot(), uid, uid, "scratch", cost, base)
+    notes = list(notes)
+    u = get_user_data_dict(uid, uid)
+    won_free = 0
+    if SCRATCH_RARE in picked_syms:
+        won_free += SCRATCH_RARE_TICKETS
+        notes.insert(0, f"🎟️ Biglietto dorato! {SCRATCH_RARE_TICKETS} gratta e vinci gratis!")
+    elif picked_syms.count("💰") == 3:
+        won_free += 1
+        notes.insert(0, "🎟️ Tre monete uguali: un gratta e vinci in regalo!")
+    if won_free:
+        u["scratch_free"] = int(u.get("scratch_free", 0) or 0) + won_free
+        save_db()
     q = G.quest_progress(uid, uid, "scratch_play")
-    res = {"grid": game["grid"], "picked": list(game["picked"]), "cost": G.SCRATCH_COST, "base": base, "paid": paid,
-           "net": paid - G.SCRATCH_COST, "notes": _quest_note(list(notes), q), "balance": _balance(uid)}
+    res = {"grid": game["grid"], "picked": list(game["picked"]), "cost": cost, "base": base, "paid": paid,
+           "net": paid - cost, "won_free": won_free, "free_left": int(u.get("scratch_free", 0) or 0),
+           "notes": _quest_note(notes, q), "balance": _balance(uid)}
     return {"view": _scr_view(uid), "sym": sym, "idx": idx, "result": res}
 
 
@@ -630,6 +694,19 @@ def _post_json():
     return user, (request.get_json(silent=True) or {}), None
 
 
+@webapi.route("/api/slot/state", methods=["GET", "OPTIONS"])
+def api_slot_state():
+    if request.method == "OPTIONS":
+        return "", 204
+    user, err = require_admin()
+    if err:
+        return err
+    resp, out = _avi_call(_slot_state(int(user["id"])))
+    body = {"success": True}
+    body.update(out or {})
+    return resp if resp is not None else jsonify(body)
+
+
 @webapi.route("/api/slot/spin", methods=["POST", "OPTIONS"])
 def api_slot_spin():
     if request.method == "OPTIONS":
@@ -638,7 +715,7 @@ def api_slot_spin():
     if err:
         return err
     try:
-        bet = int(data.get("bet"))
+        bet = int(data.get("bet") or 0)
     except (TypeError, ValueError):
         return _err("Puntata non valida.")
     resp, out = _avi_call(_slot_spin(int(user["id"]), bet))
@@ -771,6 +848,12 @@ def api_social(what):
         coro = _social_call(websocial.diary, uid)
     elif what == "quests":
         coro = _social_call(websocial.quests, uid)
+    elif what == "work":
+        import webextra
+        coro = _social_call(webextra.work_state, uid)
+    elif what == "donors":
+        import webextra
+        coro = _social_call(webextra.donors, uid)
     elif what == "wallet":
         import webshop
         coro = _social_call(webshop.wallet, uid)
@@ -828,6 +911,35 @@ def api_shop(action):
         if not _is_admin_id(uid):
             return _err("Funzione riservata all'admin.", 403)
         coro = _social_call(webshop.admin_tool, uid, key, data.get("value"))
+    else:
+        return _err("Azione sconosciuta.", 404)
+    resp, out = _avi_call(coro)
+    if resp is not None:
+        return resp
+    body = {"success": True}
+    body.update(out)
+    return jsonify(body)
+
+
+@webapi.route("/api/extra/<action>", methods=["POST", "OPTIONS"])
+def api_extra(action):
+    if request.method == "OPTIONS":
+        return "", 204
+    user, data, err = _post_json()
+    if err:
+        return err
+    import webextra
+    uid = int(user["id"])
+    if action == "work_start":
+        coro = _social_call(webextra.work_start, uid)
+    elif action == "work_answer":
+        try:
+            idx = int(data.get("idx"))
+        except (TypeError, ValueError):
+            return _err("Risposta non valida.")
+        coro = _social_call(webextra.work_answer, uid, idx)
+    elif action == "donate":
+        coro = _social_call(webextra.donate, uid, str(data.get("target", ""))[:32], data.get("amount"))
     else:
         return _err("Azione sconosciuta.", 404)
     resp, out = _avi_call(coro)
