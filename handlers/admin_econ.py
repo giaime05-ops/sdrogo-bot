@@ -342,6 +342,10 @@ def arm_tonight_reset():
         save_db()
 
 
+async def _arm_job(context):
+    arm_tonight_reset()
+
+
 def register(app):
     app.add_handler(CommandHandler("sfida", sfida_command))
     app.add_handler(CommandHandler("resettutti", resettutti_command))
@@ -352,4 +356,4 @@ def register(app):
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, free_chal_text), group=-1)
     if app.job_queue:
         app.job_queue.run_repeating(_run_auto_reset, interval=30, first=20)
-        app.job_queue.run_once(lambda ctx: arm_tonight_reset(), 5)
+        app.job_queue.run_once(_arm_job, 5)
