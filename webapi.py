@@ -583,14 +583,20 @@ async def _scr_pick(uid: int, idx: int):
 def _wheel_view(uid: int) -> dict:
     prof = USER_DATA.get(ukey(uid)) or {}
     return {"success": True, "available": (prof.get("last_daily") or "") != today_str(),
-            "segments": [p for p, _ in DAILY_WHEEL], "balance": _balance(uid)}
+            "segments": [p for p, _ in DAILY_WHEEL], "balance": _balance(uid), "admin": _is_admin_id(uid)}
 
 
 async def _wheel_state(uid: int):
     return _wheel_view(uid)
 
 
-async def _wheel_spin(uid: int):
+async def _wheel_spin(uid: int, test: bool = False):
+    if test and _is_admin_id(uid):
+        # prova per l'admin: estrae un premio come al solito ma NON paga e NON consuma la giocata di oggi
+        prize = spin_daily()
+        segments = [p for p, _ in DAILY_WHEEL]
+        return {"view": {"success": True, "prize": prize, "index": segments.index(prize), "segments": segments, "test": True,
+                         "available": (get_user_data_dict(uid, uid).get("last_daily") or "") != today_str(), "balance": _balance(uid)}}
     u = get_user_data_dict(uid, uid)
     today = today_str()
     if u.get("last_daily") == today:
@@ -701,10 +707,10 @@ def api_wheel_state():
 def api_wheel_spin():
     if request.method == "OPTIONS":
         return "", 204
-    user, _, err = _post_json()
+    user, data, err = _post_json()
     if err:
         return err
-    resp, out = _avi_call(_wheel_spin(int(user["id"])))
+    resp, out = _avi_call(_wheel_spin(int(user["id"]), bool(data.get("test"))))
     return resp if resp is not None else jsonify(out["view"])
 
 
