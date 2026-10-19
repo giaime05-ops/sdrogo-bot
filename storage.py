@@ -51,7 +51,7 @@ _dirty = False
 _touched_users = set()          # profili usati dopo l'ultimo salvataggio: solo questi vengono riconfrontati ogni 3 secondi
 _touched_inv = set()
 _last_full = 0.0                # ultima scansione completa di tutti i profili (rete di sicurezza ogni 30 s)
-FULL_SCAN_EVERY = 30
+FULL_SCAN_EVERY = 120
 _conn = None
 _db_lock = threading.Lock()                         # un solo accesso alla connessione alla volta
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="sdrogo-db")

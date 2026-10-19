@@ -153,7 +153,11 @@ def require_admin():
     if not _is_admin_id(user["id"]):
         if not arcade_open():
             return None, (jsonify({"success": False, "error": "Sdrogo Arcade è ancora in sviluppo: per ora è riservata all'admin."}), 403)
-        if not _take("nm:" + str(user["id"]), 1.0, 10):          # limite stretto sulle verifiche di appartenenza
+        hit = _MEMBER_CACHE.get(str(user["id"]))
+        cached = bool(hit and time.time() < hit[1]) or str(user["id"]) in EXTRA_IDS
+        # limite stretto solo quando bisogna davvero interrogare Telegram (appartenenza non ancora in memoria):
+        # prima valeva a ogni richiesta e bloccava chi giocava ad Aviator (4 richieste/s) dopo pochi secondi
+        if not cached and not _take("nm:" + str(user["id"]), 1.0, 10):
             return None, (jsonify({"success": False, "error": "Troppe richieste, rallenta un attimo."}), 429)
         if not _is_member(user["id"]):
             return None, (jsonify({"success": False, "error": "Sdrogo Arcade è riservata ai membri del gruppo."}), 403)

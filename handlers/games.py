@@ -28,7 +28,7 @@ from utils import verify_user_lock, serialized, is_v2, smart_edit, anim_gap, fra
 # --- PREMI WORDLE / MASTERMIND (costo di ingresso: 10 $SDG) ---
 # Totale restituito in base ai tentativi usati (netti: +50, +40, +30, +20, +10)
 WORDLE_REWARDS = {1: 60, 2: 50, 3: 40, 4: 30, 5: 20}
-MASTERMIND_REWARDS = {1: 50, 2: 50, 3: 50, 4: 30, 5: 30}  # 50 entro il 3° tentativo, 30 al 4° o 5°
+MASTERMIND_REWARDS = {1: 80, 2: 80, 3: 80, 4: 50, 5: 35}  # 80 entro il 3° tentativo, 50 al 4°, 35 al 5°
 GAME_IDLE_SECS = 300   # Wordle / Mastermind / Blackjack / Poker inattivi da 5 minuti vengono chiusi con rimborso
 
 
@@ -499,7 +499,7 @@ async def start_mastermind_from_hub(update: Update, context: ContextTypes.DEFAUL
         + "Ho scelto un codice segreto di <b>3 cifre uniche</b>!\n"
         "Scrivilo direttamente in chat per tentare (5 tentativi).\n"
         f"<i>Premio: {MASTERMIND_REWARDS[1]} $SDG se lo trovi entro il 3° tentativo, "
-        f"{MASTERMIND_REWARDS[5]} al 4° o 5°. Se abbandoni per 5 minuti, ti rimborso.</i>"
+        f"{MASTERMIND_REWARDS[4]} al 4°, {MASTERMIND_REWARDS[5]} al 5°. Se abbandoni per 5 minuti, ti rimborso.</i>"
     )
 
 
