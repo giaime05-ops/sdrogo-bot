@@ -16,8 +16,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
 from economy import fmt, challenge_start, banco_balance, _announce, follia_enabled
-from state import USER_DATA, BANCO_STATE, SYSTEM_FLAGS, GROUP_CHALLENGE
-from storage import save_db, _touched_users
+from state import USER_DATA, USER_INVENTORIES, BANCO_STATE, SYSTEM_FLAGS, GROUP_CHALLENGE
+from storage import save_db, _touched_users, _touched_inv
 from utils import is_admin, smart_edit
 
 RESET_PLAYER_DEFAULT = 2000
@@ -33,6 +33,10 @@ def _num(tok: str):
 # --------------------------------------------------------------------------- reset
 def reset_all_players(amount: int) -> int:
     n = 0
+    for ik, inv_d in USER_INVENTORIES.items():          # le Stelle Heist ripartono da zero insieme ai saldi
+        if not str(ik).startswith("sbx_") and isinstance(inv_d, dict):
+            inv_d["stars"] = 0
+            _touched_inv.add(ik)
     for k, d in USER_DATA.items():
         if k.startswith("sbx_") or not isinstance(d, dict):
             continue
@@ -115,7 +119,7 @@ def _reset_view():
         f"⏰ Automatico: <b>{_auto_text()}</b>\n\n"
         "Scegli cosa fare (i comandi liberi: <code>/resettutti 3000</code>, <code>/resetbanco 500</code>, "
         "<code>/resetsoldi @utente 2000</code>).\n"
-        "<i>Le statistiche (profitto, vittorie…) restano; cambia solo il saldo.</i>"
+        "<i>Le statistiche (profitto, vittorie…) restano; cambiano i saldi e le Stelle Heist tornano a 0.</i>"
     )
     rows = [
         [InlineKeyboardButton(f"👥 Tutti a {fmt(RESET_PLAYER_DEFAULT)} + Banco {fmt(RESET_BANCO_DEFAULT)}", callback_data="aec_ask_all")],

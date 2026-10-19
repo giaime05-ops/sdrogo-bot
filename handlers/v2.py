@@ -52,7 +52,7 @@ SHOP_BY_KEY["title"] = ("title", "titles", 100, "🏷️ Titolo Umiliante", "Tit
 SHOP_META = {
     "boostluck": {"cat": "aiuti", "limit": 1},
     "boostwin": {"cat": "aiuti", "limit": 1},
-    "mutefilter": {"cat": "aiuti", "limit": 2},
+    "mutefilter": {"cat": "fastidi", "limit": 2},
     "persecute": {"cat": "fastidi", "limit": 3},
     "silence": {"cat": "fastidi", "limit": 3},
     "sang": {"cat": "fastidi", "limit": 2},

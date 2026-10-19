@@ -29,6 +29,7 @@ from flask import Blueprint, g, jsonify, request
 
 import config
 from state import USER_DATA, AVIATOR_GAMES, game_enabled
+from state import USER_INVENTORIES
 from storage import ukey, get_user_data_dict, add_user_coins, set_web_sandbox, ensure_web_sandbox, is_web_sandbox
 import economy
 from economy import today_str, spin_daily, DAILY_WHEEL
@@ -205,6 +206,7 @@ def api_me():
         "daily": {"available": (profile.get("last_daily") or "") != today_str()},
         "admin": _is_admin_id(user["id"]),
         "sandbox": bool(is_web_sandbox()),
+        "stars": int((USER_INVENTORIES.get(ukey(user["id"])) or {}).get("stars", 0) or 0),
     })
 
 
