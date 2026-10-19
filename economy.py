@@ -403,6 +403,29 @@ async def challenge_start(bot, chat_id=None, goal=None, days=None):
     return True, note
 
 
+async def challenge_cancel(bot):
+    """Annulla la sfida di gruppo attiva (nessun premio) e non ne fa partire un'altra in automatico."""
+    gc = GROUP_CHALLENGE
+    was = bool(gc.get("active"))
+    cid, mid = gc.get("chat_id"), gc.get("msg_id")
+    gc["active"] = False
+    gc["next_start"] = 0.0
+    gc["spent"] = 0
+    gc["participants"] = {}
+    gc["msg_id"] = None
+    save_db()
+    if cid and mid:
+        try:
+            await bot.unpin_chat_message(chat_id=cid, message_id=mid)
+        except Exception:
+            pass
+        try:
+            await bot.edit_message_text(chat_id=cid, message_id=mid, text="🚫 <b>Sfida di gruppo annullata.</b>", parse_mode="HTML")
+        except Exception:
+            pass
+    return was
+
+
 async def _challenge_finish(bot, success: bool):
     gc = GROUP_CHALLENGE
     cid, mid = gc.get("chat_id"), gc.get("msg_id")
@@ -577,6 +600,11 @@ QUEST_POOL = [
     _q("av_p50", "sp", 2, "aviator", "aviator:profit", 50, 70, "Guadagna 50 $SDG di profitto su Aviator", "add", " $SDG"),
     _q("av_m3", "sp", 2, "aviator", "aviator:mult", 3, 80, "Incassa a ×3 o più su Aviator", "max", "×"),
     _q("av_m6", "sp", 3, "aviator", "aviator:mult", 6, 170, "Incassa a ×6 o più su Aviator", "max", "×"),
+    _q("av_w2", "sp", 1, "aviator", "aviator:win", 2, 45, "Incassa 2 volte su Aviator"),
+    _q("av_p150", "sp", 3, "aviator", "aviator:profit", 150, 160, "Guadagna 150 $SDG di profitto su Aviator", "add", " $SDG"),
+    _q("sl_p150", "sp", 3, "slot", "slot:profit", 150, 150, "Guadagna 150 $SDG di profitto alla Slot Machine", "add", " $SDG"),
+    _q("ro_p100", "sp", 2, "roulette", "roulette:profit", 100, 90, "Guadagna 100 $SDG di profitto alla Sdrogo Roulette", "add", " $SDG"),
+    _q("bj_w3", "sp", 2, "blackjack", "blackjack:win", 3, 80, "Vinci 3 mani a Blackjack"),
     _q("sc_w2", "sp", 1, "scratch", "scratch:win", 2, 40, "Vinci 2 Gratta e Vinci"),
     _q("sc_b100", "sp", 3, "scratch", "scratch:best", 100, 140, "Vinci almeno 100 $SDG netti con un solo Gratta e Vinci", "max", " $SDG"),
     _q("pk_w1", "sp", 1, "poker", "poker:win", 1, 45, "Vinci 1 mano a Sdrogo Poker"),
@@ -606,9 +634,10 @@ QUEST_BY_ID = {q["id"]: q for q in QUEST_POOL}
 _TIER_WEIGHTS = {1: 50, 2: 35, 3: 15}      # facili più frequenti, quelle difficili ogni tanto
 
 
-def _pick_quest(kind: str, can_work: bool, exclude: str = ""):
+def _pick_quest(kind: str, can_work: bool, exclude: str = "", exclude_game=None):
     eligible = [p for p in QUEST_POOL
                 if p["kind"] == kind and p["id"] != exclude
+                and (exclude_game is None or p["game"] != exclude_game)
                 and (p["id"] != "wk_1" or can_work)
                 and (p["game"] is None or GAME_STATUS.get(p["game"], True))]
     if not eligible:
@@ -618,7 +647,7 @@ def _pick_quest(kind: str, can_work: bool, exclude: str = ""):
 
 
 def quests_for(chat_id: int, user_id: int) -> list:
-    """Missioni di oggi: 1 single player + 1 multiplayer, scelte a caso e diverse da giocatore a giocatore."""
+    """Missioni di oggi: 2 single player (giochi diversi) + 1 multiplayer, scelte a caso e diverse da giocatore a giocatore."""
     u = get_user_data_dict(chat_id, user_id)
     q = u.get("quests")
     stale = (not q or q.get("date") != today_str()
@@ -631,7 +660,9 @@ def quests_for(chat_id: int, user_id: int) -> list:
                     add_user_coins(chat_id, user_id, old.get("reward", 0))
         # "/lavora" è proponibile solo a chi può davvero usarlo (saldo sotto la soglia)
         can_work = WORK_MAX_BALANCE is None or get_user_coins(chat_id, user_id) < WORK_MAX_BALANCE
-        picked = [x for x in (_pick_quest("sp", can_work), _pick_quest("mp", can_work)) if x]
+        sp1 = _pick_quest("sp", can_work)
+        sp2 = _pick_quest("sp", can_work, exclude=sp1["id"] if sp1 else "", exclude_game=sp1["game"] if sp1 and sp1["game"] else None)
+        picked = [x for x in (sp1, sp2, _pick_quest("mp", can_work)) if x]
         q = {"date": today_str(), "streaks": {}, "list": [{**p, "progress": 0, "done": False} for p in picked]}
         u["quests"] = q
         save_db()

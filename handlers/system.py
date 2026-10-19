@@ -123,6 +123,7 @@ def _admin_view():
                               callback_data="adm_arc")],
         [InlineKeyboardButton("🎯 Configura Sfida di Gruppo", callback_data="adm_cfg"),
          InlineKeyboardButton("👥 Utenti online", callback_data="adm_on_0")],
+        [InlineKeyboardButton("🗑️ Annulla sfida di gruppo", callback_data="adm_chalx")],
         [InlineKeyboardButton("🎪 Follia: ACCESA" if follia_enabled() else "🎪 Follia: SPENTA", callback_data="aec_fol"),
          InlineKeyboardButton("🔄 Reset saldi", callback_data="aec_menu")],
     ]
@@ -285,6 +286,7 @@ def _chal_cfg_view():
     rows.append([InlineKeyboardButton(("✅ " if d == days else "") + lab, callback_data=f"adm_cd_{d}") for d, lab in CHAL_DAYS])
     rows.append([InlineKeyboardButton("✏️ Numeri liberi (es. 50000 7)", callback_data="aec_free")])
     rows.append([InlineKeyboardButton("🚀 Avvia sfida", callback_data="adm_chal")])
+    rows.append([InlineKeyboardButton("🗑️ Annulla sfida attiva", callback_data="adm_chalx")])
     rows.append([InlineKeyboardButton("⬅️ Indietro", callback_data="adm_back")])
     return text, InlineKeyboardMarkup(rows)
 
@@ -337,6 +339,16 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "arc":
         SYSTEM_FLAGS["ARCADE_PUBLIC"] = not SYSTEM_FLAGS.get("ARCADE_PUBLIC", False)
         save_db()                                   # persistente: sopravvive ai riavvii
+        try:                                        # il pulsante blu "Apri Arcade" in chat privata: per tutti quando è aperta
+            from telegram import MenuButtonWebApp, MenuButtonDefault, WebAppInfo
+            import os as _os
+            if SYSTEM_FLAGS["ARCADE_PUBLIC"]:
+                await context.bot.set_chat_menu_button(menu_button=MenuButtonWebApp(
+                    text="🎮 Apri Arcade", web_app=WebAppInfo(url=_os.environ.get("ARCADE_URL", "https://giaime05-ops.github.io/sdrogobot-arcade/"))))
+            else:
+                await context.bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+        except Exception as e:
+            logging.warning(f"Pulsante Arcade per tutti non aggiornato: {e}")
         await query.answer("🟢 Mini app APERTA ai membri del gruppo." if SYSTEM_FLAGS["ARCADE_PUBLIC"]
                            else "🔴 Mini app CHIUSA: solo tu.", show_alert=True)
     elif action == "sbx":
@@ -366,6 +378,12 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         await query.answer(f"Durata: {GROUP_CHALLENGE['cfg_days']} g")
         await smart_edit(query, *_chal_cfg_view())
+        return
+    elif action == "chalx":
+        from economy import challenge_cancel
+        was = await challenge_cancel(context.bot)
+        await query.answer("🗑️ Sfida annullata (nessun premio, non ne parte un'altra)." if was else "Non c'era nessuna sfida attiva.", show_alert=True)
+        await smart_edit(query, *_admin_view())
         return
     elif action == "chal":
         await query.answer()
