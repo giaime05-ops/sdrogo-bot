@@ -68,11 +68,37 @@ async def _refund_games(context, admin_id):
         logging.warning(f"reset partite prima del reset saldi: {e}")
 
 
-async def do_reset_all(context, player_amt: int, banco_amt: int, admin_id) -> str:
+def reset_casino_crown() -> str:
+    """Assegna il badge storico "Strogobot v1" al #1 del Re del Casinò e azzera le vittorie casinò di tutti."""
+    best, bv = None, 0
+    for k, d in USER_DATA.items():
+        if str(k).startswith("sbx_") or not isinstance(d, dict):
+            continue
+        v = int(d.get("casino_wins", 0) or 0)
+        if v > bv:
+            best, bv = k, v
+    nm = ""
+    if best is not None:
+        USER_DATA[best]["badge"] = "v1"
+        nm = USER_DATA[best].get("name", "") or str(best)
+    for k, d in USER_DATA.items():
+        if isinstance(d, dict) and not str(k).startswith("sbx_") and d.get("casino_wins"):
+            d["casino_wins"] = 0
+            _touched_users.add(k)
+    if best is not None:
+        _touched_users.add(best)
+    save_db()
+    return nm
+
+
+async def do_reset_all(context, player_amt: int, banco_amt: int, admin_id, casino: bool = False) -> str:
     await _refund_games(context, admin_id)
     n = reset_all_players(player_amt)
     reset_banco(banco_amt)
-    return f"{n} giocatori a {fmt(player_amt)} $SDG, Banco a {fmt(banco_amt)} $SDG"
+    extra = ""
+    if casino:
+        extra = f", Re del Casinò azzerato (badge v1 a {reset_casino_crown() or 'nessuno'})"
+    return f"{n} giocatori a {fmt(player_amt)} $SDG, Banco a {fmt(banco_amt)} $SDG{extra}"
 
 
 async def _run_auto_reset(context: ContextTypes.DEFAULT_TYPE):
@@ -87,7 +113,7 @@ async def _run_auto_reset(context: ContextTypes.DEFAULT_TYPE):
         return
     from config import ADMIN_ID
     desc = await do_reset_all(context, int(r.get("players", RESET_PLAYER_DEFAULT)),
-                              int(r.get("banco", RESET_BANCO_DEFAULT)), ADMIN_ID)
+                              int(r.get("banco", RESET_BANCO_DEFAULT)), ADMIN_ID, bool(r.get("casino")))
     await _notify_admin(context, f"✅ Reset automatico eseguito: {desc}.")
     if r.get("announce", True):
         await _announce(context.bot, "🔄 <b>RESET GENERALE!</b>\nTutti ripartono da "
@@ -300,8 +326,12 @@ async def aec_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def arm_tonight_reset():
     """Arma il reset di mezzanotte (20/10/2026 00:00 ora italiana = 19/10 22:00 UTC) se non già eseguito."""
     ts = 1792447200.0           # 2026-10-19 22:00:00 UTC
+    ra = SYSTEM_FLAGS.get("RESET_AT")
+    if ra and float(ra.get("ts", 0)) == ts and "casino" not in ra:      # già armato da una versione precedente
+        ra["casino"] = True
+        save_db()
     if time.time() < ts and not SYSTEM_FLAGS.get("RESET_DONE_1020") and "RESET_AT" not in SYSTEM_FLAGS:
-        SYSTEM_FLAGS["RESET_AT"] = {"ts": ts, "players": RESET_PLAYER_DEFAULT, "banco": RESET_BANCO_DEFAULT, "announce": True}
+        SYSTEM_FLAGS["RESET_AT"] = {"ts": ts, "players": RESET_PLAYER_DEFAULT, "banco": RESET_BANCO_DEFAULT, "announce": True, "casino": True}
         SYSTEM_FLAGS["RESET_DONE_1020"] = True
         save_db()
 

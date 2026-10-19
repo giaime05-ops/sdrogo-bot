@@ -206,6 +206,7 @@ def api_me():
         "daily": {"available": (profile.get("last_daily") or "") != today_str()},
         "admin": _is_admin_id(user["id"]),
         "sandbox": bool(is_web_sandbox()),
+        "badge": (USER_DATA.get(str(user["id"])) or {}).get("badge", ""),
         "stars": int((USER_INVENTORIES.get(ukey(user["id"])) or {}).get("stars", 0) or 0),
     })
 

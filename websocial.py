@@ -5,8 +5,8 @@ from storage import ukey
 
 LB = {                                   # stessi campi e stesse categorie di /topricconi
     "coins":   {"title": "Re dei Ricconi", "icon": "🪙", "field": "coins",       "unit": "$SDG"},
-    "quizzes": {"title": "Re dei Quiz",    "icon": "🧠", "field": "quizzes_won", "unit": "quiz vinti"},
     "casino":  {"title": "Re del Casinò",  "icon": "🎰", "field": "casino_wins", "unit": "vittorie"},
+    "quizzes": {"title": "Re dei Quiz",    "icon": "🧠", "field": "quizzes_won", "unit": "quiz vinti"},
     "duels":   {"title": "Re dei Duelli",  "icon": "⚔️", "field": "duels_wins",  "unit": "duelli vinti"},
 }
 TOP_N = 10
@@ -30,7 +30,7 @@ def leaderboard(uid: int, cat: str) -> dict:
             rows.append((str(k), v, d))
     rows.sort(key=lambda r: r[1], reverse=True)
     me = ukey(uid)
-    top = [{"rank": i, "name": _name(k, d), "value": v, "me": k == str(uid)}
+    top = [{"rank": i, "name": _name(k, d), "value": v, "me": k == str(uid), "badge": d.get("badge", "")}
            for i, (k, v, d) in enumerate(rows[:TOP_N], start=1)]
     mine = None
     for i, (k, v, d) in enumerate(rows, start=1):
