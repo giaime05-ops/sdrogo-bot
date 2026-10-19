@@ -255,9 +255,15 @@ def _shop_view(chat_id: int, user_id: int, owner_id: int, back_button: list):
         "🎒 Gli oggetti acquistati finiscono nell'Inventario.\n\n"
     )
     keyboard = []
-    for key, _field, price, label, short, _how in v2.SHOP_ITEMS:
-        text += f"<b>{label}</b> — {price} $SDG\n<i>{short}</i>\n\n"
-        keyboard.append([InlineKeyboardButton(f"{label} ({price})", callback_data=f"buy_{key}_{owner_id}")])
+    for cat, head in (("aiuti", "✨ <b>TI AIUTANO</b>"), ("fastidi", "😈 <b>FASTIDIOSI PER IL GRUPPO</b>")):
+        text += head + "\n\n"
+        for key, _field, price, label, short, _how in v2.SHOP_ITEMS:
+            meta = v2.SHOP_META.get(key, {})
+            if meta.get("cat") != cat:
+                continue
+            left = v2.shop_left_today(chat_id, user_id, key)
+            text += f"<b>{label}</b> — {price} $SDG · oggi {left}/{meta.get('limit')}\n<i>{short}</i>\n\n"
+            keyboard.append([InlineKeyboardButton(f"{label} ({price})", callback_data=f"buy_{key}_{owner_id}")])
     text += f"🏢 <b>Pass SDROGO HEIST</b> — {HEIST_COST} $SDG\n<i>Escape room a tempo in PRIVATO: svaligia il Banco Centrale!</i>"
     keyboard.append([InlineKeyboardButton(f"🏢 Avvia SDROGO HEIST ({HEIST_COST})", callback_data=f"buy_heist_{owner_id}")])
     keyboard.append([InlineKeyboardButton("🎒 Inventario", callback_data=f"hub_inv_{owner_id}")])
@@ -616,12 +622,17 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("🛒 Oggetto non ancora disponibile!", show_alert=True)
         return
     _key, field, price, label, _short, how = spec
+    if v2u and v2.shop_left_today(chat_id, user_id, item) <= 0:
+        await query.answer(f"⏳ Limite giornaliero raggiunto per {label}: riprova domani.", show_alert=True)
+        return
     if coins < price:
         await query.answer(f"❌ Servono {price} $SDG per comprare {label}!", show_alert=True)
         return
 
     await query.answer()
     d[field] = d.get(field, 0) + 1
+    if v2u:
+        v2.shop_record(chat_id, user_id, item)
     add_user_coins(chat_id, user_id, -price)       # salva anche l'inventario nel database
 
     if not v2u and item == "persecute":

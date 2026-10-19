@@ -30,22 +30,59 @@ REACTIONS = [("🤡", "Pagliaccio"), ("💩", "Cacca"), ("🔥", "Fuoco"), ("�
 
 # (chiave, campo inventario, prezzo, etichetta, descrizione breve, come si usa)
 SHOP_ITEMS = [
-    ("title", "titles", 100, "🏷️ Titolo Umiliante", "Titolo umiliante per 24 ore",
-     "Per assegnarlo per 24 ORE a una vittima, scrivi in chat:\n👉 <code>titolo @username</code> (oppure rispondi al suo messaggio con <code>titolo</code>)"),
-    ("persecute", "persecutes", 120, "🤡 Perseguita", "Il bot reagisce a tutti i messaggi della vittima per 15 minuti",
+    ("persecute", "persecutes", 300, "🤡 Perseguita", "Il bot reagisce a tutti i messaggi della vittima per 15 minuti",
      "Scrivi in chat <code>perseguita @username</code> (o rispondi al suo messaggio con <code>perseguita</code>): sceglierai tu la reazione."),
-    ("silence", "silence", 150, "🤐 Silenzia", "Cancello i suoi prossimi 15 messaggi finché non scrive la frase",
+    ("silence", "silence", 400, "🤐 Silenzia", "Cancello i suoi prossimi 15 messaggi finché non scrive la frase",
      "Scrivi in chat <code>silenzia @username</code> (o rispondi al suo messaggio): ti scrivo in privato per scegliere durata (1-15 min) e frase d'umiliazione."),
-    ("mutefilter", "mutefilter", 200, MUTE_FILTER_LABEL, "Muta per 10 minuti i bersagli configurati",
+    ("mutefilter", "mutefilter", 500, MUTE_FILTER_LABEL, "Muta per 10 minuti i bersagli configurati",
      "Attivalo dall'Inventario 🎒: per 10 minuti cancello i messaggi dei bersagli configurati."),
-    ("boostwin", "boost_win", 150, "🚀 Boost Vincita ×1.5", "+50% sul profitto di 10 partite Single Player",
+    ("boostwin", "boost_win", 400, "🚀 Boost Vincita ×1.5", "+50% sul profitto di 10 partite Single Player",
      "Attivalo dall'Inventario 🎒: vale per le tue prossime 10 partite Single Player."),
-    ("boostluck", "boost_luck", 200, "🍀 Boost Fortuna", "Il caso ti aiuta per 15 partite da casinò",
+    ("boostluck", "boost_luck", 500, "🍀 Boost Fortuna", "Il caso ti aiuta per 15 partite da casinò",
      "Attivalo dall'Inventario 🎒: vale per le prossime 15 partite a Blackjack, Slot, Roulette e Gratta e Vinci."),
-    ("sang", "sang", 250, "🧛 Sanguisuga", "Rubi il 25% delle vincite della vittima per 10 partite",
+    ("sang", "sang", 600, "🧛 Sanguisuga", "Rubi il 25% delle vincite della vittima per 10 partite",
      "Scrivi in chat <code>sanguisuga @username</code> (o rispondi al suo messaggio): per le sue prossime 10 partite Single Player il 25% di ogni vincita va a te."),
 ]
 SHOP_BY_KEY = {s[0]: s for s in SHOP_ITEMS}
+# Titolo Umiliante: tolto dallo shop V2, resta valido per chi lo possiede già e per lo shop base
+SHOP_BY_KEY["title"] = ("title", "titles", 100, "🏷️ Titolo Umiliante", "Titolo umiliante per 24 ore",
+     "Per assegnarlo per 24 ORE a una vittima, scrivi in chat:\n👉 <code>titolo @username</code> (oppure rispondi al suo messaggio con <code>titolo</code>)")
+
+# categoria ("aiuti" = ti aiutano, "fastidi" = fastidiosi per il gruppo) e limite di acquisti al giorno per giocatore
+SHOP_META = {
+    "boostluck": {"cat": "aiuti", "limit": 1},
+    "boostwin": {"cat": "aiuti", "limit": 1},
+    "mutefilter": {"cat": "aiuti", "limit": 2},
+    "persecute": {"cat": "fastidi", "limit": 3},
+    "silence": {"cat": "fastidi", "limit": 3},
+    "sang": {"cat": "fastidi", "limit": 2},
+}
+
+
+def shop_bought_today(chat_id, user_id, key: str) -> int:
+    from storage import get_user_data_dict
+    from economy import today_str
+    u = get_user_data_dict(chat_id, user_id)
+    sd = u.get("shop_day")
+    if not sd or sd.get("date") != today_str():
+        return 0
+    return int(sd.get("n", {}).get(key, 0))
+
+
+def shop_record(chat_id, user_id, key: str):
+    from storage import get_user_data_dict, save_db
+    from economy import today_str
+    u = get_user_data_dict(chat_id, user_id)
+    sd = u.get("shop_day")
+    if not sd or sd.get("date") != today_str():
+        sd = u["shop_day"] = {"date": today_str(), "n": {}}
+    sd["n"][key] = int(sd["n"].get(key, 0)) + 1
+    save_db()
+
+
+def shop_left_today(chat_id, user_id, key: str) -> int:
+    lim = SHOP_META.get(key, {}).get("limit")
+    return 999 if lim is None else max(0, lim - shop_bought_today(chat_id, user_id, key))
 
 _TASKS = set()
 

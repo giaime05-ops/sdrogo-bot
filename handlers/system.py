@@ -15,7 +15,7 @@ from telegram.ext import (
 
 from config import FRASE_PENITENZA, TARGET_MAP
 from economy import (
-    fmt, game_header, today_str, banco_take, challenge_start, quest_progress, follia_line,
+    fmt, game_header, today_str, banco_take, challenge_start, quest_progress, follia_line, follia_enabled,
 )
 from state import (
     FLAGS, ACTIVE_DUELS, HIGHLOW_DUELS, DICE_DUELS, BLACKJACK_GAMES, WORDLE_GAMES,
@@ -110,7 +110,7 @@ def _admin_view():
         f"🛠️ Sandbox: <b>{'ACCESA — giochi su un profilo di prova' if SANDBOX.get('on') else 'spenta'}</b>\n"
         f"📱 Mini app Arcade: <b>{'APERTA ai membri del gruppo' if SYSTEM_FLAGS.get('ARCADE_PUBLIC') else 'CHIUSA — solo tu'}</b>\n"
         f"🎯 Sfida di gruppo: <b>{chal}</b>\n"
-        f"{follia_line() or '🏦 Follia Sdrogo: spenta'}\n\n"
+        f"{follia_line() or '🎪 Follia Sdrogo: spenta'}\n\n"
         "🟢 = attivo | 🔴 = in manutenzione\n"
         "Tocca un gioco per accenderlo o spegnerlo. "
         "<i>Le partite già in corso possono sempre finire.</i>"
@@ -123,6 +123,8 @@ def _admin_view():
                               callback_data="adm_arc")],
         [InlineKeyboardButton("🎯 Configura Sfida di Gruppo", callback_data="adm_cfg"),
          InlineKeyboardButton("👥 Utenti online", callback_data="adm_on_0")],
+        [InlineKeyboardButton("🎪 Follia: ACCESA" if follia_enabled() else "🎪 Follia: SPENTA", callback_data="aec_fol"),
+         InlineKeyboardButton("🔄 Reset saldi", callback_data="aec_menu")],
     ]
     row = []
     for key, label in ADMIN_GAMES:
@@ -207,6 +209,11 @@ def _com_view():
         "📜 <b>/storico</b> <code>@utente</code> – ultime giocate di un giocatore\n"
         "📣 <b>/annuncio</b> <code>testo</code> (o /dici) – scrive nel gruppo\n"
         "💰 <b>/ricarica</b> <code>[@utente] [quantità]</code> – regala $SDG\n"
+        "🎯 <b>/sfida</b> <code>quota giorni</code> – sfida di gruppo con numeri liberi (es. 50000 7)\n"
+        "🔄 <b>/resettutti</b> <code>[quota]</code> – tutti i saldi a quota (2000) + Banco 1000\n"
+        "🏦 <b>/resetbanco</b> <code>[quota]</code> – solo il Banco (1000)\n"
+        "👤 <b>/resetsoldi</b> <code>@utente [quota]</code> – un solo giocatore\n"
+        "⏰ <b>/resetauto</b> – stato/annulla reset programmato (<code>off</code>)\n"
     )
     rows = [
         [InlineKeyboardButton("🛠️ Dashboard", callback_data="adm_c_admin"),
@@ -218,6 +225,8 @@ def _com_view():
         [InlineKeyboardButton("📜 Storico", callback_data="adm_c_storico"),
          InlineKeyboardButton("📣 Annuncio", callback_data="adm_c_annuncio"),
          InlineKeyboardButton("💰 Ricarica", callback_data="adm_c_ricarica")],
+        [InlineKeyboardButton("🔄 Reset saldi", callback_data="aec_menu"),
+         InlineKeyboardButton("🎯 Sfida libera", callback_data="aec_free")],
         [InlineKeyboardButton("✖️ Chiudi", callback_data="adm_close")],
     ]
     return text, InlineKeyboardMarkup(rows)
@@ -274,6 +283,7 @@ def _chal_cfg_view():
     )
     rows = [[InlineKeyboardButton(("✅ " if g == goal else "") + fmt(g), callback_data=f"adm_cg_{g}") for g in CHAL_GOALS]]
     rows.append([InlineKeyboardButton(("✅ " if d == days else "") + lab, callback_data=f"adm_cd_{d}") for d, lab in CHAL_DAYS])
+    rows.append([InlineKeyboardButton("✏️ Numeri liberi (es. 50000 7)", callback_data="aec_free")])
     rows.append([InlineKeyboardButton("🚀 Avvia sfida", callback_data="adm_chal")])
     rows.append([InlineKeyboardButton("⬅️ Indietro", callback_data="adm_back")])
     return text, InlineKeyboardMarkup(rows)

@@ -20,7 +20,7 @@ from storage import (
     load_db, auto_restore_from_telegram, recover_sessions, backup_to_telegram, backup_now, flush_db, flush_db_sync,
 )
 from economy import challenge_tick, set_bot
-from handlers import system, hub, games, multiplayer, quiz, v2, heist, admin_tools
+from handlers import system, hub, games, multiplayer, quiz, v2, heist, admin_tools, admin_econ
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -349,6 +349,7 @@ async def main_async():
     heist.register(application)          # Sdrogo Heist V3 (callback "hst_" + controllo timer)
     multiplayer.register(application)
     quiz.register(application)
+    admin_econ.register(application)
     admin_tools.register(application)    # /annuncio, /dici e /storico (solo Admin, in privato)
     system.register_text(application)
 

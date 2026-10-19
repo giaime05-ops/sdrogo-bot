@@ -14,7 +14,7 @@ except Exception:          # tzdata mancante (tipico delle immagini Docker "slim
     _TZ = None
 
 from config import GROUP_CHAT_ID
-from state import USER_INVENTORIES, BANCO_STATE, GROUP_CHALLENGE, GAME_STATUS
+from state import USER_INVENTORIES, BANCO_STATE, GROUP_CHALLENGE, GAME_STATUS, SYSTEM_FLAGS
 from storage import (add_user_coins, get_user_coins, get_user_data_dict, save_db, BANCO_INITIAL,
                      ukey, in_sandbox, is_sandbox, log_play, touch_inv)
 from utils import is_v2, smart_edit_msg
@@ -228,8 +228,13 @@ def banco_take(amount: int, count: bool = True) -> int:
     return taken
 
 
+def follia_enabled() -> bool:
+    """Interruttore admin: con la Follia spenta il codice resta ma non scatta mai (default: SPENTA)."""
+    return bool(SYSTEM_FLAGS.get("FOLLIA_ENABLED", False))
+
+
 def follia_active() -> bool:
-    return bool(BANCO_STATE.get("FOLLIA_ATTIVA"))
+    return follia_enabled() and bool(BANCO_STATE.get("FOLLIA_ATTIVA"))
 
 
 def follia_consumed() -> int:
@@ -243,6 +248,8 @@ def follia_left_text() -> str:
 
 def follia_line() -> str:
     """Una riga discreta con lo stato della Follia (per HUB, portafoglio e pannello admin)."""
+    if not follia_enabled():
+        return ""
     if follia_active():
         return f"🎪 Follia Sdrogo ATTIVA · finisce tra {follia_left_text()}"
     return f"🎪 Follia Sdrogo: Banco {fmt(banco_balance())}/{fmt(FOLLIA_ON)} per l'attivazione"
@@ -258,6 +265,14 @@ async def banco_check(bot):
         save_db()
     bal = banco_balance()
     now = time.time()
+
+    if not follia_enabled():
+        if BANCO_STATE.get("FOLLIA_ATTIVA"):          # spenta dall'admin: azzera lo stato in silenzio
+            BANCO_STATE["FOLLIA_ATTIVA"] = False
+            BANCO_STATE["FOLLIA_CONSUMED"] = 0
+            BANCO_STATE["FOLLIA_END"] = 0
+            save_db()
+        return
 
     # dopo una Follia il sistema si riarma solo quando il Banco è sceso sotto la soglia di attivazione
     if BANCO_STATE.get("FOLLIA_RESET") and not follia_active() and bal < FOLLIA_ON:
