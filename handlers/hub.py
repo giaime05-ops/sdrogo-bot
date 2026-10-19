@@ -115,7 +115,9 @@ def _single_button(update: Update, user_id: int):
             if chat is not None and chat.type == "private":
                 url = os.environ.get("ARCADE_URL", "https://giaime05-ops.github.io/sdrogobot-arcade/")
                 return InlineKeyboardButton("🕹️ Single Player", web_app=WebAppInfo(url=url))
-            link = os.environ.get("ARCADE_LINK")
+            link = (os.environ.get("ARCADE_LINK") or "").strip()
+            if link and not link.lower().startswith(("http://", "https://", "tg://")):
+                link = "https://" + link.lstrip("/")             # tollera il link scritto senza https://
             if link:
                 return InlineKeyboardButton("🕹️ Single Player", url=link)
     except Exception as e:
