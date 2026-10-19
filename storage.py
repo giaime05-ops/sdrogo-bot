@@ -75,14 +75,40 @@ CREATE TABLE IF NOT EXISTS sessions(kind TEXT NOT NULL, key TEXT NOT NULL, data 
 _SBX_CTX = contextvars.ContextVar("sdrogo_sandbox", default=False)
 
 
+# "Account admin" della mini app: sandbox per singola richiesta (header), profilo separato "sbx_w<id>" con 30 milioni
+_WEB_SBX = contextvars.ContextVar("sdrogo_web_sandbox", default=False)
+WEB_SBX_COINS = 30_000_000
+
+
+def set_web_sandbox(on: bool):
+    """Chiamata dall'API a OGNI richiesta (True solo per l'admin col suo header): il valore non deve restare tra richieste."""
+    _WEB_SBX.set(bool(on))
+
+
+def is_web_sandbox() -> bool:
+    return _WEB_SBX.get()
+
+
 def is_sandbox(user_id) -> bool:
-    """True se l'utente è l'admin e la modalità Sandbox è accesa."""
-    return bool(SANDBOX.get("on")) and bool(ADMIN_ID) and str(user_id) == str(ADMIN_ID)
+    """True se l'utente è l'admin e la modalità Sandbox (Telegram o account admin della mini app) è accesa."""
+    return (bool(SANDBOX.get("on")) or _WEB_SBX.get()) and bool(ADMIN_ID) and str(user_id) == str(ADMIN_ID)
 
 
 def ukey(user_id) -> str:
-    """Chiave del profilo: str(user_id), oppure "sbx_<id>" (profilo di prova) per l'admin in Sandbox."""
+    """Chiave del profilo: str(user_id), oppure "sbx_<id>" / "sbx_w<id>" (profilo di prova) per l'admin in Sandbox."""
+    if _WEB_SBX.get() and ADMIN_ID and str(user_id) == str(ADMIN_ID):
+        return f"sbx_w{user_id}"
     return f"sbx_{user_id}" if is_sandbox(user_id) else str(user_id)
+
+
+def ensure_web_sandbox(user_id):
+    """Crea (una volta) il profilo di prova della mini app: 30M $SDG e un po' di tutti gli oggetti."""
+    k = f"sbx_w{user_id}"
+    if k not in USER_DATA:
+        USER_DATA[k] = _new_profile(WEB_SBX_COINS)
+    if k not in USER_INVENTORIES:
+        USER_INVENTORIES[k] = {"titles": 5, "persecutes": 5, "stars": 0, "silence": 5, "mutefilter": 5,
+                               "boost_win": 5, "boost_luck": 5, "sang": 5}
 
 
 def set_sandbox_ctx(user_id):
@@ -92,7 +118,7 @@ def set_sandbox_ctx(user_id):
 
 
 def in_sandbox() -> bool:
-    return _SBX_CTX.get()
+    return _SBX_CTX.get() or _WEB_SBX.get()
 
 
 def sandbox_set(on: bool):
@@ -737,7 +763,7 @@ def get_user_data_dict(chat_id: int, user_id: int) -> dict:
     _touched_users.add(key)
     if key.startswith("sbx_"):                       # profilo di prova: niente chat tracciate, mai su disco
         if key not in USER_DATA:
-            USER_DATA[key] = _new_profile(SANDBOX_COINS)
+            USER_DATA[key] = _new_profile(WEB_SBX_COINS if key.startswith("sbx_w") else SANDBOX_COINS)
         return USER_DATA[key]
     is_backup = str(chat_id) == str(BACKUP_CHAT_ID)
     if key not in USER_DATA:

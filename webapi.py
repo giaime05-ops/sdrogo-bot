@@ -29,7 +29,7 @@ from flask import Blueprint, g, jsonify, request
 
 import config
 from state import USER_DATA, AVIATOR_GAMES, game_enabled
-from storage import ukey, get_user_data_dict, add_user_coins
+from storage import ukey, get_user_data_dict, add_user_coins, set_web_sandbox, ensure_web_sandbox, is_web_sandbox
 import economy
 from economy import today_str, spin_daily, DAILY_WHEEL
 from state import SCRATCH_GAMES, SYSTEM_FLAGS
@@ -53,7 +53,7 @@ def _cors(response):
     if origin.rstrip("/") == ARCADE_ORIGIN:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Vary"] = "Origin"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Telegram-Init-Data, Authorization"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Telegram-Init-Data, Authorization, X-Arcade-Sandbox"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
         response.headers["Access-Control-Max-Age"] = "600"
     response.headers["Cache-Control"] = "no-store"
@@ -157,6 +157,11 @@ def require_admin():
         if not _is_member(user["id"]):
             return None, (jsonify({"success": False, "error": "Sdrogo Arcade è riservata ai membri del gruppo."}), 403)
     uid = str(user["id"])
+    # "Account admin" della mini app: solo l'admin, solo se la richiesta lo chiede; il valore vale per questa richiesta
+    sbx = _is_admin_id(user["id"]) and request.headers.get("X-Arcade-Sandbox") == "1"
+    set_web_sandbox(sbx)
+    if sbx:
+        ensure_web_sandbox(user["id"])
     if not _take("u:" + uid, USER_RATE, USER_BURST):
         return None, (jsonify({"success": False, "error": "Troppe richieste, rallenta un attimo."}), 429)
     if request.method == "POST":                      # una sola mossa alla volta per giocatore: niente doppi tocchi né richieste parallele
@@ -180,7 +185,7 @@ def api_me():
         return err
 
     uid = str(user["id"])
-    profile = USER_DATA.get(ukey(user["id"])) or {}
+    profile = get_user_data_dict(user["id"], user["id"]) if _is_admin_id(user["id"]) and is_web_sandbox() else (USER_DATA.get(ukey(user["id"])) or {})
     coins = int(profile.get("coins", 0)) if profile else 0
 
     follia = follia_active()
@@ -198,6 +203,8 @@ def api_me():
             "follia_left": follia_left_text() if follia else "",
         },
         "daily": {"available": (profile.get("last_daily") or "") != today_str()},
+        "admin": _is_admin_id(user["id"]),
+        "sandbox": bool(is_web_sandbox()),
     })
 
 
@@ -582,7 +589,7 @@ async def _scr_pick(uid: int, idx: int):
 
 def _wheel_view(uid: int) -> dict:
     prof = USER_DATA.get(ukey(uid)) or {}
-    return {"success": True, "available": (prof.get("last_daily") or "") != today_str(),
+    return {"success": True, "available": (prof.get("last_daily") or "") != today_str() or is_web_sandbox(),
             "segments": [p for p, _ in DAILY_WHEEL], "balance": _balance(uid), "admin": _is_admin_id(uid)}
 
 
@@ -599,14 +606,15 @@ async def _wheel_spin(uid: int, test: bool = False):
                          "available": (get_user_data_dict(uid, uid).get("last_daily") or "") != today_str(), "balance": _balance(uid)}}
     u = get_user_data_dict(uid, uid)
     today = today_str()
-    if u.get("last_daily") == today:
+    if u.get("last_daily") == today and not is_web_sandbox():
         return {"error": "Bonus giornaliero già riscosso oggi.", "code": 409, "view": _wheel_view(uid)}
     segments = [p for p, _ in DAILY_WHEEL]
     if is_v2(uid):
         prize = spin_daily()
     else:
         prize = 50                                  # utenti V1: bonus fisso, come nel bot
-    u["last_daily"] = today
+    if not is_web_sandbox():
+        u["last_daily"] = today
     add_user_coins(uid, uid, prize)
     idx = segments.index(prize) if prize in segments else None
     return {"view": {"success": True, "prize": prize, "index": idx, "segments": segments,
@@ -761,6 +769,15 @@ def api_social(what):
         coro = _social_call(websocial.diary, uid)
     elif what == "quests":
         coro = _social_call(websocial.quests, uid)
+    elif what == "wallet":
+        import webshop
+        coro = _social_call(webshop.wallet, uid)
+    elif what == "shop":
+        import webshop
+        coro = _social_call(webshop.shop, uid)
+    elif what == "inventory":
+        import webshop
+        coro = _social_call(webshop.inventory, uid)
     else:
         return _err("Sezione sconosciuta.", 404)
     resp, out = _avi_call(coro)
@@ -784,6 +801,34 @@ def api_quest_claim():
     except (TypeError, ValueError):
         return _err("Missione non valida.")
     resp, out = _avi_call(_social_call(websocial.quest_claim_web, int(user["id"]), idx))
+    if resp is not None:
+        return resp
+    body = {"success": True}
+    body.update(out)
+    return jsonify(body)
+
+
+@webapi.route("/api/shop/<action>", methods=["POST", "OPTIONS"])
+def api_shop(action):
+    if request.method == "OPTIONS":
+        return "", 204
+    user, data, err = _post_json()
+    if err:
+        return err
+    import webshop
+    uid = int(user["id"])
+    key = str(data.get("key", ""))[:32]
+    if action == "buy":
+        coro = _social_call(webshop.shop_buy, uid, key)
+    elif action == "activate":
+        coro = _social_call(webshop.inv_activate, uid, key)
+    elif action == "admin":
+        if not _is_admin_id(uid):
+            return _err("Funzione riservata all'admin.", 403)
+        coro = _social_call(webshop.admin_tool, uid, key, data.get("value"))
+    else:
+        return _err("Azione sconosciuta.", 404)
+    resp, out = _avi_call(coro)
     if resp is not None:
         return resp
     body = {"success": True}
