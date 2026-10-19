@@ -387,13 +387,13 @@ async def _pk_end(uid: int, game: dict, how: str) -> dict:
     if how == "fold":
         base, outcome = 0, "fold"
     elif how == "bot_fold":
-        base, outcome = game["pot_p"] + game["pot_b"], "win"
+        base, outcome = G.poker_win_payout(game), "win"
     else:
         mine = G._best_hand(game["hole_p"] + game["board"])
         theirs = G._best_hand(game["hole_b"] + game["board"])
         mine_n, theirs_n = G.HAND_NAMES[mine[0]], G.HAND_NAMES[theirs[0]]
         if mine > theirs:
-            base, outcome = game["pot_p"] + game["pot_b"], "win"
+            base, outcome = G.poker_win_payout(game), "win"
             q = G.quest_progress(uid, uid, "poker:hand", mine[0])
         elif mine < theirs:
             base, outcome = 0, "lose"

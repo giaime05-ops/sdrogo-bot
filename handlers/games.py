@@ -1693,15 +1693,20 @@ def _bot_strength(hole: list, board: list) -> float:
     return base
 
 
+POKER_RAKE = 0.10      # il banco trattiene il 10% di quanto il bot ha messo nel piatto (se vinci)
+
+
+def poker_win_payout(game: dict) -> int:
+    return game["pot_p"] + int(game["pot_b"] * (1 - POKER_RAKE))
+
+
 def _bot_calls_raise(s: float, street: int = 0) -> bool:
-    """Il bot vede il rilancio del giocatore. Lascia solo con mani davvero deboli e molto di rado nei primi giri
-    (il rilancio è sempre una puntata fissa: contro un piatto già grosso lasciare è raramente giusto)."""
+    """Il bot vede il rilancio del giocatore. Lascia solo con mani davvero deboli e di rado
+    (il rilancio e' sempre una puntata fissa: contro un piatto gia' grosso lasciare e' raramente giusto)."""
     if s < 0.25:
-        fold = 0.30 + 0.05 * street          # mano scarsa: più si avanza, più è facile che lasci
+        fold = 0.12 + 0.02 * street
     elif s < 0.40:
-        fold = 0.10 + 0.03 * street
-    elif s < 0.50:
-        fold = 0.03
+        fold = 0.04
     else:
         fold = 0.0
     if street == 0:
@@ -1711,10 +1716,10 @@ def _bot_calls_raise(s: float, street: int = 0) -> bool:
 
 def _bot_bets(s: float) -> bool:
     if s >= 0.62:
-        return random.random() < 0.85
+        return random.random() < 0.90
     if s < 0.35:
-        return random.random() < 0.18      # bluff
-    return random.random() < 0.32
+        return random.random() < 0.33      # bluff: non si deve poter leggere "il bot punta = ha una mano forte"
+    return random.random() < 0.50
 
 
 def _poker_text(game: dict, user, coins: int, reveal: bool = False, footer: str = "") -> str:
@@ -1773,14 +1778,14 @@ async def _poker_end(context, query, user, chat_id: int, key: str, game: dict, r
         base = 0
         verdict = "🏳️ <b>Hai lasciato la mano.</b>"
     elif result == "bot_fold":
-        base = game["pot_p"] + game["pot_b"]
+        base = poker_win_payout(game)
         verdict = "🏆 <b>Il bot lascia!</b> Il piatto è tuo."
     else:
         mine = _best_hand(game["hole_p"] + game["board"])
         theirs = _best_hand(game["hole_b"] + game["board"])
         detail = f"🧑 Tu: <b>{HAND_NAMES[mine[0]]}</b> | 🤖 Bot: <b>{HAND_NAMES[theirs[0]]}</b>\n"
         if mine > theirs:
-            base = game["pot_p"] + game["pot_b"]
+            base = poker_win_payout(game)
             verdict = "🏆 <b>HAI VINTO LO SHOWDOWN!</b>"
             hq = quest_progress(chat_id, user.id, "poker:hand", mine[0])     # missioni "vinci con un Tris / Full"
             if hq:
