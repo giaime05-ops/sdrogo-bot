@@ -850,6 +850,8 @@ def api_social(what):
     uid = int(user["id"])
     if what == "leaderboard":
         coro = _social_call(websocial.leaderboard, uid, request.args.get("cat", "coins"))
+    elif what == "profile":
+        coro = _social_call(websocial.profile, uid, str(request.args.get("pid", ""))[:24])
     elif what == "diary":
         coro = _social_call(websocial.diary, uid)
     elif what == "quests":

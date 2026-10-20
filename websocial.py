@@ -1,6 +1,7 @@
 """Mini app, fase 5: parti "sociali" (classifiche e diario). Solo lettura: non modificano saldi né statistiche.
 Sono funzioni normali, eseguite sul loop del bot (webapi._run) perché USER_DATA cambia solo lì."""
-from state import USER_DATA
+import hashlib
+from state import USER_DATA, USER_INVENTORIES
 from storage import ukey
 
 LB = {                                   # stessi campi e stesse categorie di /topricconi
@@ -10,6 +11,27 @@ LB = {                                   # stessi campi e stesse categorie di /t
     "duels":   {"title": "Re dei Duelli",  "icon": "⚔️", "field": "duels_wins",  "unit": "duelli vinti"},
 }
 TOP_N = 10
+
+
+def _pid(k: str) -> str:
+    return hashlib.sha1(("sdg:" + str(k)).encode()).hexdigest()[:12]
+
+
+def profile(uid: int, pid: str) -> dict:
+    """Profilo pubblico di un altro giocatore (sola lettura), trovato dal codice opaco della classifica."""
+    for k, u in list(USER_DATA.items()):
+        if str(k).startswith("sbx_") or _pid(k) != pid:
+            continue
+        inv = USER_INVENTORIES.get(str(k)) or {}
+        c_wins, d_wins = int(u.get("casino_wins", 0) or 0), int(u.get("duels_wins", 0) or 0)
+        sp, dp = int(u.get("single_played", 0) or 0), int(u.get("duels_played", 0) or 0)
+        sw = int(u.get("single_won", c_wins) or 0)
+        return {"name": _name(str(k), u), "badge": u.get("badge", ""), "stars": int(inv.get("stars", 0) or 0),
+                "balance": int(u.get("coins", 0) or 0), "net_profit": int(u.get("net_profit", 0) or 0),
+                "quizzes_won": int(u.get("quizzes_won", 0) or 0), "casino_wins": c_wins, "duels_wins": d_wins,
+                "wr_single": min(100, int(sw / sp * 100)) if sp > 0 else 0,
+                "wr_duels": min(100, int(d_wins / dp * 100)) if dp > 0 else 0}
+    return {"error": "Giocatore non trovato."}
 
 
 def _name(uid: str, d: dict) -> str:
@@ -30,7 +52,7 @@ def leaderboard(uid: int, cat: str) -> dict:
             rows.append((str(k), v, d))
     rows.sort(key=lambda r: r[1], reverse=True)
     me = ukey(uid)
-    top = [{"rank": i, "name": _name(k, d), "value": v, "me": k == str(uid), "badge": d.get("badge", "")}
+    top = [{"rank": i, "name": _name(k, d), "value": v, "me": k == str(uid), "badge": d.get("badge", ""), "pid": _pid(k)}
            for i, (k, v, d) in enumerate(rows[:TOP_N], start=1)]
     mine = None
     for i, (k, v, d) in enumerate(rows, start=1):
