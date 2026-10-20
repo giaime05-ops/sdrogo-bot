@@ -585,8 +585,14 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if coins < HEIST_COST:
             await query.answer(f"❌ Servono {HEIST_COST} $SDG per tentare la Rapina Heist!", show_alert=True)
             return
+        hd = get_user_data_dict(chat_id, user_id)
+        if hd.get("heist_day") == today_str():
+            await query.answer("⏳ Puoi fare una sola rapina Sdrogo Heist al giorno: torna domani!", show_alert=True)
+            return
 
         await query.answer()
+        hd["heist_day"] = today_str()
+        save_db()
         if v2u:
             # escape room a tempo: il costo del pass alimenta il Banco Centrale (e conta nella sfida di gruppo)
             eco_charge(chat_id, user_id, HEIST_COST)
@@ -606,6 +612,7 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             # il giocatore non ha mai avviato il bot in privato: annulla e rimborsa tutto
             HEIST_GAMES.pop(user_id, None)
+            hd.pop("heist_day", None)                      # la rapina non è partita: non conta per il limite giornaliero
             add_user_coins(chat_id, user_id, HEIST_COST)
             if v2u:
                 banco_take(HEIST_COST, count=False)

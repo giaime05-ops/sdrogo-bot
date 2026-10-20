@@ -47,6 +47,7 @@ def reset_all_players(amount: int) -> int:
         d["coins"] = int(amount)
         d.pop("shop_day", None)
         d.pop("boost_day", None)
+        d.pop("heist_day", None)
         _touched_users.add(k)
         n += 1
     save_db()
