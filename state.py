@@ -1,3 +1,4 @@
+import time
 USER_DATA = {}
 
 ACTIVE_DUELS = {}
@@ -34,7 +35,20 @@ USER_INVENTORIES = {}
 # Modalità Sandbox dell'admin: con "on" le sue giocate usano un profilo di prova (chiave "sbx_<id>", mai salvato nel database)
 SANDBOX = {"on": False}
 
-FLAGS = {"troll": False, "maintenance": False}
+FLAGS = {"troll": False, "maintenance": False, "maint_since": 0.0}
+MAINT_SOFT_SECONDS = 600     # manutenzione "graceful": per 10 minuti si finisce la partita in corso, poi blocco totale
+
+
+def maint_mode() -> str:
+    """'off' | 'soft' (niente nuove partite, si può finire quella in corso) | 'hard' (tutto fermo)."""
+    m = FLAGS.get("maintenance")
+    if not m:
+        return "off"
+    if m == "soft":
+        if time.time() - float(FLAGS.get("maint_since") or 0) > MAINT_SOFT_SECONDS:
+            return "hard"
+        return "soft"
+    return "hard"
 
 # --- V2: stati PERSISTENTI (salvati in database.json da storage.py) ---
 SYSTEM_FLAGS = {"UPDATE_V2_PUBLIC": False}

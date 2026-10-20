@@ -87,7 +87,7 @@ def _out(g, event=None, **extra):
 def _fail(uid, g, reason):
     WEB_HEIST.pop(uid, None)
     record_single_result(uid, uid, False, -WEB_COST, game="heist", bet=WEB_COST)
-    return {"end": {"result": "fail", "msg": reason}, "balance": get_user_coins(uid, uid), "view": None}
+    return {"end": {"result": "fail", "msg": reason, "level": g["level"]}, "balance": get_user_coins(uid, uid), "view": None}
 
 
 def _win(uid, g, qmsg=""):
@@ -223,7 +223,7 @@ def state(uid):
     return out
 
 
-def start(uid):
+def start(uid, lvl=1):
     if not is_web_sandbox():
         return {"error": "Disponibile solo nell'account di prova.", "code": 403}
     if not _ge("heist"):
@@ -235,8 +235,14 @@ def start(uid):
         return {"error": f"Servono {WEB_COST} $SDG per il pass.", "code": 400}
     _charge(uid, uid, WEB_COST)
     now = time.time()
-    g = {"uid": uid, "level": 1, "deadline": now + WEB_TIME, "alarms": 0, "t_start": now, "phase": "brief", "st": {"r": 0}}
+    try:
+        lvl = max(1, min(TOTAL, int(lvl)))                   # strumento admin: si può partire da un livello qualsiasi
+    except (TypeError, ValueError):
+        lvl = 1
+    g = {"uid": uid, "level": lvl, "deadline": now + WEB_TIME, "alarms": 0, "t_start": now, "phase": "brief", "st": {"r": 0}}
     WEB_HEIST[uid] = g
+    if lvl > 1:
+        _present(g)
     return _out(g, {"type": "start"})
 
 
@@ -249,6 +255,19 @@ def act(uid, a, data):
     lvl, phase, st, now = g["level"], g["phase"], g["st"], time.time()
 
     kind = KINDS[lvl - 1]
+    if a == "retry":                                           # strumenti admin: riprova il livello da capo / salta al prossimo
+        g["alarms"] = 0
+        g["deadline"] = max(g["deadline"], now + 180)
+        _present(g)
+        return _out(g, {"type": "retry", "msg": "Livello ricominciato (strumento admin)."})
+    if a == "skip":
+        if lvl >= TOTAL:
+            return _out(g, {"type": "ok", "msg": "Questo è l'ultimo livello: non c'è un successivo da saltare."})
+        g["level"] += 1
+        g["alarms"] = 0
+        g["deadline"] = max(g["deadline"], now + 180)
+        _present(g)
+        return _out(g, {"type": "level", "level": lvl, "msg": "Livello saltato (strumento admin)."})
     if a == "rd":                                              # "comincia" dei livelli con la presentazione
         if phase != "brief":
             return _out(g)

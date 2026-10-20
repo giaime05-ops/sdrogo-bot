@@ -33,7 +33,7 @@ from state import USER_INVENTORIES
 from storage import save_db, mark_seen, ukey, get_user_data_dict, add_user_coins, set_web_sandbox, ensure_web_sandbox, is_web_sandbox
 import economy
 from economy import today_str, spin_daily, DAILY_WHEEL
-from state import SCRATCH_GAMES, SYSTEM_FLAGS
+from state import SCRATCH_GAMES, SYSTEM_FLAGS, maint_mode
 from utils import is_v2
 from economy import banco_balance, follia_active, follia_left_text
 
@@ -142,6 +142,17 @@ def arcade_open() -> bool:
     return bool(SYSTEM_FLAGS.get("ARCADE_PUBLIC"))
 
 
+_NEW_ROUND = {"/api/aviator/start", "/api/slot/spin", "/api/roulette/spin", "/api/roulette/table",
+              "/api/scratch/buy", "/api/wheel/spin", "/api/heist/start"}
+
+
+def _is_new_round(path: str) -> bool:
+    """Durante la manutenzione graduale queste richieste (cominciare un giro/una mano) vengono rifiutate."""
+    if path in _NEW_ROUND:
+        return True
+    return path.startswith("/api/g/") and path.rstrip("/").endswith("/start")
+
+
 def require_admin():
     """(Nome storico: lo usano tutte le rotte.) Restituisce (utente, None) se la richiesta è di chi può entrare;
     altrimenti (None, risposta di errore). L'admin entra sempre; gli altri solo con la mini app aperta e nel gruppo."""
@@ -161,6 +172,13 @@ def require_admin():
             return None, (jsonify({"success": False, "error": "Troppe richieste, rallenta un attimo."}), 429)
         if not _is_member(user["id"]):
             return None, (jsonify({"success": False, "error": "Sdrogo Arcade è riservata ai membri del gruppo."}), 403)
+    if not _is_admin_id(user["id"]):
+        mm = maint_mode()
+        if mm == "hard" or (mm == "soft" and _is_new_round(request.path)):
+            return None, (jsonify({"success": False, "maintenance": mm,
+                                   "error": "🛠️ Il server è in manutenzione: riprova tra poco."
+                                   if mm == "hard" else
+                                   "🛠️ Server in manutenzione: puoi finire la partita in corso ma non iniziarne di nuove."}), 503)
     uid = str(user["id"])
     mark_seen(uid)                                    # la mini app conta come uso del bot (Utenti online)
     # "Account admin" della mini app: solo l'admin, solo se la richiesta lo chiede; il valore vale per questa richiesta
@@ -210,6 +228,8 @@ def api_me():
         },
         "daily": {"available": (profile.get("last_daily") or "") != today_str()},
         "admin": _is_admin_id(user["id"]),
+        "maintenance": maint_mode(),
+        "style": __import__("websocial")._style(USER_DATA.get(str(user["id"])) or {}),
         "sandbox": bool(is_web_sandbox()),
         "badge": (USER_DATA.get(str(user["id"])) or {}).get("badge", ""),
         "stars": int((USER_INVENTORIES.get(ukey(user["id"])) or {}).get("stars", 0) or 0),
@@ -604,10 +624,8 @@ def _table_mult(t: str, v: int, n: int) -> int:
 
 
 async def _roul_table(uid: int, bets):
-    """Roulette americana (0 e 00) con più puntate insieme. Solo per l'account admin di prova."""
+    """Roulette americana (0 e 00) con più puntate insieme. Aperta a tutti."""
     G = _g()
-    if not is_web_sandbox():
-        return {"error": "Tavolo non ancora disponibile.", "code": 403}
     if not game_enabled("roulette"):
         return {"error": "La Roulette è in manutenzione.", "code": 503}
     if not isinstance(bets, list) or not bets or len(bets) > TABLE_MAX_BETS:
@@ -840,9 +858,9 @@ def api_heist(what):
     if what == "state":
         coro = _social_call(webheist.state, uid)
     elif what == "start":
-        coro = _social_call(webheist.start, uid)
+        coro = _social_call(webheist.start, uid, data.get("lvl", 1))
     elif what == "act":
-        coro = _social_call(webheist.act, uid, str(data.get("a", ""))[:4], data)
+        coro = _social_call(webheist.act, uid, str(data.get("a", ""))[:6], data)
     else:
         return _err("Azione sconosciuta.", 404)
     resp, out = _avi_call(coro)
@@ -989,6 +1007,22 @@ def api_social(what):
     body = {"success": True}
     body.update(out)
     return jsonify(body)
+
+
+@webapi.route("/api/social/style", methods=["POST", "OPTIONS"])
+def api_social_style():
+    if request.method == "OPTIONS":
+        return "", 204
+    user, data, err = _post_json()
+    if err:
+        return err
+    if not _is_admin_id(user["id"]):
+        return _err("Personalizzazione non ancora disponibile.", 403)
+    import websocial
+    resp, out = _avi_call(_social_call(websocial.set_style, int(user["id"]), data))
+    if resp is not None:
+        return resp
+    return jsonify({"success": True, **out})
 
 
 @webapi.route("/api/social/claim", methods=["POST", "OPTIONS"])

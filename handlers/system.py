@@ -23,7 +23,8 @@ from state import (
     HEIST_GAMES, PENITENZE_ATTIVE, ACTIVE_PERSECUTE, TIC_TAC_TOE_GAMES,
     DAILY_DONATIONS, USER_DATA, GAME_STATUS, AVIATOR_GAMES, SCRATCH_GAMES, POKER_GAMES,
     WORK_GAMES, SYSTEM_FLAGS, GROUP_CHALLENGE, SANDBOX,
-    game_enabled, MAINT_GAME_TEXT,
+    SILENCED, MUTE_FILTER, REACT_TARGETS, ACTIVE_TITLES, PENDING_INPUT,
+    game_enabled, MAINT_GAME_TEXT, maint_mode,
 )
 from storage import (LAST_SEEN, add_user_coins, get_user_coins, add_user_stat, save_db, chat_user_ids, log_play,
                      find_user_id, sandbox_set, is_sandbox)
@@ -196,7 +197,7 @@ def _online_view(page: int = 0):
 
 # --- MENU COMANDI ADMIN (/com) ---
 def _com_view():
-    maint = FLAGS.get("maintenance", False)
+    maint = maint_mode() != "off"
     troll = FLAGS.get("troll", False)
     text = (
         "🧰 <b>COMANDI ADMIN</b>\n\n"
@@ -211,6 +212,7 @@ def _com_view():
         "📣 <b>/annuncio</b> <code>testo</code> (o /dici) – scrive nel gruppo\n"
         "💰 <b>/ricarica</b> <code>[@utente] [quantità]</code> – regala $SDG\n"
         "🎯 <b>/sfida</b> <code>quota giorni</code> – sfida di gruppo con numeri liberi (es. 50000 7)\n"
+        "💸 <b>/ricaricatutti</b> <code>quota</code> – regala $SDG a TUTTI\n"
         "🔄 <b>/resettutti</b> <code>[quota]</code> – tutti i saldi a quota (2000) + Banco 1000\n"
         "🏦 <b>/resetbanco</b> <code>[quota]</code> – solo il Banco (1000)\n"
         "👤 <b>/resetsoldi</b> <code>@utente [quota]</code> – un solo giocatore\n"
@@ -227,7 +229,8 @@ def _com_view():
          InlineKeyboardButton("📣 Annuncio", callback_data="adm_c_annuncio"),
          InlineKeyboardButton("💰 Ricarica", callback_data="adm_c_ricarica")],
         [InlineKeyboardButton("🔄 Reset saldi", callback_data="aec_menu"),
-         InlineKeyboardButton("🎯 Sfida libera", callback_data="aec_free")],
+         InlineKeyboardButton("💸 Ricarica TUTTI", callback_data="aec_rmenu")],
+        [InlineKeyboardButton("🎯 Sfida libera", callback_data="aec_free")],
         [InlineKeyboardButton("✖️ Chiudi", callback_data="adm_close")],
     ]
     return text, InlineKeyboardMarkup(rows)
@@ -441,23 +444,54 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # --- UTILITIES / ADMIN ---
+SOFT_NOTICE = ("🛠️ <b>Il server andrà in manutenzione al termine di questa partita.</b>\n"
+               "Finisci pure la mano/il giro che hai già iniziato, ma non potrai più cominciarne di nuove.")
+
+
 async def toggle_maintenance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/manutenzione        → avvia la manutenzione GRADUALE (si finisce la partita in corso, poi stop) oppure la spegne
+       /manutenzione ora    → blocco immediato di bot e mini app
+    Blocca /sdrogocomm e l'Arcade (mini app) per tutti TRANNE l'admin (che quindi non vede alcun blocco)."""
     if not is_admin(update.effective_user.id):
         return
-    FLAGS["maintenance"] = not FLAGS.get("maintenance", False)
-    await update.message.reply_text(
-        "🛠️ Manutenzione ATTIVATA: HUB e giochi bloccati per tutti tranne te."
-        if FLAGS["maintenance"] else
-        "✅ Manutenzione DISATTIVATA: il bot è di nuovo operativo."
-    )
+    msg = update.effective_message or update.message
+    arg = ((getattr(msg, "text", "") or "").split() + [""])[1].lower() if getattr(msg, "text", "") else ""
+    if maint_mode() != "off":
+        FLAGS["maintenance"] = False
+        await msg.reply_text("✅ Manutenzione DISATTIVATA: bot e mini app sono di nuovo operativi.")
+        return
+    hard = arg in ("ora", "subito", "hard")
+    FLAGS["maintenance"] = True if hard else "soft"
+    FLAGS["maint_since"] = time.time()
+    if hard:
+        await msg.reply_text("🛠️ Manutenzione ATTIVA (blocco immediato): /sdrogocomm e Arcade sono chiusi per tutti tranne te.")
+        return
+    sent = 0
+    now = time.time()
+    for uid, ts in list(LAST_SEEN.items()):
+        if now - ts > 600 or is_admin(int(uid)) or str(uid).startswith("sbx_"):
+            continue
+        try:
+            await context.bot.send_message(chat_id=int(uid), text=SOFT_NOTICE, parse_mode="HTML")
+            sent += 1
+        except Exception:
+            pass
+    await msg.reply_text(
+        "🛠️ Manutenzione GRADUALE attiva: chi sta giocando può finire la partita in corso, ma non può iniziarne di nuove; "
+        "/sdrogocomm è già chiuso. Dopo 10 minuti il blocco diventa totale (oppure usa <code>/manutenzione ora</code>).\n"
+        f"📣 Avviso inviato a {sent} utenti online.\n<i>Tu (admin) non vedi blocchi: sei sempre esente.</i>",
+        parse_mode="HTML")
 
 
 async def maintenance_gate(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not FLAGS.get("maintenance"):
+    mode = maint_mode()
+    if mode == "off":
         return
     user = update.effective_user
     if user and is_admin(user.id):
         return                                   # l'admin passa sempre
+    if mode == "soft" and update.callback_query:
+        return                                   # graduale: i tasti delle partite già iniziate continuano a funzionare
 
     # 1) Bottoni inline: solo popup, nessun messaggio in chat
     if update.callback_query:
@@ -582,8 +616,16 @@ async def toggle_troll(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def clear_penalties(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id): return
+    n = len(PENITENZE_ATTIVE)
     PENITENZE_ATTIVE.clear()
-    await update.message.reply_text("🧹 Penitenze rimosse!")
+    for d in (SILENCED, MUTE_FILTER, REACT_TARGETS, ACTIVE_PERSECUTE, ACTIVE_TITLES, PENDING_INPUT):
+        n += len(d)
+        d.clear()
+    FLAGS["troll"] = False                      # niente più "silenzio totale"/reazioni automatiche verso i due bersagli
+    await update.message.reply_text(
+        f"🧹 Penitenze rimosse! ({n} effetti annullati: silenzi, filtri muti, persecuzioni, titoli, "
+        "reazioni forzate e Auto-Troll spento.)")
+    save_db()
 
 
 async def reset_duello(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -54,6 +54,19 @@ def reset_all_players(amount: int) -> int:
     return n
 
 
+def recharge_all_players(amount: int) -> int:
+    """Regala `amount` $SDG a TUTTI i giocatori registrati (non tocca Banco né statistiche)."""
+    n = 0
+    for k, d in USER_DATA.items():
+        if k.startswith("sbx_") or not isinstance(d, dict):
+            continue
+        d["coins"] = int(d.get("coins", 0) or 0) + int(amount)
+        _touched_users.add(k)
+        n += 1
+    save_db()
+    return n
+
+
 def reset_banco(amount: int):
     BANCO_STATE["BANCO_BALANCE"] = int(amount)
     BANCO_STATE["FOLLIA_ATTIVA"] = False
@@ -157,6 +170,7 @@ def _reset_view():
     rows = [
         [InlineKeyboardButton(f"👥 Tutti a {fmt(RESET_PLAYER_DEFAULT)} + Banco {fmt(RESET_BANCO_DEFAULT)}", callback_data="aec_ask_all")],
         [InlineKeyboardButton(f"🏦 Solo Banco a {fmt(RESET_BANCO_DEFAULT)}", callback_data="aec_ask_banco")],
+        [InlineKeyboardButton("💸 Ricarica TUTTI (regalo a tutti)", callback_data="aec_rmenu")],
         [InlineKeyboardButton("👤 Un giocatore: /resetsoldi @utente [quota]", callback_data="aec_help")],
     ]
     if SYSTEM_FLAGS.get("RESET_AT"):
@@ -212,6 +226,20 @@ async def resettutti_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"⚠️ Portare TUTTI i giocatori a <b>{fmt(amt)} $SDG</b> e il Banco a <b>{fmt(banco)}</b>?",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ Sì, reset", callback_data=f"aec_all_{amt}_{banco}"),
+                                            InlineKeyboardButton("❌ No", callback_data="aec_no")]]))
+
+
+async def ricaricatutti_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user, msg = update.effective_user, update.effective_message
+    if not user or not msg or not is_admin(user.id):
+        return
+    a = [n for n in (_num(x) for x in (msg.text or "").split()[1:]) if n is not None]
+    if not a or a[0] < 1:
+        await msg.reply_text("Uso: <code>/ricaricatutti 500</code> (regala 500 $SDG a tutti).", parse_mode="HTML")
+        return
+    await msg.reply_text(
+        f"⚠️ Regalare <b>{fmt(a[0])} $SDG</b> a TUTTI i giocatori?", parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ Sì, ricarica", callback_data=f"aec_rall_{a[0]}"),
                                             InlineKeyboardButton("❌ No", callback_data="aec_no")]]))
 
 
@@ -302,6 +330,23 @@ async def aec_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer("Reset in corso…")
         desc = await do_reset_all(context, int(p[2]), int(p[3]), q.from_user.id)
         await smart_edit(q, f"✅ Fatto: {desc}.", InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Indietro", callback_data="aec_menu")]]))
+    elif act == "rmenu":
+        await q.answer()
+        amts = (500, 1000, 2000, 5000)
+        rows = [[InlineKeyboardButton(f"+{fmt(a)}", callback_data=f"aec_rask_{a}") for a in amts],
+                [InlineKeyboardButton("⬅️ Indietro", callback_data="aec_menu")]]
+        await smart_edit(q, "💸 <b>RICARICA TUTTI</b>\n\nScegli quanto regalare a ogni giocatore "
+                            "(altra cifra: <code>/ricaricatutti 750</code>).", InlineKeyboardMarkup(rows))
+    elif act == "rask":
+        await q.answer()
+        await smart_edit(q, f"⚠️ Regalare <b>{fmt(int(p[2]))} $SDG</b> a TUTTI i giocatori?",
+                         InlineKeyboardMarkup([[InlineKeyboardButton("✅ Sì", callback_data=f"aec_rall_{p[2]}"),
+                                                InlineKeyboardButton("❌ No", callback_data="aec_rmenu")]]))
+    elif act == "rall":
+        n = recharge_all_players(int(p[2]))
+        await q.answer("Fatto")
+        await smart_edit(q, f"✅ Regalati <b>{fmt(int(p[2]))} $SDG</b> a {n} giocatori.",
+                         InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Indietro", callback_data="aec_menu")]]))
     elif act == "banco":
         reset_banco(int(p[2]))
         await q.answer("Banco azzerato")
@@ -350,6 +395,7 @@ async def _arm_job(context):
 def register(app):
     app.add_handler(CommandHandler("sfida", sfida_command))
     app.add_handler(CommandHandler("resettutti", resettutti_command))
+    app.add_handler(CommandHandler("ricaricatutti", ricaricatutti_command))
     app.add_handler(CommandHandler("resetbanco", resetbanco_command))
     app.add_handler(CommandHandler("resetsoldi", resetsoldi_command))
     app.add_handler(CommandHandler("resetauto", resetauto_command))

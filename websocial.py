@@ -13,6 +13,42 @@ LB = {                                   # stessi campi e stesse categorie di /t
 TOP_N = 10
 
 
+# ---- personalizzazione del profilo ("Modifica profilo"): salvata sull'account VERO e mostrata a tutti ----
+STYLE_OPTS = {
+    "name":  {"", "oro", "ciano", "viola", "rosa", "verde", "rosso", "arancio", "arcobaleno"},
+    "av":    {"", "viola", "azzurro", "verde", "arancio", "rosso", "oro", "notte", "arcobaleno"},
+    "frame": {"", "neon", "oro", "fuoco", "ghiaccio", "arcobaleno"},
+    "bar":   {"", "viola", "rossonero", "ciano", "verde", "fuoco", "royal"},
+}
+
+
+def clean_style(raw) -> dict:
+    out = {}
+    if isinstance(raw, dict):
+        for k, ok in STYLE_OPTS.items():
+            v = raw.get(k, "")
+            if isinstance(v, str) and v in ok and v:
+                out[k] = v
+    return out
+
+
+def _style(d: dict) -> dict:
+    return clean_style((d or {}).get("style"))
+
+
+def set_style(uid: int, data: dict) -> dict:
+    """Salva lo stile sul profilo reale (anche se l'admin sta giocando nell'account di prova). Per ora solo admin."""
+    from storage import _touched_users, save_db
+    k = str(uid)
+    d = USER_DATA.get(k)
+    if d is None:
+        return {"error": "Profilo non trovato.", "code": 404}
+    d["style"] = clean_style(data)
+    _touched_users.add(k)
+    save_db()
+    return {"style": d["style"]}
+
+
 def _pid(k: str) -> str:
     return hashlib.sha1(("sdg:" + str(k)).encode()).hexdigest()[:12]
 
@@ -30,7 +66,7 @@ def profile(uid: int, pid: str) -> dict:
                 "balance": int(u.get("coins", 0) or 0), "net_profit": int(u.get("net_profit", 0) or 0),
                 "quizzes_won": int(u.get("quizzes_won", 0) or 0), "casino_wins": c_wins, "duels_wins": d_wins,
                 "wr_single": min(100, int(sw / sp * 100)) if sp > 0 else 0,
-                "wr_duels": min(100, int(d_wins / dp * 100)) if dp > 0 else 0}
+                "wr_duels": min(100, int(d_wins / dp * 100)) if dp > 0 else 0, "style": _style(u)}
     return {"error": "Giocatore non trovato."}
 
 
@@ -52,7 +88,7 @@ def leaderboard(uid: int, cat: str) -> dict:
             rows.append((str(k), v, d))
     rows.sort(key=lambda r: r[1], reverse=True)
     me = ukey(uid)
-    top = [{"rank": i, "name": _name(k, d), "value": v, "me": k == str(uid), "badge": d.get("badge", ""), "pid": _pid(k)}
+    top = [{"rank": i, "name": _name(k, d), "value": v, "me": k == str(uid), "badge": d.get("badge", ""), "pid": _pid(k), "style": _style(d)}
            for i, (k, v, d) in enumerate(rows[:TOP_N], start=1)]
     mine = None
     for i, (k, v, d) in enumerate(rows, start=1):
