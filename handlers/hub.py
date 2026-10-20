@@ -20,6 +20,7 @@ from state import (
 )
 from storage import (get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram, chat_user_ids,
                      ukey, is_sandbox, set_sandbox_ctx, note_username, save_db)
+from telegram.ext import ApplicationHandlerStop
 from utils import anim_gap, frame_ok, verify_user_lock, get_formatted_name, serialized, is_v2, smart_edit, set_chat_type
 from handlers.games import HEIST_COST
 from handlers.heist import heist_new_game, heist_intro_text, heist_start_kb
@@ -50,6 +51,10 @@ def _track_hub(chat_id: int, message_id: int):
     HUB_MESSAGES[(chat_id, message_id)] = {"ts": time.time()}
 
 
+HUB_CMD_LAST = {}
+HUB_CMD_COOLDOWN = 12.0
+
+
 async def bind_context_and_track(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Eseguito all'inizio di OGNI update (group=-3):
     1) registra il tipo di chat, da cui dipende la visibilità della V2 (is_v2);
@@ -58,7 +63,19 @@ async def bind_context_and_track(update: Update, context: ContextTypes.DEFAULT_T
     set_chat_type(chat.type if chat else None)
     usr = update.effective_user
     set_sandbox_ctx(usr.id if usr else None)       # Sandbox admin: Banco, Follia e Sfida restano fuori da questo update
-    note_username(usr)                             # per cercare i giocatori con /storico @username
+    msg = update.effective_message
+    txt = (msg.text or "") if msg else ""
+    # "online" = ha usato il bot: tasto premuto, comando, o messaggio in privato. Un normale messaggio nel gruppo no.
+    used = bool(update.callback_query) or txt.startswith("/") or (chat is not None and chat.type == "private")
+    note_username(usr, seen=used)                  # per cercare i giocatori con /storico @username
+
+    # anti-spam di /sdrogocomm: se la stessa persona lo rimanda entro 12 secondi, i ripetuti vengono scartati qui (costo nullo)
+    if usr is not None and txt.lower().startswith("/sdrogocomm"):
+        now = time.time()
+        if now - HUB_CMD_LAST.get(usr.id, 0) < HUB_CMD_COOLDOWN:
+            HUB_CMD_LAST[usr.id] = now             # chi insiste resta bloccato finché non smette
+            raise ApplicationHandlerStop
+        HUB_CMD_LAST[usr.id] = now
 
     q = update.callback_query
     if not q or not q.message or q.message.chat.type not in GROUP_TYPES:

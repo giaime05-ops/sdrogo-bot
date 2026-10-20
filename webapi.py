@@ -30,7 +30,7 @@ from flask import Blueprint, g, jsonify, request
 import config
 from state import USER_DATA, AVIATOR_GAMES, game_enabled
 from state import USER_INVENTORIES
-from storage import save_db, ukey, get_user_data_dict, add_user_coins, set_web_sandbox, ensure_web_sandbox, is_web_sandbox
+from storage import save_db, mark_seen, ukey, get_user_data_dict, add_user_coins, set_web_sandbox, ensure_web_sandbox, is_web_sandbox
 import economy
 from economy import today_str, spin_daily, DAILY_WHEEL
 from state import SCRATCH_GAMES, SYSTEM_FLAGS
@@ -162,6 +162,7 @@ def require_admin():
         if not _is_member(user["id"]):
             return None, (jsonify({"success": False, "error": "Sdrogo Arcade è riservata ai membri del gruppo."}), 403)
     uid = str(user["id"])
+    mark_seen(uid)                                    # la mini app conta come uso del bot (Utenti online)
     # "Account admin" della mini app: solo l'admin, solo se la richiesta lo chiede; il valore vale per questa richiesta
     sbx = _is_admin_id(user["id"]) and request.headers.get("X-Arcade-Sandbox") == "1"
     set_web_sandbox(sbx)

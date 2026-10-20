@@ -832,12 +832,25 @@ LAST_SEEN = {}            # user_id (str) -> istante dell'ultimo messaggio/tasto
 SEEN_SAVE_EVERY = 600     # sul profilo l'ultimo accesso si aggiorna al massimo ogni 10 minuti (per non scrivere a ogni tocco)
 
 
-def note_username(user):
-    """Ricorda @username e nome (per /storico) e l'ultimo momento in cui la persona ha usato il bot (per 'Utenti online')."""
+def mark_seen(uid):
+    """Segna che la persona sta usando il bot adesso (tasto, comando o mini app): serve a 'Utenti online'."""
+    now = time.time()
+    LAST_SEEN[str(uid)] = now
+    d = USER_DATA.get(str(uid))
+    if d is not None and now - d.get("seen", 0) > SEEN_SAVE_EVERY:
+        d["seen"] = int(now)
+        _touched_users.add(str(uid))
+        save_db()
+
+
+def note_username(user, seen: bool = True):
+    """Ricorda @username e nome (per /storico) e, se `seen`, l'ultimo momento in cui la persona ha usato il bot (per 'Utenti online').
+    seen=False: un semplice messaggio nel gruppo non conta come uso del bot."""
     if not user or user.is_bot:
         return
     now = time.time()
-    LAST_SEEN[str(user.id)] = now
+    if seen:
+        LAST_SEEN[str(user.id)] = now
     d = USER_DATA.get(str(user.id))
     if d is None:
         return
@@ -848,7 +861,7 @@ def note_username(user):
         d["username"] = uname
         d["name"] = name
         changed = True
-    if now - d.get("seen", 0) > SEEN_SAVE_EVERY:
+    if seen and now - d.get("seen", 0) > SEEN_SAVE_EVERY:
         d["seen"] = int(now)
         changed = True
     if changed:
