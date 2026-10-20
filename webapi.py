@@ -825,6 +825,34 @@ def api_roulette_table():
     return resp if resp is not None else jsonify({"success": True, "result": out["result"]})
 
 
+@webapi.route("/api/heist/<what>", methods=["GET", "POST", "OPTIONS"])
+def api_heist(what):
+    if request.method == "OPTIONS":
+        return "", 204
+    user, err = require_admin()
+    if err:
+        return err
+    if not is_web_sandbox():
+        return _err("Disponibile solo nell'account di prova.", 403)
+    import webheist
+    uid = int(user["id"])
+    data = request.get_json(silent=True) or {}
+    if what == "state":
+        coro = _social_call(webheist.state, uid)
+    elif what == "start":
+        coro = _social_call(webheist.start, uid)
+    elif what == "act":
+        coro = _social_call(webheist.act, uid, str(data.get("a", ""))[:4], data)
+    else:
+        return _err("Azione sconosciuta.", 404)
+    resp, out = _avi_call(coro)
+    if resp is not None:
+        return resp
+    body = {"success": True}
+    body.update(out)
+    return jsonify(body)
+
+
 @webapi.route("/api/scratch/state", methods=["GET", "OPTIONS"])
 def api_scratch_state():
     if request.method == "OPTIONS":
