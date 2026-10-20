@@ -19,7 +19,7 @@ from state import (
     game_enabled, MAINT_GAME_TEXT,
 )
 from storage import (get_user_coins, add_user_coins, get_user_data_dict, backup_to_telegram, chat_user_ids,
-                     ukey, is_sandbox, set_sandbox_ctx, note_username)
+                     ukey, is_sandbox, set_sandbox_ctx, note_username, save_db)
 from utils import anim_gap, frame_ok, verify_user_lock, get_formatted_name, serialized, is_v2, smart_edit, set_chat_type
 from handlers.games import HEIST_COST
 from handlers.heist import heist_new_game, heist_intro_text, heist_start_kb
