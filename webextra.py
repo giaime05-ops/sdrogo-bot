@@ -26,7 +26,11 @@ def work_state(uid: int) -> dict:
     v2u = is_v2(uid)
     cd = 0 if sbx else work_cooldown_left(uid, uid)
     too_rich = (WORK_MAX_BALANCE is not None and _bal(uid) >= WORK_MAX_BALANCE and not sbx)
-    return {"v2": v2u, "reward": WORK_REWARD, "time": WORK_TIME, "cooldown": cd, "max_balance": WORK_MAX_BALANCE,
+    from economy import rome_now, today_str
+    n = rome_now()
+    wheel_ok = ((get_user_data_dict(uid, uid).get("last_daily") or "") != today_str()) or sbx
+    return {"wheel_available": wheel_ok, "wheel_in": 86400 - (n.hour * 3600 + n.minute * 60 + n.second),
+            "v2": v2u, "reward": WORK_REWARD, "time": WORK_TIME, "cooldown": cd, "max_balance": WORK_MAX_BALANCE,
             "too_rich": too_rich, "balance": _bal(uid), "sandbox": sbx}
 
 

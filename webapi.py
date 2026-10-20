@@ -576,6 +576,77 @@ async def _roul_spin(uid: int, bet: int, choice: str):
                        "paid": paid, "net": paid - bet, "notes": _quest_note(notes, q), "balance": _balance(uid)}}
 
 
+TABLE_MAX_BETS, TABLE_MAX_TOTAL = 40, 3000
+
+
+def _table_mult(t: str, v: int, n: int) -> int:
+    """Moltiplicatore TOTALE di una puntata del tavolo completo (0..36 e 37 = doppio zero)."""
+    G = _g()
+    if t == "s":
+        return 36 if n == v else 0
+    if n in (0, 37):
+        return 0
+    if t in ("red", "black"):
+        return 2 if G.roulette_color(n) == t else 0
+    if t == "even":
+        return 2 if n % 2 == 0 else 0
+    if t == "odd":
+        return 2 if n % 2 == 1 else 0
+    if t == "low":
+        return 2 if n <= 18 else 0
+    if t == "high":
+        return 2 if n >= 19 else 0
+    if t == "d":
+        return 3 if (n - 1) // 12 + 1 == v else 0
+    if t == "c":
+        return 3 if (n - 1) % 3 + 1 == v else 0
+    return 0
+
+
+async def _roul_table(uid: int, bets):
+    """Roulette americana (0 e 00) con più puntate insieme. Solo per l'account admin di prova."""
+    G = _g()
+    if not is_web_sandbox():
+        return {"error": "Tavolo non ancora disponibile.", "code": 403}
+    if not game_enabled("roulette"):
+        return {"error": "La Roulette è in manutenzione.", "code": 503}
+    if not isinstance(bets, list) or not bets or len(bets) > TABLE_MAX_BETS:
+        return {"error": "Puntata non valida.", "code": 400}
+    clean, total = [], 0
+    for b in bets:
+        try:
+            t, a = str(b.get("t")), int(b.get("a"))
+            v = int(b.get("v", 0) or 0)
+        except (AttributeError, TypeError, ValueError):
+            return {"error": "Puntata non valida.", "code": 400}
+        if t not in ("s", "red", "black", "even", "odd", "low", "high", "d", "c") or a <= 0 or a % 5 or a > TABLE_MAX_TOTAL:
+            return {"error": "Puntata non valida.", "code": 400}
+        if (t == "s" and not 0 <= v <= 37) or (t in ("d", "c") and v not in (1, 2, 3)):
+            return {"error": "Puntata non valida.", "code": 400}
+        clean.append((t, v, a)); total += a
+    if total > TABLE_MAX_TOTAL:
+        return {"error": f"Massimo {TABLE_MAX_TOTAL} $SDG per giro.", "code": 400}
+    if _balance(uid) < total:
+        return {"error": f"Servono {total} $SDG per questa puntata.", "code": 400}
+    luck = G.has_luck(uid, uid, "roulette")
+    G._charge(uid, uid, total)
+
+    def pay(n):
+        return sum(a * _table_mult(t, v, n) for t, v, a in clean)
+    n = random.randint(0, 37)
+    payout, luck_used = pay(n), False
+    if payout == 0 and luck and random.random() < G.LUCK_REROLL_CHANCE:
+        n = random.randint(0, 37); payout = pay(n); luck_used = True
+    paid, notes = await G._settle(_bot(), uid, uid, "roulette", total, payout)
+    notes = list(notes)
+    if luck_used and paid > 0:
+        notes.insert(0, "🍀 Boost Fortuna: la fortuna ti ha aiutato!")
+    q = G.quest_progress(uid, uid, "roulette_play")
+    color = "green" if n in (0, 37) else G.roulette_color(n)
+    return {"result": {"number": n, "color": color, "bet": total, "paid": paid, "net": paid - total,
+                       "notes": _quest_note(notes, q), "balance": _balance(uid)}}
+
+
 def _scr_view(uid: int, game=None) -> dict:
     G = _g()
     game = game if game is not None else SCRATCH_GAMES.get(f"{uid}_{uid}")
@@ -740,6 +811,17 @@ def api_roulette_spin():
     except (TypeError, ValueError):
         return _err("Puntata non valida.")
     resp, out = _avi_call(_roul_spin(int(user["id"]), bet, str(data.get("choice", ""))))
+    return resp if resp is not None else jsonify({"success": True, "result": out["result"]})
+
+
+@webapi.route("/api/roulette/table", methods=["POST", "OPTIONS"])
+def api_roulette_table():
+    if request.method == "OPTIONS":
+        return "", 204
+    user, data, err = _post_json()
+    if err:
+        return err
+    resp, out = _avi_call(_roul_table(int(user["id"]), data.get("bets")))
     return resp if resp is not None else jsonify({"success": True, "result": out["result"]})
 
 
