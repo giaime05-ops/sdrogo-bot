@@ -1016,7 +1016,7 @@ def api_social_style():
     user, data, err = _post_json()
     if err:
         return err
-    if not _is_admin_id(user["id"]):
+    if not _is_admin_id(user["id"]) or not is_web_sandbox():
         return _err("Personalizzazione non ancora disponibile.", 403)
     import websocial
     resp, out = _avi_call(_social_call(websocial.set_style, int(user["id"]), data))
