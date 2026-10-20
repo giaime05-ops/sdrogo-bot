@@ -7,14 +7,22 @@ import time
 
 from economy import fmt, inv, banco_balance, follia_active, record_single_result, quest_progress
 from handlers import heist as H
-from handlers.games import HEIST_COST, _charge
+from handlers.games import _charge
 from storage import get_user_coins, add_user_coins, save_db, is_web_sandbox
 from state import game_enabled as _ge
 
 WEB_HEIST = {}
-GUARD_LAG = 0.9                 # tolleranza un po' più larga del bot: qui c'è anche la rete tra telefono e server
-ALARM_PAUSE = 1.8
+WEB_COST = 350                  # la rapina principale della mini app costa di più di quella del bot
+WEB_TIME = 360                  # un minuto in più: i livelli sono 6 e più di abilità
+KINDS = ["seq", "laser", "hack", "lock", "vault", "flight"]          # livelli 1..6
+NAMES = ["Centralino", "Corridoio laser", "Hacking", "Serratura", "Caveau", "Fuga"]
+TOTAL = len(KINDS)
 SEQ_SHOW_PER = 0.8
+HACK_WEB_ROUNDS = (3,)          # un solo terminale (verificato con BFS: si può sempre risolvere)
+LASER_X = [14, 30, 46, 62, 78]  # posizioni dei laser lungo il corridoio (0..100)
+LASER_SPEED = 24.0              # unità al secondo mentre tieni premuto
+LASER_ZONE = 1.5                # il server è un po' più permissivo del telefono (1,8)
+LOCK_ROUNDS = [(0.20, 0.50), (0.14, 0.70), (0.09, 0.90)]            # (larghezza zona verde, cicli al secondo)
 
 
 def _left(g):
@@ -22,12 +30,12 @@ def _left(g):
 
 
 def info(uid):
-    return {"cost": HEIST_COST, "time": H.HEIST_TIME, "alarm_penalty": H.ALARM_PENALTY, "max_alarms": H.MAX_ALARMS,
+    return {"cost": WEB_COST, "time": WEB_TIME, "alarm_penalty": H.ALARM_PENALTY, "max_alarms": H.MAX_ALARMS,
             "share": int(H.SHARE * 100), "share_follia": int(H.SHARE_FOLLIA * 100), "banco_protect": H.BANCO_PROTECT,
-            "prize_fixed": H.PRIZE_FIXED, "balance": get_user_coins(uid, uid),
-            "levels": [["Centralino", "Memorizza le sequenze di colori"], ["Guardie", "Passa solo quando dormono TUTTE"],
-                       ["Hacking", "Raggiungi il codice con mosse contate"], ["Caveau", "Indovina il codice a 4 cifre"],
-                       ["Fuga", "Scegli il mezzo giusto leggendo i rapporti"]]}
+            "prize_fixed": H.PRIZE_FIXED, "balance": get_user_coins(uid, uid), "total": TOTAL, "names": NAMES,
+            "levels": [["Centralino", "Memorizza le sequenze di colori"], ["Corridoio laser", "Tieni premuto e fermati quando il raggio è acceso"],
+                       ["Hacking", "Raggiungi il codice con mosse contate"], ["Serratura", "Rilascia quando l'indicatore è nel verde"],
+                       ["Caveau", "Indovina il codice a 4 cifre"], ["Fuga", "Scegli il mezzo giusto leggendo i rapporti"]]}
 
 
 # ---------------------------------------------------------------- viste
@@ -36,26 +44,28 @@ def _base(g):
 
 
 def _view(g):
-    v = _base(g); st = g["st"]; lvl = g["level"]
-    if lvl == 1:
+    v = _base(g); st = g["st"]; kind = KINDS[g["level"] - 1]; v["kind"] = kind; v["total"] = TOTAL; v["name"] = NAMES[g["level"] - 1]
+    if kind == "seq":
         v.update({"r": st.get("r", 0), "rounds": len(H.SEQ_ROUNDS), "colors": len(H.SEQ_SYMBOLS)})
         if g["phase"] in ("show", "input") and "seq" in st:
             v["seq"] = st["seq"]; v["show_in"] = max(0.0, st.get("show_from", 0) - time.time()); v["show_secs"] = st.get("secs", 0)
             v["pos"] = st.get("pos", 0)
-    elif lvl == 2:
-        v.update({"r": st.get("r", 0), "rounds": len(H.GUARD_ROUNDS)})
-        gg = st.get("g")
-        if g["phase"] == "guard" and gg:
-            v.update({"frames": gg["frames"], "iv": gg["iv"], "delay": max(0.0, gg["t0"] - time.time()), "n": gg["n"]})
-    elif lvl == 3:
+    elif kind == "laser":
+        L = st.get("L")
+        if g["phase"] == "laser" and L:
+            v.update({"lasers": L["lasers"], "speed": LASER_SPEED, "zone": 1.8, "delay": max(0.0, L["t0"] - time.time()), "length": 100})
+    elif kind == "hack":
         h = st["h"]
-        v.update({"r": st["r"], "rounds": len(H.HACK_ROUNDS), "start": h["start"], "target": h["target"], "val": h["val"], "left_moves": h["left"],
-                  "ops": [[o[0], o[1]] for o in h["ops"]]})
-    elif lvl == 4:
+        v.update({"r": st["r"], "rounds": len(HACK_WEB_ROUNDS), "start": h["start"], "target": h["target"], "val": h["val"], "left_moves": h["left"],
+                  "min_moves": h["min"], "ops": [[o[0], o[1]] for o in h["ops"]]})
+    elif kind == "lock":
+        k = st["k"]
+        v.update({"r": st["r"], "rounds": len(LOCK_ROUNDS), "c": k["c"], "w": k["w"], "speed": k["speed"], "phase0": k["phase0"]})
+    elif kind == "vault":
         vt = st["v"]
         v.update({"hint": [vt["hint"], vt["secret"][vt["hint"]]], "tries": vt["tries"], "max_tries": H.VAULT_TRIES,
                   "hist": [[gs, b, c] for gs, b, c in vt["hist"]], "vault_left": max(0, int(H.VAULT_TIME - (time.time() - vt["t0"])))})
-    elif lvl == 5:
+    elif kind == "flight":
         clues = [H._CLUE[x] for x in st["combo"]]
         random.Random(st["seed"]).shuffle(clues)
         v.update({"r": st["r"], "rounds": H.FLIGHT_ROUNDS, "clues": clues, "vehicles": H.VEHICLES,
@@ -76,7 +86,7 @@ def _out(g, event=None, **extra):
 # ---------------------------------------------------------------- fine partita
 def _fail(uid, g, reason):
     WEB_HEIST.pop(uid, None)
-    record_single_result(uid, uid, False, -HEIST_COST, game="heist", bet=HEIST_COST)
+    record_single_result(uid, uid, False, -WEB_COST, game="heist", bet=WEB_COST)
     return {"end": {"result": "fail", "msg": reason}, "balance": get_user_coins(uid, uid), "view": None}
 
 
@@ -86,7 +96,7 @@ def _win(uid, g, qmsg=""):
     prize = H.PRIZE_FIXED if bal < H.BANCO_PROTECT else int(bal * (H.SHARE_FOLLIA if follia_active() else H.SHARE))
     prize = max(prize, H.PRIZE_FIXED)
     add_user_coins(uid, uid, prize)
-    record_single_result(uid, uid, True, prize - HEIST_COST, game="heist", bet=HEIST_COST)
+    record_single_result(uid, uid, True, prize - WEB_COST, game="heist", bet=WEB_COST)
     d = inv(uid, uid)
     d["stars"] = d.get("stars", 0) + 1; d["titles"] = d.get("titles", 0) + 1; d["persecutes"] = d.get("persecutes", 0) + 1
     save_db()
@@ -108,7 +118,7 @@ def _alarm(uid, g, reason):
 def _level_done(uid, g):
     done = g["level"]
     qmsg = quest_progress(uid, uid, "heist:level", done)
-    if done >= 5:
+    if done >= TOTAL:
         return _win(uid, g, qmsg)
     g["level"] += 1
     _present(g)
@@ -117,14 +127,16 @@ def _level_done(uid, g):
 
 # ---------------------------------------------------------------- livelli
 def _present(g):
-    lvl = g["level"]
+    kind = KINDS[g["level"] - 1]
     g["st"] = {"r": 0}
     g["phase"] = "brief"
-    if lvl == 3:
+    if kind == "hack":
         _hack_new(g)
-    elif lvl == 4:
+    elif kind == "lock":
+        _lock_new(g)
+    elif kind == "vault":
         _vault_new(g)
-    elif lvl == 5:
+    elif kind == "flight":
         _flight_new(g)
 
 
@@ -139,17 +151,44 @@ def _seq_begin(g, new, delay=0.4):
     g["phase"] = "show"
 
 
-def _guard_begin(g, delay):
-    st = g["st"]
-    n, iv, frames = H.GUARD_ROUNDS[st["r"]]
-    sch = H.make_guard_schedule(n, frames)
-    sch.update({"n": n, "iv": iv, "t0": time.time() + delay})
-    st["g"] = sch
-    g["phase"] = "guard"
+def _laser_begin(g, delay):
+    lasers = []
+    for x in LASER_X:
+        per = round(random.uniform(1.25, 2.0), 2)
+        lasers.append({"x": x + random.randint(-3, 3), "p": per, "ph": round(random.uniform(0, per), 2), "duty": 0.5})
+    g["st"]["L"] = {"lasers": lasers, "t0": time.time() + delay}
+    g["phase"] = "laser"
+
+
+def _laser_check(lasers, ev, fin_ms):
+    """Rigioca la partita del telefono: ritorna True se il giocatore arriva alla fine senza toccare un raggio acceso."""
+    ev = sorted((int(a), int(b)) for a, b in ev)
+    x, t, dt, i = 0.0, 0.0, 0.005, 0
+    end = fin_ms / 1000.0
+    while t <= end + 0.02 and x < 100:
+        hold = any(a / 1000.0 <= t < b / 1000.0 for a, b in ev)
+        if hold:
+            x += LASER_SPEED * dt
+            for L in lasers:
+                if abs(x - L["x"]) < LASER_ZONE and ((t + L["ph"]) % L["p"]) < L["p"] * L["duty"]:
+                    return False
+        t += dt
+    return x >= 100
+
+
+def _tri(u):
+    f = u - int(u)
+    return 1.0 - abs(2.0 * f - 1.0)
+
+
+def _lock_new(g):
+    w, sp = LOCK_ROUNDS[min(g["st"].get("r", 0), len(LOCK_ROUNDS) - 1)]
+    g["st"]["k"] = {"c": round(random.uniform(0.25 + w / 2, 0.75 - w / 2), 3), "w": w, "speed": sp, "phase0": round(random.random(), 3), "t0": time.time()}
+    g["phase"] = "lock"
 
 
 def _hack_new(g):
-    h = H.make_hack(H.HACK_ROUNDS[g["st"]["r"]])
+    h = H.make_hack(HACK_WEB_ROUNDS[g["st"]["r"]])
     h["val"] = h["start"]; h["left"] = H.HACK_MOVES
     g["st"]["h"] = h
     g["phase"] = "hack"
@@ -192,11 +231,11 @@ def start(uid):
     g = WEB_HEIST.get(uid)
     if g and time.time() <= g["deadline"] + 1:
         return _out(g)
-    if get_user_coins(uid, uid) < HEIST_COST:
-        return {"error": f"Servono {HEIST_COST} $SDG per il pass.", "code": 400}
-    _charge(uid, uid, HEIST_COST)
+    if get_user_coins(uid, uid) < WEB_COST:
+        return {"error": f"Servono {WEB_COST} $SDG per il pass.", "code": 400}
+    _charge(uid, uid, WEB_COST)
     now = time.time()
-    g = {"uid": uid, "level": 1, "deadline": now + H.HEIST_TIME, "alarms": 0, "t_start": now, "phase": "brief", "st": {"r": 0}}
+    g = {"uid": uid, "level": 1, "deadline": now + WEB_TIME, "alarms": 0, "t_start": now, "phase": "brief", "st": {"r": 0}}
     WEB_HEIST[uid] = g
     return _out(g, {"type": "start"})
 
@@ -209,20 +248,21 @@ def act(uid, a, data):
         return _fail(uid, g, "⏰ Tempo scaduto: la polizia è arrivata.")
     lvl, phase, st, now = g["level"], g["phase"], g["st"], time.time()
 
-    if a == "rd":                                              # "comincia" del livello 1 o 2
+    kind = KINDS[lvl - 1]
+    if a == "rd":                                              # "comincia" dei livelli con la presentazione
         if phase != "brief":
             return _out(g)
-        if lvl == 1:
+        if kind == "seq":
             _seq_begin(g, True)
-        elif lvl == 2:
-            _guard_begin(g, 0.6)
+        elif kind == "laser":
+            _laser_begin(g, 0.9)
         return _out(g)
 
-    if lvl == 1 and a == "sq" and phase == "show":
+    if kind == "seq" and a == "sq" and phase == "show":
         if now < st.get("input_at", 0):
             return _out(g)
         g["phase"] = phase = "input"
-    if lvl == 1 and a == "sq" and phase == "input":
+    if kind == "seq" and a == "sq" and phase == "input":
         try:
             idx = int(data.get("i"))
         except (TypeError, ValueError):
@@ -242,33 +282,50 @@ def act(uid, a, data):
         _seq_begin(g, False, 1.6)
         return _out(g, {"type": "alarm", "msg": "ALLARME! Ti rimostro la stessa sequenza…"})
 
-    if lvl == 2 and phase == "guard" and a in ("gp", "gm"):
-        gg = st["g"]; c, iv, frames = gg["c"], gg["iv"], len(gg["frames"])
-        el = now - gg["t0"]
-        if a == "gm":                                          # il ciclo è finito senza che il giocatore passasse
-            if el < frames * iv - 0.6:
-                return _out(g)
-            r = _alarm(uid, g, "Troppo lento! Il turno delle guardie è cambiato.")
+    if kind == "laser" and phase == "laser" and a == "lz":
+        L = st["L"]
+        if data.get("hit"):
+            r = _alarm(uid, g, "Raggio laser! Hai fatto scattare l'allarme.")
             if r:
                 return r
-            _guard_begin(g, ALARM_PAUSE)
-            return _out(g, {"type": "alarm", "msg": "ALLARME! Riaccendo il monitor…"})
-        cur = int(el // iv) if el >= 0 else -1
-        ok = cur == c or (cur == c + 1 and el - (c + 1) * iv <= GUARD_LAG)
+            _laser_begin(g, 1.4)
+            return _out(g, {"type": "alarm", "msg": "ALLARME! I raggi si sono riavviati."})
+        try:
+            ev = [[int(x), int(y)] for x, y in (data.get("ev") or [])][:80]
+            fin = int(data.get("fin"))
+        except (TypeError, ValueError):
+            return _out(g)
+        ok = (fin / 1000.0 <= (now - L["t0"]) + 0.4) and _laser_check(L["lasers"], ev, fin)
         if ok:
-            st["r"] += 1
-            if st["r"] >= len(H.GUARD_ROUNDS):
-                return _level_done(uid, g)
-            _guard_begin(g, 1.6)
-            return _out(g, {"type": "ok", "msg": "Sei passato! Prossima telecamera, più guardie e più veloce…"})
-        why = "troppo presto: almeno una guardia era ancora sveglia" if cur < c else "troppo tardi: la finestra era già chiusa"
-        r = _alarm(uid, g, f"Sei stato visto! Hai premuto {why}.")
+            return _level_done(uid, g)
+        r = _alarm(uid, g, "Raggio laser! Hai fatto scattare l'allarme.")
         if r:
             return r
-        _guard_begin(g, ALARM_PAUSE)
-        return _out(g, {"type": "alarm", "msg": "ALLARME! Riaccendo il monitor…"})
+        _laser_begin(g, 1.4)
+        return _out(g, {"type": "alarm", "msg": "ALLARME! I raggi si sono riavviati."})
 
-    if lvl == 3 and phase == "hack":
+    if kind == "lock" and phase == "lock" and a == "lk":
+        k = st["k"]
+        try:
+            d = int(data.get("d")) / 1000.0
+        except (TypeError, ValueError):
+            return _out(g)
+        if d < 0.12 or d > 12 or d > (now - k["t0"]) + 0.5:
+            return _out(g)
+        p = _tri(k["phase0"] + k["speed"] * d)
+        if abs(p - k["c"]) <= k["w"] / 2:
+            st["r"] += 1
+            if st["r"] >= len(LOCK_ROUNDS):
+                return _level_done(uid, g)
+            _lock_new(g)
+            return _out(g, {"type": "ok", "msg": "Scatto! Prossimo perno, zona più stretta…"})
+        r = _alarm(uid, g, "Hai bloccato il perno fuori posto!")
+        if r:
+            return r
+        _lock_new(g)
+        return _out(g, {"type": "alarm", "msg": "ALLARME! La serratura si è riarmata."})
+
+    if kind == "hack" and phase == "hack":
         h = st["h"]
         if a == "hr":
             h["val"] = h["start"]; h["left"] = H.HACK_MOVES
@@ -285,7 +342,7 @@ def act(uid, a, data):
         h["val"] = r; h["left"] -= 1
         if r == h["target"]:
             st["r"] += 1
-            if st["r"] >= len(H.HACK_ROUNDS):
+            if st["r"] >= len(HACK_WEB_ROUNDS):
                 return _level_done(uid, g)
             _hack_new(g)
             return _out(g, {"type": "ok", "msg": "Terminale violato! Ecco il prossimo."})
@@ -297,7 +354,7 @@ def act(uid, a, data):
             return _out(g, {"type": "alarm", "msg": "ALLARME! Nuovo terminale."})
         return _out(g, {"type": "tap"})
 
-    if lvl == 4 and phase == "vault" and a == "vs":
+    if kind == "vault" and phase == "vault" and a == "vs":
         v = st["v"]
         if now - v["t0"] > H.VAULT_TIME:
             res = _alarm(uid, g, "Tempo del caveau scaduto! Il sistema si è riarmato.")
@@ -324,7 +381,7 @@ def act(uid, a, data):
             return _out(g, {"type": "alarm", "msg": f"ALLARME! Il codice era {code}. Nuovo caveau."})
         return _out(g, {"type": "tap", "b": b, "c": c})
 
-    if lvl == 5 and phase == "flight" and a == "ft":
+    if kind == "flight" and phase == "flight" and a == "ft":
         try:
             idx = int(data.get("i"))
         except (TypeError, ValueError):
