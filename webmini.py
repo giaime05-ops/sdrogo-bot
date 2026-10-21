@@ -1,6 +1,7 @@
 """Mini app: DAILY HEIST (mini rapine). Per ora SOLO account admin di prova.
 Ogni giorno (mezzanotte italiana) c'è uno schema uguale per tutti: due mini rapine ("Colpo Rapido 1/2") da 3 giochini ciascuna,
-scelti a rotazione da un pool di 5. Costo 100 $SDG, premio fisso 300 $SDG, 90 secondi, al 2° allarme si fallisce.
+scelti a rotazione da un pool di 7 (memoria, matematica, logica, riflessi...). Ogni giochino ha 3 round di difficoltà crescente.
+Costo 100 $SDG, premio fisso 300 $SDG, 150 secondi, al 3° allarme si fallisce.
 Ogni mini rapina si può giocare 3 volte al giorno, con almeno 2 ore tra una partenza e la successiva.
 Il server genera e controlla tutto (risposte giuste, tempi, tracciati)."""
 import random
@@ -13,21 +14,24 @@ from state import game_enabled as _ge
 
 MINI_COST = 100
 MINI_PRIZE = 300
-MINI_TIME = 90
-MINI_MAX_ALARMS = 2
+MINI_TIME = 150
+MINI_MAX_ALARMS = 3
+ROUNDS = 3
 MINI_ALARM_PEN = 10
 MINI_PLAYS = 3
 MINI_GAP = 2 * 3600
-POOL = ["face", "cable", "print", "freq", "voice"]
+POOL = ["face", "cable", "print", "freq", "voice", "logic", "laser"]
 NAMES = {"face": "Riconoscimento facciale", "cable": "Taglio cavi", "print": "Impronta digitale",
-         "freq": "Hacking frequenze", "voice": "Impronta vocale"}
+         "freq": "Hacking frequenze", "voice": "Impronta vocale", "logic": "Decifra il codice", "laser": "Corridoio laser"}
 TITLES = {"A": "Colpo Rapido 1", "B": "Colpo Rapido 2"}
 
 MINI = {}        # uid -> rapina in corso
 LOG = {}         # uid -> {"day", "A": [istanti di partenza], "B": [...]}
 
-BADGE = ["rossa", "blu", "gialla", "verde", "viola", "arancio"]
-CABLES = ["Rosso", "Blu", "Giallo", "Verde"]
+BADGE = ["rossa", "blu", "gialla", "verde", "viola", "arancione"]          # "scheda ..."
+HATN = ["rosso", "blu", "giallo", "verde", "viola", "arancione"]           # "cappello ..."
+CABLES = ["Rosso", "Blu", "Giallo", "Verde", "Viola", "Arancio"]
+LASER_SPEED = 24.0
 
 
 def scheme(day=None):
@@ -35,8 +39,7 @@ def scheme(day=None):
     rng = random.Random("mini-" + day)
     a = rng.sample(POOL, 3)
     rest = [x for x in POOL if x not in a]
-    b = rest + [rng.choice(a)]
-    rng.shuffle(b)
+    b = rng.sample(rest, 3)
     return {"A": a, "B": b}
 
 
@@ -67,58 +70,115 @@ def info(uid):
 
 
 # ---------------------------------------------------------------- giochini
-def _gen(kind):
-    r = random
+def _series(r):
+    """Serie numerica da completare (round 1: progressione, 2: moltiplicazione o alternanza, 3: differenze crescenti / Fibonacci)."""
+    rn = random
+    if r == 0:
+        st, k = rn.randint(1, 20), rn.randint(2, 9)
+        seq = [st + k * i for i in range(6)]
+    elif r == 1:
+        if rn.random() < 0.5:
+            st, k = rn.randint(1, 4), rn.choice([2, 3])
+            seq = [st * k ** i for i in range(6)]
+        else:
+            st, a, b = rn.randint(5, 20), rn.randint(3, 9), rn.randint(1, 4)
+            seq = [st]
+            for i in range(5):
+                seq.append(seq[-1] + (a if i % 2 == 0 else -b))
+    else:
+        if rn.random() < 0.5:
+            st, d0, dd = rn.randint(1, 9), rn.randint(1, 3), rn.randint(1, 3)
+            seq, d = [st], d0
+            for _ in range(5):
+                seq.append(seq[-1] + d); d += dd
+        else:
+            a, b = rn.randint(1, 4), rn.randint(2, 5)
+            seq = [a, b]
+            while len(seq) < 6:
+                seq.append(seq[-1] + seq[-2])
+    return seq
+
+
+def _gen(kind, r=0):
+    rn = random
     if kind == "face":
-        badges = list(range(6)); r.shuffle(badges)
-        glasses = [True] * 6; glasses[r.randrange(6)] = False
-        guards = [{"hat": r.randrange(6), "glasses": glasses[i], "badge": badges[i], "skin": r.randrange(4)} for i in range(6)]
-        if r.random() < 0.5:
-            col = r.randrange(6)
-            ans = badges.index(col)
-            q = f"Quale guardia aveva la scheda {BADGE[col].upper()}?"
+        n = (4, 5, 6)[r]
+        badges, hats = rn.sample(range(6), n), rn.sample(range(6), n)
+        glasses = [True] * n
+        glasses[rn.randrange(n)] = False
+        guards = [{"hat": hats[i], "glasses": glasses[i], "badge": badges[i], "skin": rn.randrange(4)} for i in range(n)]
+        t = rn.randrange(n)
+        mode = rn.choice(["badge", "hat"] if r == 0 else ["badge", "hat", "glass"] if r == 1 else ["both", "hat", "glass", "badge"])
+        if mode == "badge":
+            ans, q = t, f"Chi aveva la scheda {BADGE[badges[t]].upper()}?"
+        elif mode == "hat":
+            ans, q = t, f"Chi portava il cappello {HATN[hats[t]].upper()}?"
+        elif mode == "glass":
+            ans, q = glasses.index(False), "Chi NON portava gli occhiali?"
         else:
-            ans = glasses.index(False)
-            q = "Quale guardia NON portava gli occhiali?"
-        return {"guards": guards, "q": q, "ans": ans, "show": 2.8, "limit": 9}
+            ans, q = t, f"Chi aveva il cappello {HATN[hats[t]].upper()} E la scheda {BADGE[badges[t]].upper()}?"
+        return {"guards": guards, "q": q, "ans": ans, "show": (5.0, 5.5, 6.0)[r], "limit": (8, 8, 9)[r]}
     if kind == "cable":
-        order = CABLES[:]; r.shuffle(order)
-        mode = r.choice(["max", "min", "eq"])
-        if mode == "max":
-            q, ans = "Taglia il cavo il cui nome ha PIÙ lettere", order.index("Giallo")
-        elif mode == "min":
-            q, ans = "Taglia il cavo il cui nome ha MENO lettere", order.index("Blu")
-        else:
-            pos = r.randint(1, 4)
-            while True:
-                a, b = r.randint(2, 6), r.randint(2, 6)
-                if 1 <= a + b - pos <= 7:
-                    break
-            q, ans = f"Taglia il cavo in posizione {a} + {b} - {a + b - pos} (da sinistra)", pos - 1
-        return {"cables": order, "q": q, "ans": ans, "limit": 7}
+        n = (4, 5, 6)[r]
+        order = rn.sample(CABLES, n)
+        for _ in range(2000):
+            if r == 0:
+                a, b, c = rn.randint(2, 7), rn.randint(2, 7), rn.randint(1, 9)
+                pos, ex = a + b - c, f"{a} + {b} − {c}"
+            elif r == 1:
+                a, b, c = rn.randint(2, 5), rn.randint(2, 4), rn.randint(1, 9)
+                pos, ex = a * b - c, f"{a} × {b} − {c}"
+            else:
+                a, b, c, d = rn.randint(1, 5), rn.randint(1, 5), rn.randint(2, 4), rn.randint(1, 9)
+                pos, ex = (a + b) * c - d, f"({a} + {b}) × {c} − {d}"
+            if 1 <= pos <= n:
+                break
+        return {"cables": order, "q": f"Taglia il cavo in posizione {ex}  (contando da sinistra)", "ans": pos - 1, "limit": (10, 12, 14)[r]}
+    if kind == "logic":
+        seq = _series(r)
+        ans = seq[-1]
+        opts = {ans}
+        gap = max(1, abs(seq[-1] - seq[-2]))
+        for cand in (ans + gap, ans - gap, ans + 1, ans - 1, ans + 2 * gap, ans + 2, ans - 2, ans + 3):
+            if len(opts) >= 4:
+                break
+            if cand > 0:
+                opts.add(cand)
+        opts = list(opts)
+        rn.shuffle(opts)
+        return {"seq": seq[:-1], "options": opts, "ans": opts.index(ans), "q": "Quale numero completa la serie?", "limit": (10, 12, 14)[r]}
     if kind == "print":
-        t = [[1 if r.random() < 0.45 else 0 for _ in range(5)] for _ in range(5)]
+        n, diff = (3, 4, 5)[r], (3, 2, 1)[r]
+        t = [[1 if rn.random() < 0.45 else 0 for _ in range(5)] for _ in range(5)]
         cands = []
-        for _ in range(2):
+        while len(cands) < n - 1:
             m = [row[:] for row in t]
-            for _ in range(2):
-                i, j = r.randrange(5), r.randrange(5)
+            for _ in range(diff):
+                i, j = rn.randrange(5), rn.randrange(5)
                 m[i][j] ^= 1
-            if m == t:
-                m[0][0] ^= 1
-            cands.append(m)
-        ans = r.randrange(3)
+            if m != t and m not in cands:
+                cands.append(m)
+        ans = rn.randrange(n)
         cands.insert(ans, [row[:] for row in t])
-        return {"target": t, "cands": cands, "ans": ans, "limit": 10}
+        return {"target": t, "cands": cands, "ans": ans, "limit": (10, 12, 14)[r]}
     if kind == "freq":
-        return {"f0": round(r.uniform(2.0, 4.0), 2), "amp": 0.5, "w": 0.6, "ph": round(r.uniform(0, 6.28), 2), "need": 3.0, "tol": 0.18, "limit": 16}
+        return {"f0": round(rn.uniform(2.0, 4.0), 2), "amp": 0.5, "w": (0.5, 0.8, 1.1)[r], "ph": round(rn.uniform(0, 6.28), 2),
+                "need": (2.0, 2.5, 3.0)[r], "tol": (0.22, 0.18, 0.14)[r], "limit": (14, 16, 18)[r]}
+    if kind == "laser":
+        xs = [(35, 70), (25, 50, 75), (18, 38, 58, 78)][r]
+        lo, hi = [(1.4, 2.0), (1.25, 1.8), (1.1, 1.6)][r]
+        lasers = []
+        for x in xs:
+            per = round(rn.uniform(lo, hi), 2)
+            lasers.append({"x": x + rn.randint(-3, 3), "p": per, "ph": round(rn.uniform(0, per), 2), "duty": 0.5})
+        return {"lasers": lasers, "speed": LASER_SPEED, "zone": 1.8, "delay": 1.0, "limit": 22}
     # voice
-    cs = []
-    while len(cs) < 3:
-        c = round(r.uniform(0.15, 0.85), 2)
-        if all(abs(c - x) >= 0.22 for x in cs):
-            cs.append(c)
-    return {"nodes": cs, "w": 0.12, "speed": round(r.uniform(0.5, 0.65), 2), "phase0": round(r.random(), 3), "limit": 14}
+    n = (2, 3, 4)[r]
+    w = (0.16, 0.12, 0.10)[r]
+    base = sorted(rn.uniform(0.0, 0.7 - (n - 1) * 0.2) for _ in range(n))           # zone distanziate di almeno 0,2
+    cs = [round(0.15 + base[i] + 0.2 * i, 2) for i in range(n)]
+    rn.shuffle(cs)                                                                  # l'ordine in cui toccarle è casuale
+    return {"nodes": cs, "w": w, "speed": round(rn.uniform(0.5, 0.6) + 0.07 * r, 2), "phase0": round(rn.random(), 3), "limit": (12, 14, 16)[r]}
 
 
 def _pub(kind, st):
@@ -137,13 +197,13 @@ def _left(g):
 
 def _begin_game(g):
     kind = g["games"][g["i"]]
-    g["st"] = _gen(kind)
+    g["st"] = _gen(kind, g.get("r", 0))
     g["t_game"] = time.time()
     g["kind"] = kind
 
 
 def _view(g):
-    return {"level": g["i"] + 1, "total": len(g["games"]), "name": NAMES[g["kind"]], "kind": g["kind"], "alarms": g["alarms"],
+    return {"level": g["i"] + 1, "total": len(g["games"]), "round": g.get("r", 0) + 1, "rounds": ROUNDS, "name": NAMES[g["kind"]], "kind": g["kind"], "alarms": g["alarms"],
             "max_alarms": MINI_MAX_ALARMS, "left": _left(g), "phase": "play", "mini": True, "data": _pub(g["kind"], g["st"])}
 
 
@@ -169,14 +229,24 @@ def _alarm(uid, g, reason):
     g["alarms"] += 1
     g["deadline"] -= MINI_ALARM_PEN
     if g["alarms"] >= MINI_MAX_ALARMS:
-        return _fail(uid, g, reason + " Secondo allarme: la rapina è fallita.")
+        return _fail(uid, g, reason + f" {MINI_MAX_ALARMS}° allarme: la rapina è fallita.")
     if _left(g) <= 0:
         return _fail(uid, g, reason + " Tempo scaduto.")
     _begin_game(g)
     return _out(g, {"type": "alarm", "msg": "ALLARME! " + reason})
 
 
+def _next(uid, g):
+    """Round superato: il prossimo del giochino, oppure il giochino successivo."""
+    g["r"] = g.get("r", 0) + 1
+    if g["r"] < ROUNDS:
+        _begin_game(g)
+        return _out(g, {"type": "ok", "msg": f"Round {g['r'] + 1}/{ROUNDS}: più difficile!"})
+    return _done(uid, g)
+
+
 def _done(uid, g):
+    g["r"] = 0
     g["i"] += 1
     if g["i"] >= len(g["games"]):
         return _win(uid, g)
@@ -246,13 +316,13 @@ def act(uid, a, data):
         return _alarm(uid, g, "Tempo del giochino scaduto.")
     if el > st.get("limit", 10) + st.get("show", 0) + 3:        # risposta arrivata troppo tardi
         return _alarm(uid, g, "Troppo lento!")
-    if kind in ("face", "cable", "print") and a == "an":
+    if kind in ("face", "cable", "print", "logic") and a == "an":
         try:
             i = int(data.get("i"))
         except (TypeError, ValueError):
             return _out(g)
         if i == st["ans"]:
-            return _done(uid, g)
+            return _next(uid, g)
         return _alarm(uid, g, "Risposta sbagliata!")
     if kind == "freq" and a == "fq":
         import math
@@ -275,20 +345,33 @@ def act(uid, a, data):
                 run0 = None
             prev = t
         if ok and fin / 1000.0 <= el + 0.6:
-            return _done(uid, g)
+            return _next(uid, g)
         return _alarm(uid, g, "Frequenze non sincronizzate!")
     if kind == "voice" and a == "vt":
         try:
-            taps = [int(x) for x in (data.get("taps") or [])][:3]
+            taps = [int(x) for x in (data.get("taps") or [])][:6]
         except (TypeError, ValueError):
             return _out(g)
-        ok = len(taps) == 3 and all(taps[i + 1] - taps[i] >= 250 for i in range(2)) and taps[0] >= 0 and taps[-1] / 1000.0 <= el + 0.6
+        nn = len(st["nodes"])
+        ok = len(taps) == nn and all(taps[i + 1] - taps[i] >= 250 for i in range(nn - 1)) and taps[0] >= 0 and taps[-1] / 1000.0 <= el + 0.6
         if ok:
             for k, tp in enumerate(taps):
                 if abs(_tri(st["phase0"] + st["speed"] * tp / 1000.0) - st["nodes"][k]) > st["w"] / 2 + 0.01:
                     ok = False
                     break
         if ok:
-            return _done(uid, g)
+            return _next(uid, g)
         return _alarm(uid, g, "Impronta vocale non riconosciuta!")
+    if kind == "laser" and a == "lz":
+        if data.get("hit"):
+            return _alarm(uid, g, "Raggio laser! Hai fatto scattare l'allarme.")
+        from webheist import _laser_check
+        try:
+            ev = [[int(x), int(y)] for x, y in (data.get("ev") or [])][:80]
+            fin = int(data.get("fin"))
+        except (TypeError, ValueError):
+            return _out(g)
+        if fin / 1000.0 <= el + 0.6 and _laser_check(st["lasers"], ev, fin):
+            return _next(uid, g)
+        return _alarm(uid, g, "Raggio laser! Hai fatto scattare l'allarme.")
     return _out(g)
