@@ -225,6 +225,7 @@ def _com_view():
          InlineKeyboardButton("🙉 Troll: " + ("ON" if troll else "OFF"), callback_data="adm_c_troll")],
         [InlineKeyboardButton("🧹 Togli penitenze", callback_data="adm_c_pen"),
          InlineKeyboardButton("🔄 Reset partite", callback_data="adm_c_reset")],
+        [InlineKeyboardButton("🎡 Ruota Daily: " + ("SEMPRE" if SYSTEM_FLAGS.get("WHEEL_UNLIMITED") else "1 al giorno"), callback_data="adm_c_wheel")],
         [InlineKeyboardButton("📜 Storico", callback_data="adm_c_storico"),
          InlineKeyboardButton("📣 Annuncio", callback_data="adm_c_annuncio"),
          InlineKeyboardButton("💰 Ricarica", callback_data="adm_c_ricarica")],
@@ -414,6 +415,12 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if cmd in _COM_HELP:
             await query.answer()
             await query.message.reply_text(_COM_HELP[cmd], parse_mode="HTML")
+            return
+        if cmd == "wheel":
+            SYSTEM_FLAGS["WHEEL_UNLIMITED"] = not SYSTEM_FLAGS.get("WHEEL_UNLIMITED", False)
+            save_db()
+            await query.answer("🎡 Ruota Daily: " + ("SEMPRE ATTIVA (senza limite)" if SYSTEM_FLAGS["WHEEL_UNLIMITED"] else "1 volta al giorno"), show_alert=True)
+            await smart_edit(query, *_admin_view())
             return
         if cmd == "reset":
             await query.answer()
