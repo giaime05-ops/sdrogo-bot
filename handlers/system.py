@@ -226,6 +226,7 @@ def _com_view():
         [InlineKeyboardButton("🧹 Togli penitenze", callback_data="adm_c_pen"),
          InlineKeyboardButton("🔄 Reset partite", callback_data="adm_c_reset")],
         [InlineKeyboardButton("🎡 Ruota Daily: " + ("SEMPRE" if SYSTEM_FLAGS.get("WHEEL_UNLIMITED") else "1 al giorno"), callback_data="adm_c_wheel")],
+        [InlineKeyboardButton("🕵️ Heist: " + ("SEMPRE" if SYSTEM_FLAGS.get("HEIST_UNLIMITED") else "1 al giorno"), callback_data="adm_c_heistlim")],
         [InlineKeyboardButton("📜 Storico", callback_data="adm_c_storico"),
          InlineKeyboardButton("📣 Annuncio", callback_data="adm_c_annuncio"),
          InlineKeyboardButton("💰 Ricarica", callback_data="adm_c_ricarica")],
@@ -420,6 +421,12 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             SYSTEM_FLAGS["WHEEL_UNLIMITED"] = not SYSTEM_FLAGS.get("WHEEL_UNLIMITED", False)
             save_db()
             await query.answer("🎡 Ruota Daily: " + ("SEMPRE ATTIVA (senza limite)" if SYSTEM_FLAGS["WHEEL_UNLIMITED"] else "1 volta al giorno"), show_alert=True)
+            await smart_edit(query, *_admin_view())
+            return
+        if cmd == "heistlim":
+            SYSTEM_FLAGS["HEIST_UNLIMITED"] = not SYSTEM_FLAGS.get("HEIST_UNLIMITED", False)
+            save_db()
+            await query.answer("🕵️ Sdrogo Heist: " + ("SEMPRE ATTIVO (senza limite giornaliero)" if SYSTEM_FLAGS["HEIST_UNLIMITED"] else "1 rapina al giorno"), show_alert=True)
             await smart_edit(query, *_admin_view())
             return
         if cmd == "reset":
