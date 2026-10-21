@@ -143,7 +143,7 @@ def arcade_open() -> bool:
 
 
 _NEW_ROUND = {"/api/aviator/start", "/api/slot/spin", "/api/roulette/spin", "/api/roulette/table",
-              "/api/scratch/buy", "/api/wheel/spin", "/api/heist/start"}
+              "/api/scratch/buy", "/api/wheel/spin", "/api/heist/start", "/api/mini/start"}
 
 
 def _is_new_round(path: str) -> bool:
@@ -861,6 +861,36 @@ def api_heist(what):
         coro = _social_call(webheist.start, uid, data.get("lvl", 1))
     elif what == "act":
         coro = _social_call(webheist.act, uid, str(data.get("a", ""))[:6], data)
+    else:
+        return _err("Azione sconosciuta.", 404)
+    resp, out = _avi_call(coro)
+    if resp is not None:
+        return resp
+    body = {"success": True}
+    body.update(out)
+    return jsonify(body)
+
+
+@webapi.route("/api/mini/<what>", methods=["GET", "POST", "OPTIONS"])
+def api_mini(what):
+    if request.method == "OPTIONS":
+        return "", 204
+    user, err = require_admin()
+    if err:
+        return err
+    if not is_web_sandbox():
+        return _err("Disponibile solo nell'account di prova.", 403)
+    import webmini
+    uid = int(user["id"])
+    data = request.get_json(silent=True) or {}
+    if what == "state":
+        coro = _social_call(webmini.state, uid)
+    elif what == "start":
+        coro = _social_call(webmini.start, uid, str(data.get("which", "A"))[:1])
+    elif what == "reset":
+        coro = _social_call(webmini.reset_waits, uid)
+    elif what == "act":
+        coro = _social_call(webmini.act, uid, str(data.get("a", ""))[:6], data)
     else:
         return _err("Azione sconosciuta.", 404)
     resp, out = _avi_call(coro)
