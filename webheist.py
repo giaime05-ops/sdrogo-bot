@@ -2,6 +2,7 @@
 Stessi livelli, stessi generatori e stesse regole della rapina nel bot (handlers/heist.py), ma giocati con dei
 giochini nella mini app. Il server decide tutto (sequenze, turni delle guardie, codice del caveau, premio).
 Nel profilo di prova il Banco vero non viene mai toccato: il premio si calcola dal Banco ma non lo si preleva."""
+import math
 import random
 import time
 
@@ -13,9 +14,10 @@ from state import game_enabled as _ge
 
 WEB_HEIST = {}
 WEB_COST = 350                  # la rapina principale della mini app costa di più di quella del bot
-WEB_TIME = 360                  # un minuto in più: i livelli sono 6 e più di abilità
-KINDS = ["seq", "laser", "hack", "lock", "vault", "flight"]          # livelli 1..6
-NAMES = ["Centralino", "Corridoio laser", "Hacking", "Serratura", "Caveau", "Fuga"]
+WEB_TIME = 420                  # sette minuti: i livelli sono 7 e più di abilità
+KINDS = ["seq", "laser", "hack", "lock", "vault", "circuit", "chase"]          # livelli 1..7
+NAMES = ["Centralino", "Corridoio laser", "Hacking", "Serratura", "Caveau", "Bypass circuiti", "Inseguimento"]
+WEB_SHARE = 0.25                # con 7 livelli la rapina principale paga il 25% del Banco
 TOTAL = len(KINDS)
 SEQ_SHOW_PER = 0.8
 HACK_WEB_ROUNDS = (3,)          # un solo terminale (verificato con BFS: si può sempre risolvere)
@@ -31,11 +33,12 @@ def _left(g):
 
 def info(uid):
     return {"cost": WEB_COST, "time": WEB_TIME, "alarm_penalty": H.ALARM_PENALTY, "max_alarms": H.MAX_ALARMS,
-            "share": int(H.SHARE * 100), "share_follia": int(H.SHARE_FOLLIA * 100), "banco_protect": H.BANCO_PROTECT,
+            "share": int(WEB_SHARE * 100), "share_follia": int(H.SHARE_FOLLIA * 100), "banco_protect": H.BANCO_PROTECT,
             "prize_fixed": H.PRIZE_FIXED, "balance": get_user_coins(uid, uid), "total": TOTAL, "names": NAMES,
             "levels": [["Centralino", "Memorizza le sequenze di colori"], ["Corridoio laser", "Tieni premuto e fermati quando il raggio è acceso"],
                        ["Hacking", "Raggiungi il codice con mosse contate"], ["Serratura", "Rilascia quando l'indicatore è nel verde"],
-                       ["Caveau", "Indovina il codice a 4 cifre"], ["Fuga", "Scegli il mezzo giusto leggendo i rapporti"]]}
+                       ["Caveau", "Indovina il codice a 4 cifre"], ["Bypass circuiti", "Guida la sonda nel circuito senza toccare pareti e scariche"],
+                       ["Inseguimento", "Schiva i posti di blocco e scegli il bivio giusto"]]}
 
 
 # ---------------------------------------------------------------- viste
@@ -65,6 +68,16 @@ def _view(g):
         vt = st["v"]
         v.update({"hint": [vt["hint"], vt["secret"][vt["hint"]]], "tries": vt["tries"], "max_tries": H.VAULT_TRIES,
                   "hist": [[gs, b, c] for gs, b, c in vt["hist"]], "vault_left": max(0, int(H.VAULT_TIME - (time.time() - vt["t0"])))})
+    elif kind == "circuit":
+        c = st.get("c")
+        if g["phase"] == "circuit" and c:
+            v.update({"pts": c["pts"], "w": c["w"], "hz": c["hz"], "r": st["r"], "rounds": CIRC_SECTORS, "delay": max(0.0, c["t0"] - time.time())})
+        else:
+            v.update({"r": st.get("r", 0), "rounds": CIRC_SECTORS})
+    elif kind == "chase":
+        c = st.get("c")
+        if g["phase"] == "chase" and c:
+            v.update({"dur": CHASE_DUR, "obs": c["obs"], "forks": c["forks"], "delay": max(0.0, c["t0"] - time.time())})
     elif kind == "flight":
         clues = [H._CLUE[x] for x in st["combo"]]
         random.Random(st["seed"]).shuffle(clues)
@@ -93,7 +106,7 @@ def _fail(uid, g, reason):
 def _win(uid, g, qmsg=""):
     WEB_HEIST.pop(uid, None)
     bal = banco_balance()
-    prize = H.PRIZE_FIXED if bal < H.BANCO_PROTECT else int(bal * (H.SHARE_FOLLIA if follia_active() else H.SHARE))
+    prize = H.PRIZE_FIXED if bal < H.BANCO_PROTECT else int(bal * (H.SHARE_FOLLIA if follia_active() else WEB_SHARE))
     prize = max(prize, H.PRIZE_FIXED)
     add_user_coins(uid, uid, prize)
     record_single_result(uid, uid, True, prize - WEB_COST, game="heist", bet=WEB_COST)
@@ -174,6 +187,143 @@ def _laser_check(lasers, ev, fin_ms):
                     return False
         t += dt
     return x >= 100
+
+
+# ---------------------------------------------------------------- Bypass circuiti (livello 6)
+CIRC_SECTORS = 2
+CIRC_W = [8.0, 6.5]             # semi-larghezza del tracciato per settore
+CIRC_HZ = [2, 3]                # scariche mobili per settore
+CIRC_MAXV = 260.0               # velocità massima plausibile del dito (unità/s)
+PROBE_R, HZ_R = 1.2, 3.2
+
+
+def _seg_pt(pts, f):
+    """Punto e direzione alla frazione f (0..1) della lunghezza del tracciato."""
+    segs = [math.dist(pts[i], pts[i + 1]) for i in range(len(pts) - 1)]
+    want = f * sum(segs)
+    for i, L in enumerate(segs):
+        if want <= L or i == len(segs) - 1:
+            u = min(1.0, want / L) if L else 0.0
+            a, b = pts[i], pts[i + 1]
+            return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u], [(b[0] - a[0]) / L, (b[1] - a[1]) / L]
+        want -= L
+    return list(pts[-1]), [1.0, 0.0]
+
+
+def _dist_poly(pts, x, y):
+    best = 1e9
+    for i in range(len(pts) - 1):
+        ax, ay = pts[i]; bx, by = pts[i + 1]
+        dx, dy = bx - ax, by - ay
+        L2 = dx * dx + dy * dy
+        u = 0.0 if L2 == 0 else max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / L2))
+        best = min(best, math.hypot(x - (ax + u * dx), y - (ay + u * dy)))
+    return best
+
+
+def _hz_pos(h, t):
+    k = h["a"] * math.sin(2 * math.pi * t / h["p"] + h["ph"])
+    return h["x"] + h["nx"] * k, h["y"] + h["ny"] * k
+
+
+def _circ_begin(g, delay):
+    r = g["st"].get("r", 0)
+    xs = [10, 27, 44, 61, 77, 90]
+    ys, prev = [], random.choice([22, 78])
+    for _ in xs:
+        y = random.randint(18, 82)
+        for _ in range(12):
+            if abs(y - prev) >= 26:
+                break
+            y = random.randint(18, 82)
+        ys.append(y); prev = y
+    pts = [[x, y] for x, y in zip(xs, ys)]
+    hz = []
+    fr = sorted(random.sample([0.22, 0.36, 0.5, 0.64, 0.78], CIRC_HZ[r]))
+    for f in fr:
+        (px, py), (dx, dy) = _seg_pt(pts, f)
+        hz.append({"x": round(px, 2), "y": round(py, 2), "nx": round(-dy, 3), "ny": round(dx, 3), "a": round(CIRC_W[r] * 0.95, 2),
+                   "p": round(random.uniform(1.5, 2.1) if r == 0 else random.uniform(1.2, 1.7), 2), "ph": round(random.uniform(0, 6.28), 2), "r": HZ_R})
+    g["st"]["c"] = {"pts": pts, "w": CIRC_W[r], "hz": hz, "t0": time.time() + delay,
+                    "len": sum(math.dist(pts[i], pts[i + 1]) for i in range(len(pts) - 1))}
+    g["phase"] = "circuit"
+
+
+def _circ_check(c, samples, fin_ms):
+    """Rigioca il tracciato del dito: parte dall'inizio, resta nel circuito, evita le scariche e arriva alla fine."""
+    try:
+        sm = sorted((int(a), float(b), float(d)) for a, b, d in samples)[:700]
+    except (TypeError, ValueError):
+        return False
+    if len(sm) < 8:
+        return False
+    pts, w = c["pts"], c["w"]
+    if math.hypot(sm[0][1] - pts[0][0], sm[0][2] - pts[0][1]) > 10 or math.hypot(sm[-1][1] - pts[-1][0], sm[-1][2] - pts[-1][1]) > 7:
+        return False
+    if (sm[-1][0] - sm[0][0]) / 1000.0 < c["len"] / 150.0:                   # troppo veloce per un dito umano
+        return False
+    for i, (t, x, y) in enumerate(sm):
+        if _dist_poly(pts, x, y) > w + 0.8:
+            return False
+        if i:
+            pt, px, py = sm[i - 1]
+            dt = max(0.001, (t - pt) / 1000.0)
+            if dt > 0.6 or math.hypot(x - px, y - py) / dt > CIRC_MAXV:
+                return False
+            for k in range(1, 5):                                              # punti intermedi: non si salta una scarica
+                f = k / 5.0
+                if any(math.hypot(px + (x - px) * f - hx, py + (y - py) * f - hy) < h["r"] + PROBE_R - 1.0
+                       for h in c["hz"] for hx, hy in [_hz_pos(h, (pt + (t - pt) * f) / 1000.0)]):
+                    return False
+        if any(math.hypot(x - hx, y - hy) < h["r"] + PROBE_R - 1.0 for h in c["hz"] for hx, hy in [_hz_pos(h, t / 1000.0)]):
+            return False
+    return True
+
+
+# ---------------------------------------------------------------- Inseguimento (livello 7)
+CHASE_DUR = 30.0
+
+
+def _chase_begin(g, delay):
+    obs, forks = [], []
+    forks = [{"t": 11.0, "heli": random.choice("LR")}, {"t": 22.0, "heli": random.choice("LR")}]
+    taken = [11.0, 22.0]
+    kinds = ["block"] * 3 + ["spike", "oil", "spike", "oil"]
+    random.shuffle(kinds)
+    tries = 0
+    while kinds and tries < 400:
+        tries += 1
+        t = round(random.uniform(3.0, 27.5), 2)
+        if all(abs(t - u) >= 1.25 for u in taken):
+            obs.append([t, random.randrange(3), kinds.pop()]); taken.append(t)
+    obs.sort()
+    g["st"]["c"] = {"obs": obs, "forks": forks, "t0": time.time() + delay}
+    g["phase"] = "chase"
+
+
+def _chase_check(c, ev, fin_ms):
+    try:
+        ev = sorted((int(a), int(b)) for a, b in ev)[:90]
+    except (TypeError, ValueError):
+        return False
+    if fin_ms < (CHASE_DUR - 0.3) * 1000 or any(l not in (0, 1, 2) for _, l in ev):
+        return False
+    if any(ev[i + 1][0] - ev[i][0] < 60 for i in range(len(ev) - 1)):
+        return False
+
+    def lane(t):
+        cur = 1
+        for te, l in ev:
+            if te / 1000.0 <= t:
+                cur = l
+        return cur
+    for t, ln, _k in c["obs"]:
+        if lane(t - 0.08) == ln and lane(t) == ln and lane(t + 0.08) == ln:
+            return False
+    for f in c["forks"]:
+        if lane(f["t"]) != (2 if f["heli"] == "L" else 0):
+            return False
+    return True
 
 
 def _tri(u):
@@ -275,6 +425,10 @@ def act(uid, a, data):
             _seq_begin(g, True)
         elif kind == "laser":
             _laser_begin(g, 0.9)
+        elif kind == "circuit":
+            _circ_begin(g, 0.9)
+        elif kind == "chase":
+            _chase_begin(g, 0.9)
         return _out(g)
 
     if kind == "seq" and a == "sq" and phase == "show":
@@ -322,6 +476,51 @@ def act(uid, a, data):
             return r
         _laser_begin(g, 1.4)
         return _out(g, {"type": "alarm", "msg": "ALLARME! I raggi si sono riavviati."})
+
+    if kind == "circuit" and phase == "circuit" and a == "ci":
+        c = st["c"]
+        if data.get("hit"):
+            r = _alarm(uid, g, "Scarica di tensione! La sonda è andata in corto.")
+            if r:
+                return r
+            _circ_begin(g, 1.4)
+            return _out(g, {"type": "alarm", "msg": "ALLARME! Il circuito si è riavviato."})
+        try:
+            fin = int(data.get("fin"))
+        except (TypeError, ValueError):
+            return _out(g)
+        if fin / 1000.0 <= (now - c["t0"]) + 0.5 and _circ_check(c, data.get("s") or [], fin):
+            st["r"] += 1
+            if st["r"] >= CIRC_SECTORS:
+                return _level_done(uid, g)
+            _circ_begin(g, 1.2)
+            return _out(g, {"type": "ok", "msg": "Settore bypassato! Ora il prossimo, più stretto…"})
+        r = _alarm(uid, g, "Hai toccato una parete o una scarica!")
+        if r:
+            return r
+        _circ_begin(g, 1.4)
+        return _out(g, {"type": "alarm", "msg": "ALLARME! Il settore riparte dall'inizio."})
+
+    if kind == "chase" and phase == "chase" and a == "ch":
+        c = st["c"]
+        if data.get("hit"):
+            r = _alarm(uid, g, "Impatto! Il furgone è finito fuori strada.")
+            if r:
+                return r
+            _chase_begin(g, 1.6)
+            return _out(g, {"type": "alarm", "msg": "ALLARME! L'inseguimento riparte."})
+        try:
+            ev = [[int(x), int(y)] for x, y in (data.get("ev") or [])][:90]
+            fin = int(data.get("fin"))
+        except (TypeError, ValueError):
+            return _out(g)
+        if fin / 1000.0 <= (now - c["t0"]) + 0.5 and _chase_check(c, ev, fin):
+            return _level_done(uid, g)
+        r = _alarm(uid, g, "Impatto o bivio sbagliato!")
+        if r:
+            return r
+        _chase_begin(g, 1.6)
+        return _out(g, {"type": "alarm", "msg": "ALLARME! L'inseguimento riparte."})
 
     if kind == "lock" and phase == "lock" and a == "lk":
         k = st["k"]
