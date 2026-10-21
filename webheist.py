@@ -14,7 +14,7 @@ from state import game_enabled as _ge
 
 WEB_HEIST = {}
 WEB_COST = 350                  # la rapina principale della mini app costa di più di quella del bot
-WEB_TIME = 420                  # sette minuti: i livelli sono 7 e più di abilità
+WEB_TIME = 480                  # otto minuti: i livelli sono 7 e più lunghi di abilità
 KINDS = ["seq", "laser", "hack", "lock", "vault", "circuit", "chase"]          # livelli 1..7
 NAMES = ["Centralino", "Corridoio laser", "Hacking", "Serratura", "Caveau", "Bypass circuiti", "Inseguimento"]
 WEB_SHARE = 0.25                # con 7 livelli la rapina principale paga il 25% del Banco
@@ -71,13 +71,15 @@ def _view(g):
     elif kind == "circuit":
         c = st.get("c")
         if g["phase"] == "circuit" and c:
-            v.update({"pts": c["pts"], "w": c["w"], "hz": c["hz"], "r": st["r"], "rounds": CIRC_SECTORS, "delay": max(0.0, c["t0"] - time.time())})
+            v.update({"n": c["n"], "open": c["open"], "start": c["start"], "exit": c["exit"], "pins": c["pins"], "hz": c["hz"], "r": st["r"],
+                      "rounds": CIRC_SECTORS, "grace": CIRC_GRACE, "delay": max(0.0, c["t0"] - time.time())})
         else:
             v.update({"r": st.get("r", 0), "rounds": CIRC_SECTORS})
     elif kind == "chase":
         c = st.get("c")
         if g["phase"] == "chase" and c:
-            v.update({"dur": CHASE_DUR, "obs": c["obs"], "forks": c["forks"], "delay": max(0.0, c["t0"] - time.time())})
+            v.update({"D": CH_D, "v0": CH_V0, "acc": CH_A, "vmax": CH_VMAX, "slow": CH_SLOW, "obs": c["obs"], "forks": c["forks"],
+                      "delay": max(0.0, c["t0"] - time.time())})
     elif kind == "flight":
         clues = [H._CLUE[x] for x in st["combo"]]
         random.Random(st["seed"]).shuffle(clues)
@@ -190,140 +192,203 @@ def _laser_check(lasers, ev, fin_ms):
 
 
 # ---------------------------------------------------------------- Bypass circuiti (livello 6)
-CIRC_SECTORS = 2
-CIRC_W = [8.0, 6.5]             # semi-larghezza del tracciato per settore
-CIRC_HZ = [2, 3]                # scariche mobili per settore
-CIRC_MAXV = 260.0               # velocità massima plausibile del dito (unità/s)
-PROBE_R, HZ_R = 1.2, 3.2
+# Labirinto di piastrelle: si muove la sonda con la croce di tasti sotto lo schermo (niente dito sopra il disegno).
+# Si attivano i perni numerati IN ORDINE per riaprire la serratura, poi si raggiunge l'uscita. Le scariche pattugliano un
+# corridoio avanti e indietro, a tempo: il server rigioca le mosse e controlla muri, ordine dei perni e scariche.
+CIRC_STAGES = [(5, 2, 1, 0.80), (6, 3, 2, 0.68), (7, 3, 3, 0.58)]     # (lato, perni, scariche, secondi per piastrella)
+CIRC_SECTORS = len(CIRC_STAGES)
+CIRC_GRACE = 0.10               # appena entrato in una piastrella la scarica non conta per 0,1 s (il server è più permissivo)
+CIRC_SLACK = 0.08
+DIRS = [(0, -1), (1, 0), (0, 1), (-1, 0)]                               # su, destra, giù, sinistra
 
 
-def _seg_pt(pts, f):
-    """Punto e direzione alla frazione f (0..1) della lunghezza del tracciato."""
-    segs = [math.dist(pts[i], pts[i + 1]) for i in range(len(pts) - 1)]
-    want = f * sum(segs)
-    for i, L in enumerate(segs):
-        if want <= L or i == len(segs) - 1:
-            u = min(1.0, want / L) if L else 0.0
-            a, b = pts[i], pts[i + 1]
-            return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u], [(b[0] - a[0]) / L, (b[1] - a[1]) / L]
-        want -= L
-    return list(pts[-1]), [1.0, 0.0]
+def _maze(n):
+    op = [[0] * n for _ in range(n)]
+    seen, stack = {(0, 0)}, [(0, 0)]
+    while stack:
+        x, y = stack[-1]
+        nb = [(i, x + dx, y + dy) for i, (dx, dy) in enumerate(DIRS) if 0 <= x + dx < n and 0 <= y + dy < n and (x + dx, y + dy) not in seen]
+        if not nb:
+            stack.pop()
+            continue
+        i, nx, ny = random.choice(nb)
+        op[y][x] |= 1 << i
+        op[ny][nx] |= 1 << ((i + 2) % 4)
+        seen.add((nx, ny))
+        stack.append((nx, ny))
+    for _ in range(n):                                                  # qualche muro in meno: più strade e meno vicoli ciechi
+        x, y, i = random.randrange(n), random.randrange(n), random.randrange(4)
+        nx, ny = x + DIRS[i][0], y + DIRS[i][1]
+        if 0 <= nx < n and 0 <= ny < n:
+            op[y][x] |= 1 << i
+            op[ny][nx] |= 1 << ((i + 2) % 4)
+    return op
 
 
-def _dist_poly(pts, x, y):
-    best = 1e9
-    for i in range(len(pts) - 1):
-        ax, ay = pts[i]; bx, by = pts[i + 1]
-        dx, dy = bx - ax, by - ay
-        L2 = dx * dx + dy * dy
-        u = 0.0 if L2 == 0 else max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / L2))
-        best = min(best, math.hypot(x - (ax + u * dx), y - (ay + u * dy)))
-    return best
+def _patrols(op, n, k, banned):
+    res, used = [], set(banned)
+    for _ in range(150):
+        if len(res) >= k:
+            break
+        x, y, d = random.randrange(n), random.randrange(n), random.randrange(4)
+        cells = [(x, y)]
+        while len(cells) < 5:
+            cx, cy = cells[-1]
+            if not (op[cy][cx] >> d) & 1:
+                break
+            cells.append((cx + DIRS[d][0], cy + DIRS[d][1]))
+        if len(cells) >= 3 and not any(c in used for c in cells):
+            res.append(cells)
+            used.update(cells)
+    return res
 
 
-def _hz_pos(h, t):
-    k = h["a"] * math.sin(2 * math.pi * t / h["p"] + h["ph"])
-    return h["x"] + h["nx"] * k, h["y"] + h["ny"] * k
+def _hz_cell(h, t):
+    n = len(h["cells"])
+    cyc = 2 * (n - 1)
+    m = int(max(0.0, t) / h["T"]) % cyc
+    return h["cells"][m if m < n else cyc - m]
 
 
 def _circ_begin(g, delay):
     r = g["st"].get("r", 0)
-    xs = [10, 27, 44, 61, 77, 90]
-    ys, prev = [], random.choice([22, 78])
-    for _ in xs:
-        y = random.randint(18, 82)
-        for _ in range(12):
-            if abs(y - prev) >= 26:
-                break
-            y = random.randint(18, 82)
-        ys.append(y); prev = y
-    pts = [[x, y] for x, y in zip(xs, ys)]
-    hz = []
-    fr = sorted(random.sample([0.22, 0.36, 0.5, 0.64, 0.78], CIRC_HZ[r]))
-    for f in fr:
-        (px, py), (dx, dy) = _seg_pt(pts, f)
-        hz.append({"x": round(px, 2), "y": round(py, 2), "nx": round(-dy, 3), "ny": round(dx, 3), "a": round(CIRC_W[r] * 0.95, 2),
-                   "p": round(random.uniform(1.5, 2.1) if r == 0 else random.uniform(1.2, 1.7), 2), "ph": round(random.uniform(0, 6.28), 2), "r": HZ_R})
-    g["st"]["c"] = {"pts": pts, "w": CIRC_W[r], "hz": hz, "t0": time.time() + delay,
-                    "len": sum(math.dist(pts[i], pts[i + 1]) for i in range(len(pts) - 1))}
+    n, npins, nhz, T = CIRC_STAGES[min(r, CIRC_SECTORS - 1)]
+    op = _maze(n)
+    sx, sy = random.choice([0, n - 1]), random.choice([0, n - 1])
+    start, exit_ = (sx, sy), (n - 1 - sx, n - 1 - sy)
+    cells = [(x, y) for x in range(n) for y in range(n) if (x, y) not in (start, exit_)]
+    pins = []
+    for _ in range(300):
+        pins = random.sample(cells, npins)
+        if all(abs(a[0] - b[0]) + abs(a[1] - b[1]) >= 2 for i, a in enumerate(pins) for b in pins[i + 1:]):
+            break
+    hz = [{"cells": [list(c) for c in cs], "T": T} for cs in _patrols(op, n, nhz, [start, exit_])]
+    g["st"]["c"] = {"n": n, "open": op, "start": list(start), "exit": list(exit_), "pins": [list(p) for p in pins], "hz": hz,
+                    "t0": time.time() + delay}
     g["phase"] = "circuit"
 
 
-def _circ_check(c, samples, fin_ms):
-    """Rigioca il tracciato del dito: parte dall'inizio, resta nel circuito, evita le scariche e arriva alla fine."""
+def _circ_check(c, moves, fin_ms):
+    """Rigioca le mosse: nessun muro attraversato, perni nell'ordine giusto, uscita raggiunta, nessuna scarica incrociata."""
     try:
-        sm = sorted((int(a), float(b), float(d)) for a, b, d in samples)[:700]
+        mv = sorted((int(a), int(b)) for a, b in moves)[:400]
+        fin = int(fin_ms) / 1000.0
     except (TypeError, ValueError):
         return False
-    if len(sm) < 8:
-        return False
-    pts, w = c["pts"], c["w"]
-    if math.hypot(sm[0][1] - pts[0][0], sm[0][2] - pts[0][1]) > 10 or math.hypot(sm[-1][1] - pts[-1][0], sm[-1][2] - pts[-1][1]) > 7:
-        return False
-    if (sm[-1][0] - sm[0][0]) / 1000.0 < c["len"] / 150.0:                   # troppo veloce per un dito umano
-        return False
-    for i, (t, x, y) in enumerate(sm):
-        if _dist_poly(pts, x, y) > w + 0.8:
+    pos, t_in, pins, stay, prev = list(c["start"]), 0.0, 0, [], -1000
+    for tm, d in mv:
+        if d not in (0, 1, 2, 3) or tm < 0 or tm - prev < 70:
             return False
-        if i:
-            pt, px, py = sm[i - 1]
-            dt = max(0.001, (t - pt) / 1000.0)
-            if dt > 0.6 or math.hypot(x - px, y - py) / dt > CIRC_MAXV:
-                return False
-            for k in range(1, 5):                                              # punti intermedi: non si salta una scarica
-                f = k / 5.0
-                if any(math.hypot(px + (x - px) * f - hx, py + (y - py) * f - hy) < h["r"] + PROBE_R - 1.0
-                       for h in c["hz"] for hx, hy in [_hz_pos(h, (pt + (t - pt) * f) / 1000.0)]):
+        prev = tm
+        x, y = pos
+        if not (c["open"][y][x] >> d) & 1:
+            return False
+        stay.append((tuple(pos), t_in, tm / 1000.0))
+        pos = [x + DIRS[d][0], y + DIRS[d][1]]
+        t_in = tm / 1000.0
+        if pins < len(c["pins"]) and pos == c["pins"][pins]:
+            pins += 1
+    if fin < t_in:
+        return False
+    stay.append((tuple(pos), t_in, fin))
+    if pos != c["exit"] or pins < len(c["pins"]):
+        return False
+    for cell, a, b in stay:
+        for h in c["hz"]:
+            T = h["T"]
+            for k in range(int(max(0.0, a) / T), int(b / T) + 1):
+                if tuple(_hz_cell(h, k * T + T / 2)) != cell:
+                    continue
+                if min(b, (k + 1) * T) - max(a + CIRC_GRACE, k * T) > CIRC_SLACK:
                     return False
-        if any(math.hypot(x - hx, y - hy) < h["r"] + PROBE_R - 1.0 for h in c["hz"] for hx, hy in [_hz_pos(h, t / 1000.0)]):
-            return False
     return True
 
 
-# ---------------------------------------------------------------- Inseguimento (livello 7)
-CHASE_DUR = 30.0
+# ---------------------------------------------------------------- Fuga (livello 7)
+# Corsa a DISTANZA: il furgone parte lento e accelera da solo; cambi corsia. Ostacoli che bocciano la fuga (posti di blocco,
+# auto contromano, muri, faro dell'elicottero) e ostacoli che fanno solo rallentare (olio, buche). Ai bivi leggi il cartello:
+# l'elicottero sorveglia un percorso, prendi l'altro. Il server rigioca corsie e velocità e verifica il tempo di arrivo.
+CH_D = 3600.0                   # metri totali
+CH_V0, CH_A, CH_VMAX = 22.0, 0.8, 55.0
+CH_SLOW = 0.5                   # olio e buche dimezzano la velocità
+CH_H_SRV = 0.6                  # mezza lunghezza del furgone per il server: il telefono usa 2,0 (margine per gli scarti di tempo)
+CH_FINISH_TOL = 0.7
+LETHAL = ("block", "car", "wall", "light")
+CH_LEN = {"block": 3.0, "car": 5.0, "wall": 3.0, "light": 16.0, "oil": 4.0, "pit": 3.0}
+
+
+def _ch_v(d):
+    return min(CH_VMAX, math.sqrt(CH_V0 * CH_V0 + 2 * CH_A * d))
 
 
 def _chase_begin(g, delay):
-    obs, forks = [], []
-    forks = [{"t": 11.0, "heli": random.choice("LR")}, {"t": 22.0, "heli": random.choice("LR")}]
-    taken = [11.0, 22.0]
-    kinds = ["block"] * 3 + ["spike", "oil", "spike", "oil"]
-    random.shuffle(kinds)
-    tries = 0
-    while kinds and tries < 400:
-        tries += 1
-        t = round(random.uniform(3.0, 27.5), 2)
-        if all(abs(t - u) >= 1.25 for u in taken):
-            obs.append([t, random.randrange(3), kinds.pop()]); taken.append(t)
-    obs.sort()
+    fk = [CH_D * 0.36, CH_D * 0.72]
+    forks = [{"d": round(f, 1), "heli": random.choice("LR")} for f in fk]
+    obs, d = [], 110.0
+    while d < CH_D - 260:
+        v = _ch_v(d)
+        d += random.uniform(1.0, 1.8) * v
+        if d >= CH_D - 260:
+            break
+        if any(abs(d - f) < 2.6 * _ch_v(f) for f in fk):
+            continue
+        p = d / CH_D
+        pool = ["oil", "pit", "block"] + (["oil", "pit"] if p > 0.2 else []) + (["car", "wall"] if p > 0.2 else []) + (["light", "car"] if p > 0.4 else [])
+        kind = random.choice(pool)
+        if kind == "wall":
+            free = random.randrange(3)
+            mask = 7 & ~(1 << free)
+        else:
+            mask = 1 << random.randrange(3)
+        obs.append([round(d, 1), mask, kind, CH_LEN[kind]])
     g["st"]["c"] = {"obs": obs, "forks": forks, "t0": time.time() + delay}
     g["phase"] = "chase"
 
 
-def _chase_check(c, ev, fin_ms):
+def _chase_check(c, ev, sl, fin_ms):
+    """Rigioca corsie e velocità. ev = cambi di corsia [ms, corsia]; sl = rallentamenti dichiarati dal telefono [ms, indice
+    ostacolo] (il server li verifica e pretende anche quelli che non ha potuto evitare), così posizioni e tempi restano uguali."""
     try:
-        ev = sorted((int(a), int(b)) for a, b in ev)[:90]
+        ev = sorted((int(a), int(b)) for a, b in ev)[:260]
+        sl = sorted((int(a), int(b)) for a, b in sl)[:80]
+        fin = int(fin_ms) / 1000.0
     except (TypeError, ValueError):
         return False
-    if fin_ms < (CHASE_DUR - 0.3) * 1000 or any(l not in (0, 1, 2) for _, l in ev):
+    if any(l not in (0, 1, 2) or t < 0 for t, l in ev) or any(ev[i + 1][0] - ev[i][0] < 60 for i in range(len(ev) - 1)):
         return False
-    if any(ev[i + 1][0] - ev[i][0] < 60 for i in range(len(ev) - 1)):
+    obs, forks = c["obs"], c["forks"]
+    if any(i < 0 or i >= len(obs) or obs[i][2] in LETHAL for _, i in sl) or len({i for _, i in sl}) != len(sl):
         return False
-
-    def lane(t):
-        cur = 1
-        for te, l in ev:
-            if te / 1000.0 <= t:
-                cur = l
-        return cur
-    for t, ln, _k in c["obs"]:
-        if lane(t - 0.08) == ln and lane(t) == ln and lane(t + 0.08) == ln:
+    dt, n, p, v, lane, plane, ei, si, fi = 0.02, 0, 0.0, CH_V0, 1, 1, 0, 0, 0
+    claimed, strict = {i for _, i in sl}, set()
+    while p < CH_D:
+        tms = n * 20                                                    # tempo a passi interi: identico a quello del telefono
+        while ei < len(ev) and ev[ei][0] <= tms:
+            plane, lane = lane, ev[ei][1]
+            ei += 1
+        while si < len(sl) and sl[si][0] <= tms:
+            d, mask, _k, ln = obs[sl[si][1]]
+            if not (p + 3.0 > d and p - 3.0 < d + ln and ((mask >> lane) & 1 or (mask >> plane) & 1)):
+                return False
+            v = max(CH_V0, v * CH_SLOW)
+            si += 1
+        v = min(CH_VMAX, v + CH_A * dt)
+        p += v * dt
+        n += 1
+        if n > 20000:
             return False
-    for f in c["forks"]:
-        if lane(f["t"]) != (2 if f["heli"] == "L" else 0):
-            return False
-    return True
+        for i, (d, mask, kind, ln) in enumerate(obs):
+            if d > p + 5:
+                break
+            if p + CH_H_SRV > d and p - CH_H_SRV < d + ln and (mask >> lane) & 1:
+                if kind in LETHAL:
+                    return False
+                strict.add(i)
+        while fi < len(forks) and p >= forks[fi]["d"]:
+            if lane != (2 if forks[fi]["heli"] == "L" else 0):
+                return False
+            fi += 1
+    return strict <= claimed and abs(n * dt - fin) <= CH_FINISH_TOL
 
 
 def _tri(u):
@@ -489,13 +554,13 @@ def act(uid, a, data):
             fin = int(data.get("fin"))
         except (TypeError, ValueError):
             return _out(g)
-        if fin / 1000.0 <= (now - c["t0"]) + 0.5 and _circ_check(c, data.get("s") or [], fin):
+        if fin / 1000.0 <= (now - c["t0"]) + 0.5 and _circ_check(c, data.get("mv") or [], fin):
             st["r"] += 1
             if st["r"] >= CIRC_SECTORS:
                 return _level_done(uid, g)
             _circ_begin(g, 1.2)
-            return _out(g, {"type": "ok", "msg": "Settore bypassato! Ora il prossimo, più stretto…"})
-        r = _alarm(uid, g, "Hai toccato una parete o una scarica!")
+            return _out(g, {"type": "ok", "msg": "Serratura riaperta! Prossimo settore, più grande…"})
+        r = _alarm(uid, g, "Mosse non valide: muro, perni fuori ordine o scarica!")
         if r:
             return r
         _circ_begin(g, 1.4)
@@ -510,11 +575,12 @@ def act(uid, a, data):
             _chase_begin(g, 1.6)
             return _out(g, {"type": "alarm", "msg": "ALLARME! L'inseguimento riparte."})
         try:
-            ev = [[int(x), int(y)] for x, y in (data.get("ev") or [])][:90]
+            ev = [[int(x), int(y)] for x, y in (data.get("ev") or [])][:260]
+            sl = [[int(x), int(y)] for x, y in (data.get("sl") or [])][:80]
             fin = int(data.get("fin"))
         except (TypeError, ValueError):
             return _out(g)
-        if fin / 1000.0 <= (now - c["t0"]) + 0.5 and _chase_check(c, ev, fin):
+        if fin / 1000.0 <= (now - c["t0"]) + 0.5 and _chase_check(c, ev, sl, fin):
             return _level_done(uid, g)
         r = _alarm(uid, g, "Impatto o bivio sbagliato!")
         if r:
