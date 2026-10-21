@@ -33,7 +33,7 @@ from state import USER_INVENTORIES
 from storage import save_db, mark_seen, ukey, get_user_data_dict, add_user_coins, set_web_sandbox, ensure_web_sandbox, is_web_sandbox
 import economy
 from economy import today_str, spin_daily, DAILY_WHEEL
-from state import SCRATCH_GAMES, SYSTEM_FLAGS, maint_mode
+from state import SCRATCH_GAMES, SYSTEM_FLAGS, maint_mode, user_block
 from utils import is_v2
 from economy import banco_balance, follia_active, follia_left_text
 
@@ -172,6 +172,8 @@ def require_admin():
             return None, (jsonify({"success": False, "error": "Troppe richieste, rallenta un attimo."}), 429)
         if not _is_member(user["id"]):
             return None, (jsonify({"success": False, "error": "Sdrogo Arcade è riservata ai membri del gruppo."}), 403)
+    if not _is_admin_id(user["id"]) and user_block(user["id"]) >= 1:
+        return None, (jsonify({"success": False, "error": "Il tuo accesso a Sdrogo Arcade è stato sospeso dall'admin."}), 403)
     if not _is_admin_id(user["id"]):
         mm = maint_mode()
         if mm == "hard" or (mm == "soft" and _is_new_round(request.path)):

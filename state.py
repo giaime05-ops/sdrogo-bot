@@ -39,6 +39,14 @@ FLAGS = {"troll": False, "maintenance": False, "maint_since": 0.0}
 MAINT_SOFT_SECONDS = 600     # manutenzione "graceful": per 10 minuti si finisce la partita in corso, poi blocco totale
 
 
+def user_block(uid) -> int:
+    """0 = libero, 1 = mini app Arcade bloccata, 2 = tutto bloccato (bot, /sdrogocomm e Arcade). Deciso dall'admin."""
+    try:
+        return int((SYSTEM_FLAGS.get("BLOCKS") or {}).get(str(uid), 0))
+    except (TypeError, ValueError):
+        return 0
+
+
 def maint_mode() -> str:
     """'off' | 'soft' (niente nuove partite, si può finire quella in corso) | 'hard' (tutto fermo)."""
     m = FLAGS.get("maintenance")

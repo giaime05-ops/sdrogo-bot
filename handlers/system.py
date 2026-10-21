@@ -24,7 +24,7 @@ from state import (
     DAILY_DONATIONS, USER_DATA, GAME_STATUS, AVIATOR_GAMES, SCRATCH_GAMES, POKER_GAMES,
     WORK_GAMES, SYSTEM_FLAGS, GROUP_CHALLENGE, SANDBOX,
     SILENCED, MUTE_FILTER, REACT_TARGETS, ACTIVE_TITLES, PENDING_INPUT,
-    game_enabled, MAINT_GAME_TEXT, maint_mode,
+    game_enabled, MAINT_GAME_TEXT, maint_mode, user_block,
 )
 from storage import (LAST_SEEN, add_user_coins, get_user_coins, add_user_stat, save_db, chat_user_ids, log_play,
                      find_user_id, sandbox_set, is_sandbox)
@@ -192,7 +192,77 @@ def _online_view(page: int = 0):
     nav.append(InlineKeyboardButton("🔄 Aggiorna", callback_data=f"adm_on_{page}"))
     if page < pages - 1:
         nav.append(InlineKeyboardButton("➡️", callback_data=f"adm_on_{page + 1}"))
-    return text, InlineKeyboardMarkup([nav, [InlineKeyboardButton("⬅️ Dashboard", callback_data="adm_back")]])
+    return text, InlineKeyboardMarkup([nav, [InlineKeyboardButton("🚫 Gestisci accessi", callback_data="adm_blkm_0")],
+                                       [InlineKeyboardButton("⬅️ Dashboard", callback_data="adm_back")]])
+
+
+# --- ACCESSI: blocco per singolo utente ---
+_BLOCK_LABEL = {0: "🟢 libero", 1: "🕹️ Arcade bloccata", 2: "🚫 tutto bloccato"}
+
+
+def _set_block(uid, level: int):
+    d = SYSTEM_FLAGS.setdefault("BLOCKS", {})
+    if level <= 0:
+        d.pop(str(uid), None)
+    else:
+        d[str(uid)] = int(level)
+    save_db()
+
+
+def _block_view(page: int = 0):
+    now = time.time()
+    rows_u = []
+    for uid, d in USER_DATA.items():
+        if not str(uid).isdigit() or is_admin(int(uid)):
+            continue
+        seen = LAST_SEEN.get(uid) or d.get("seen") or 0
+        rows_u.append((user_block(uid), seen, uid, d))
+    rows_u.sort(key=lambda r: (-r[0], -r[1]))                 # prima i bloccati, poi i più recenti
+    pages = max(1, (len(rows_u) + 7) // 8)
+    page = max(0, min(page, pages - 1))
+    kb = []
+    for lvl, seen, uid, d in rows_u[page * 8:(page + 1) * 8]:
+        label = f"@{d['username']}" if d.get("username") else (d.get("name") or f"ID {uid}")
+        kb.append([InlineKeyboardButton(f"{label[:22]} · {_BLOCK_LABEL[lvl]}", callback_data=f"adm_blk_{uid}_{page}")])
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("⬅️", callback_data=f"adm_blkm_{page - 1}"))
+    nav.append(InlineKeyboardButton("🔄", callback_data=f"adm_blkm_{page}"))
+    if page < pages - 1:
+        nav.append(InlineKeyboardButton("➡️", callback_data=f"adm_blkm_{page + 1}"))
+    kb.append(nav)
+    kb.append([InlineKeyboardButton("⬅️ Dashboard", callback_data="adm_back")])
+    text = ("🚫 <b>ACCESSI</b>\n\nTocca un utente per cambiare lo stato: <b>libero</b> → <b>Arcade bloccata</b> (non entra nella mini app) → "
+            "<b>tutto bloccato</b> (niente /sdrogocomm, tasti e mini app) → libero.\n"
+            "Oppure: <code>/blocca @utente</code> (tutto), <code>/blocca @utente arcade</code>, <code>/sblocca @utente</code>.\n"
+            f"<i>Pagina {page + 1}/{pages}.</i>")
+    return text, InlineKeyboardMarkup(kb)
+
+
+async def block_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user, msg = update.effective_user, update.effective_message
+    if not user or not msg or not is_admin(user.id):
+        return
+    parts = (msg.text or "").split()
+    cmd = parts[0].lstrip("/").split("@")[0].lower()
+    target = None
+    if len(parts) > 1:
+        target = find_user_id(parts[1])
+    elif msg.reply_to_message and msg.reply_to_message.from_user:
+        target = str(msg.reply_to_message.from_user.id)
+    if not target:
+        await msg.reply_text("Uso: <code>/blocca @utente</code> (oppure <code>/blocca @utente arcade</code>) · <code>/sblocca @utente</code>.", parse_mode="HTML")
+        return
+    if is_admin(int(target)):
+        await msg.reply_text("Non puoi bloccare l'admin 🙂")
+        return
+    if cmd == "sblocca":
+        _set_block(target, 0)
+        await msg.reply_text("✅ Utente sbloccato.")
+    else:
+        lvl = 1 if (len(parts) > 2 and parts[2].lower().startswith("arc")) else 2
+        _set_block(target, lvl)
+        await msg.reply_text("🚫 Utente bloccato: " + _BLOCK_LABEL[lvl] + ".")
 
 
 # --- MENU COMANDI ADMIN (/com) ---
@@ -402,6 +472,24 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         await smart_edit(query, *_admin_view())
         return
+    elif action == "blkm":                          # adm_blkm_<pagina>
+        await query.answer()
+        try:
+            page = int(parts[2])
+        except (IndexError, ValueError):
+            page = 0
+        await smart_edit(query, *_block_view(page))
+        return
+    elif action == "blk":                           # adm_blk_<uid>_<pagina>: cicla libero -> arcade -> tutto
+        try:
+            uid_t, page = parts[2], int(parts[3])
+        except (IndexError, ValueError):
+            await query.answer()
+            return
+        _set_block(uid_t, (user_block(uid_t) + 1) % 3)
+        await query.answer(_BLOCK_LABEL[user_block(uid_t)])
+        await smart_edit(query, *_block_view(page))
+        return
     elif action == "on":                            # adm_on_<pagina>
         await query.answer()
         try:
@@ -488,6 +576,23 @@ async def toggle_maintenance(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "/sdrogocomm è già chiuso. Dopo 10 minuti il blocco diventa totale (oppure usa <code>/manutenzione ora</code>).\n"
         f"📣 Avviso inviato a {sent} utenti online.\n<i>Tu (admin) non vedi blocchi: sei sempre esente.</i>",
         parse_mode="HTML")
+
+
+async def block_gate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Utenti con accesso sospeso dall'admin (livello 2): comandi, tasti e parole-trigger vengono ignorati."""
+    user = update.effective_user
+    if not user or is_admin(user.id) or user_block(user.id) < 2:
+        return
+    if update.callback_query:
+        try:
+            await update.callback_query.answer("🚫 Il tuo accesso al bot è stato sospeso dall'admin.", show_alert=True)
+        except Exception:
+            pass
+        raise ApplicationHandlerStop
+    msg = update.effective_message
+    first = ((msg.text or "").strip().lower().split() or [""])[0] if msg else ""
+    if first.startswith("/") or first in GAME_TRIGGERS:
+        raise ApplicationHandlerStop
 
 
 async def maintenance_gate(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1031,6 +1136,9 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 def register(app):
     app.add_error_handler(error_handler)
     app.add_handler(TypeHandler(Update, maintenance_gate), group=-2)
+    app.add_handler(TypeHandler(Update, block_gate), group=-2)
+    app.add_handler(CommandHandler("blocca", block_command))
+    app.add_handler(CommandHandler("sblocca", block_command))
     app.add_handler(CallbackQueryHandler(catch_all_callbacks), group=-1)
     app.add_handler(CommandHandler("troll", toggle_troll))
     app.add_handler(CommandHandler("pen", clear_penalties))

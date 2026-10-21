@@ -126,7 +126,8 @@ def _single_button(update: Update, user_id: int):
     try:
         from config import ADMIN_ID
         from state import SYSTEM_FLAGS
-        allowed = (bool(ADMIN_ID) and str(user_id) == str(ADMIN_ID)) or bool(SYSTEM_FLAGS.get("ARCADE_PUBLIC"))
+        from state import user_block
+        allowed = (bool(ADMIN_ID) and str(user_id) == str(ADMIN_ID)) or (bool(SYSTEM_FLAGS.get("ARCADE_PUBLIC")) and user_block(user_id) < 1)
         if allowed:
             chat = update.effective_chat
             if chat is not None and chat.type == "private":
