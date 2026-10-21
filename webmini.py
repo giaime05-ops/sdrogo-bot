@@ -1,7 +1,7 @@
 """Mini app: DAILY HEIST (mini rapine). Per ora SOLO account admin di prova.
 Ogni giorno (mezzanotte italiana) c'è uno schema uguale per tutti: due mini rapine ("Colpo Rapido 1/2") da 3 giochini ciascuna,
 scelti a rotazione da un pool di 7 (memoria, matematica, logica, riflessi...). Ogni giochino ha 3 round di difficoltà crescente.
-Costo 100 $SDG, premio fisso 300 $SDG, 150 secondi, al 3° allarme si fallisce.
+Costo 100 $SDG, premio fisso 300 $SDG, 150 secondi, al 2° allarme si fallisce.
 Ogni mini rapina si può giocare 3 volte al giorno, con almeno 2 ore tra una partenza e la successiva.
 Il server genera e controlla tutto (risposte giuste, tempi, tracciati)."""
 import random
@@ -15,7 +15,7 @@ from state import game_enabled as _ge
 MINI_COST = 100
 MINI_PRIZE = 300
 MINI_TIME = 150
-MINI_MAX_ALARMS = 3
+MINI_MAX_ALARMS = 2
 ROUNDS = 3
 MINI_ALARM_PEN = 10
 MINI_PLAYS = 3
@@ -117,7 +117,7 @@ def _gen(kind, r=0):
             ans, q = glasses.index(False), "Chi NON portava gli occhiali?"
         else:
             ans, q = t, f"Chi aveva il cappello {HATN[hats[t]].upper()} E la scheda {BADGE[badges[t]].upper()}?"
-        return {"guards": guards, "q": q, "ans": ans, "show": (5.0, 5.5, 6.0)[r], "limit": (8, 8, 9)[r]}
+        return {"guards": guards, "q": q, "ans": ans, "show": (3.0, 3.5, 4.0)[r], "limit": (7, 8, 9)[r]}
     if kind == "cable":
         n = (4, 5, 6)[r]
         order = rn.sample(CABLES, n)
@@ -133,7 +133,7 @@ def _gen(kind, r=0):
                 pos, ex = (a + b) * c - d, f"({a} + {b}) × {c} − {d}"
             if 1 <= pos <= n:
                 break
-        return {"cables": order, "q": f"Taglia il cavo in posizione {ex}  (contando da sinistra)", "ans": pos - 1, "limit": (10, 12, 14)[r]}
+        return {"cables": order, "q": f"Taglia il cavo in posizione {ex}  (contando da sinistra)", "ans": pos - 1, "limit": (8, 10, 12)[r]}
     if kind == "logic":
         seq = _series(r)
         ans = seq[-1]
@@ -146,9 +146,9 @@ def _gen(kind, r=0):
                 opts.add(cand)
         opts = list(opts)
         rn.shuffle(opts)
-        return {"seq": seq[:-1], "options": opts, "ans": opts.index(ans), "q": "Quale numero completa la serie?", "limit": (10, 12, 14)[r]}
+        return {"seq": seq[:-1], "options": opts, "ans": opts.index(ans), "q": "Quale numero completa la serie?", "limit": (9, 11, 13)[r]}
     if kind == "print":
-        n, diff = (3, 4, 5)[r], (3, 2, 1)[r]
+        n, diff = (3, 4, 5)[r], (2, 2, 1)[r]
         t = [[1 if rn.random() < 0.45 else 0 for _ in range(5)] for _ in range(5)]
         cands = []
         while len(cands) < n - 1:
@@ -160,10 +160,10 @@ def _gen(kind, r=0):
                 cands.append(m)
         ans = rn.randrange(n)
         cands.insert(ans, [row[:] for row in t])
-        return {"target": t, "cands": cands, "ans": ans, "limit": (10, 12, 14)[r]}
+        return {"target": t, "cands": cands, "ans": ans, "limit": (9, 10, 12)[r]}
     if kind == "freq":
-        return {"f0": round(rn.uniform(2.0, 4.0), 2), "amp": 0.5, "w": (0.5, 0.8, 1.1)[r], "ph": round(rn.uniform(0, 6.28), 2),
-                "need": (2.0, 2.5, 3.0)[r], "tol": (0.22, 0.18, 0.14)[r], "limit": (14, 16, 18)[r]}
+        return {"f0": round(rn.uniform(2.0, 4.0), 2), "amp": 0.5, "w": (0.4, 0.55, 0.7)[r], "ph": round(rn.uniform(0, 6.28), 2),
+                "need": (2.0, 2.5, 2.5)[r], "tol": (0.28, 0.24, 0.21)[r], "limit": (14, 16, 18)[r]}
     if kind == "laser":
         xs = [(35, 70), (25, 50, 75), (18, 38, 58, 78)][r]
         lo, hi = [(1.4, 2.0), (1.25, 1.8), (1.1, 1.6)][r]

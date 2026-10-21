@@ -78,7 +78,7 @@ def _view(g):
     elif kind == "chase":
         c = st.get("c")
         if g["phase"] == "chase" and c:
-            v.update({"D": CH_D, "v0": CH_V0, "acc": CH_A, "vmax": CH_VMAX, "slow": CH_SLOW, "obs": c["obs"], "forks": c["forks"],
+            v.update({"D": CH_D, "v0": CH_V0, "acc": CH_A, "vmax": CH_VMAX, "slow": CH_SLOW, "obs": c["obs"], "forks": c["forks"], "segs": c["segs"],
                       "delay": max(0.0, c["t0"] - time.time())})
     elif kind == "flight":
         clues = [H._CLUE[x] for x in st["combo"]]
@@ -195,7 +195,7 @@ def _laser_check(lasers, ev, fin_ms):
 # Labirinto di piastrelle: si muove la sonda con la croce di tasti sotto lo schermo (niente dito sopra il disegno).
 # Si attivano i perni numerati IN ORDINE per riaprire la serratura, poi si raggiunge l'uscita. Le scariche pattugliano un
 # corridoio avanti e indietro, a tempo: il server rigioca le mosse e controlla muri, ordine dei perni e scariche.
-CIRC_STAGES = [(5, 2, 1, 0.80), (6, 3, 2, 0.68), (7, 3, 3, 0.58)]     # (lato, perni, scariche, secondi per piastrella)
+CIRC_STAGES = [(7, 2, 2, 0.70), (9, 3, 3, 0.60), (11, 3, 5, 0.52)]   # (lato, perni, scariche, secondi per piastrella)
 CIRC_SECTORS = len(CIRC_STAGES)
 CIRC_GRACE = 0.10               # appena entrato in una piastrella la scarica non conta per 0,1 s (il server è più permissivo)
 CIRC_SLACK = 0.08
@@ -216,7 +216,7 @@ def _maze(n):
         op[ny][nx] |= 1 << ((i + 2) % 4)
         seen.add((nx, ny))
         stack.append((nx, ny))
-    for _ in range(n):                                                  # qualche muro in meno: più strade e meno vicoli ciechi
+    for _ in range(max(n, n * n // 3)):                                 # molti muri in meno: stanze e giri, non solo corridoi
         x, y, i = random.randrange(n), random.randrange(n), random.randrange(4)
         nx, ny = x + DIRS[i][0], y + DIRS[i][1]
         if 0 <= nx < n and 0 <= ny < n:
@@ -226,20 +226,23 @@ def _maze(n):
 
 
 def _patrols(op, n, k, banned):
+    """Scariche che pattugliano un tratto dritto di 3 piastrelle (tipo fantasmini): sempre aggirabili o da aspettare."""
     res, used = [], set(banned)
-    for _ in range(150):
+    for _ in range(300):
         if len(res) >= k:
             break
         x, y, d = random.randrange(n), random.randrange(n), random.randrange(4)
         cells = [(x, y)]
-        while len(cells) < 5:
+        while len(cells) < 3:
             cx, cy = cells[-1]
             if not (op[cy][cx] >> d) & 1:
                 break
             cells.append((cx + DIRS[d][0], cy + DIRS[d][1]))
-        if len(cells) >= 3 and not any(c in used for c in cells):
+        if len(cells) == 3 and not any(c in used for c in cells):
             res.append(cells)
             used.update(cells)
+            for cx, cy in cells:                                        # niente due scariche vicine: lasciano sempre un passaggio
+                used.update({(cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)})
     return res
 
 
@@ -250,21 +253,61 @@ def _hz_cell(h, t):
     return h["cells"][m if m < n else cyc - m]
 
 
+def _circ_solvable(c, limit=60.0):
+    """Cerca (con attese) un percorso che raccoglie i perni in ordine e arriva all'uscita senza mai incrociare una scarica, con
+    ampi margini: il labirinto è accettato solo se si può fare. Ritorna il tempo minimo oppure None."""
+    DT = 0.2
+    op, pins, ex = c["open"], [tuple(p) for p in c["pins"]], tuple(c["exit"])
+    start = (tuple(c["start"]), 0, 0)
+    seen, cur, k = {start}, [start], 0
+    while cur and k * DT < limit:
+        nxt = []
+        k += 1
+        t = k * DT
+        bad = {tuple(_hz_cell(h, t + o)) for h in c["hz"] for o in (-0.25, 0.0, 0.25)}
+        for pos, got, _ in cur:
+            for d in (None, 0, 1, 2, 3):
+                if d is None:
+                    np_, ng = pos, got
+                else:
+                    x, y = pos
+                    if not (op[y][x] >> d) & 1:
+                        continue
+                    np_ = (x + DIRS[d][0], y + DIRS[d][1])
+                    ng = got + 1 if got < len(pins) and np_ == pins[got] else got
+                if np_ in bad:
+                    continue
+                key = (np_, ng, k)
+                if key in seen:
+                    continue
+                if np_ == ex and ng == len(pins):
+                    return t
+                seen.add(key)
+                nxt.append(key)
+        cur = nxt
+    return None
+
+
 def _circ_begin(g, delay):
     r = g["st"].get("r", 0)
     n, npins, nhz, T = CIRC_STAGES[min(r, CIRC_SECTORS - 1)]
-    op = _maze(n)
-    sx, sy = random.choice([0, n - 1]), random.choice([0, n - 1])
-    start, exit_ = (sx, sy), (n - 1 - sx, n - 1 - sy)
-    cells = [(x, y) for x in range(n) for y in range(n) if (x, y) not in (start, exit_)]
-    pins = []
-    for _ in range(300):
-        pins = random.sample(cells, npins)
-        if all(abs(a[0] - b[0]) + abs(a[1] - b[1]) >= 2 for i, a in enumerate(pins) for b in pins[i + 1:]):
+    for _try in range(25):
+        op = _maze(n)
+        sx, sy = random.choice([0, n - 1]), random.choice([0, n - 1])
+        start, exit_ = (sx, sy), (n - 1 - sx, n - 1 - sy)
+        cells = [(x, y) for x in range(n) for y in range(n) if (x, y) not in (start, exit_)]
+        pins = []
+        for _ in range(300):
+            pins = random.sample(cells, npins)
+            if all(abs(a[0] - b[0]) + abs(a[1] - b[1]) >= 3 for i, a in enumerate(pins) for b in pins[i + 1:]):
+                break
+        hz = [{"cells": [list(c) for c in cs], "T": T} for cs in _patrols(op, n, nhz, [start, exit_] + pins)]
+        c = {"n": n, "open": op, "start": list(start), "exit": list(exit_), "pins": [list(p) for p in pins], "hz": hz,
+             "t0": time.time() + delay}
+        tmin = _circ_solvable(c)
+        if tmin is not None and tmin <= 12 + n * 3.2:
             break
-    hz = [{"cells": [list(c) for c in cs], "T": T} for cs in _patrols(op, n, nhz, [start, exit_])]
-    g["st"]["c"] = {"n": n, "open": op, "start": list(start), "exit": list(exit_), "pins": [list(p) for p in pins], "hz": hz,
-                    "t0": time.time() + delay}
+    g["st"]["c"] = c
     g["phase"] = "circuit"
 
 
@@ -308,40 +351,100 @@ def _circ_check(c, moves, fin_ms):
 # Corsa a DISTANZA: il furgone parte lento e accelera da solo; cambi corsia. Ostacoli che bocciano la fuga (posti di blocco,
 # auto contromano, muri, faro dell'elicottero) e ostacoli che fanno solo rallentare (olio, buche). Ai bivi leggi il cartello:
 # l'elicottero sorveglia un percorso, prendi l'altro. Il server rigioca corsie e velocità e verifica il tempo di arrivo.
-CH_D = 3600.0                   # metri totali
-CH_V0, CH_A, CH_VMAX = 22.0, 0.8, 55.0
-CH_SLOW = 0.5                   # olio e buche dimezzano la velocità
+CH_D = 4300.0                   # metri totali
+CH_V0, CH_A, CH_VMAX = 26.0, 0.9, 62.0
+CH_SLOW = 0.5                   # olio, buche, fango e coni dimezzano la velocità
 CH_H_SRV = 0.6                  # mezza lunghezza del furgone per il server: il telefono usa 2,0 (margine per gli scarti di tempo)
 CH_FINISH_TOL = 0.7
-LETHAL = ("block", "car", "wall", "light")
-CH_LEN = {"block": 3.0, "car": 5.0, "wall": 3.0, "light": 16.0, "oil": 4.0, "pit": 3.0}
+LETHAL = ("block", "car", "wall", "light", "rock", "wreck")
+CH_LEN = {"block": 3.0, "car": 5.0, "wall": 3.0, "light": 16.0, "oil": 4.0, "pit": 3.0, "rock": 3.0, "wreck": 5.0, "mud": 6.0, "cone": 3.0}
+# Percorsi ai bivi: nome, ambientazione che si incontra dopo, simboli di pericolo possibili (compaiono SOLO accanto alla strada pericolosa)
+ROUTES = {
+    "tunnel": ("TUNNEL", "tunnel", ["🚔", "🚨"]),
+    "overpass": ("SOPRAELEVATA", "bridge", ["🚁", "🚔"]),
+    "dirt": ("STERRATO", "dirt", ["🚧", "🚨"]),
+    "city": ("CENTRO CITTÀ", "city", ["🚔", "🚧", "🚨"]),
+    "coast": ("LUNGOMARE", "coast", ["🚁", "🚓"]),
+}
+ENV_POOL = {                                                            # ostacoli tipici di ogni ambientazione
+    "highway": ["oil", "pit", "block", "car", "wall", "oil", "pit"],
+    "tunnel": ["oil", "pit", "wreck", "wall", "block", "wreck"],
+    "bridge": ["cone", "cone", "block", "car", "wall", "oil"],
+    "dirt": ["rock", "rock", "mud", "mud", "pit", "wall"],
+    "city": ["car", "block", "oil", "wall", "cone", "car"],
+    "coast": ["oil", "car", "block", "pit", "cone", "wall"],
+}
 
 
 def _ch_v(d):
     return min(CH_VMAX, math.sqrt(CH_V0 * CH_V0 + 2 * CH_A * d))
 
 
+def _chase_feasible(obs, forks):
+    """Esiste una sequenza di corsie che evita tutti gli ostacoli letali (passi da 4 m, margine largo)?"""
+    step, H = 4.0, 2.2
+    cur = {1}
+    n = int(CH_D / step) + 1
+    for i in range(1, n + 1):
+        p = i * step
+        ok = set()
+        for ln in {x for l in cur for x in (l - 1, l, l + 1) if 0 <= x <= 2}:
+            bad = any((m >> ln) & 1 and k in LETHAL and p + H > d and p - step - H < d + L for d, m, k, L in obs if d < p + 10 and d + L > p - step - 10)
+            for f in forks:
+                if p - step < f["d"] <= p and ln != f["safe"]:
+                    bad = True
+            if not bad:
+                ok.add(ln)
+        cur = ok
+        if not cur:
+            return False
+    return True
+
+
 def _chase_begin(g, delay):
-    fk = [CH_D * 0.36, CH_D * 0.72]
-    forks = [{"d": round(f, 1), "heli": random.choice("LR")} for f in fk]
-    obs, d = [], 110.0
-    while d < CH_D - 260:
-        v = _ch_v(d)
-        d += random.uniform(1.0, 1.8) * v
-        if d >= CH_D - 260:
+    for _try in range(30):
+        fk = [CH_D * 0.2, CH_D * 0.45, CH_D * 0.7]
+        forks, segs = [], []
+        for f in fk:
+            a, b = random.sample(list(ROUTES), 2)                      # due strade diverse a caso
+            side = random.choice([0, 2])                               # corsia della strada SICURA (0 = sinistra, 2 = destra)
+            safe, danger = (a, b)
+            names = {side: safe, 2 - side: danger}
+            emo = random.choice(ROUTES[danger][2])
+            forks.append({"d": round(f, 1), "safe": side, "L": {"r": names[0], "name": ROUTES[names[0]][0], "emo": emo if names[0] == danger else ""},
+                          "R": {"r": names[2], "name": ROUTES[names[2]][0], "emo": emo if names[2] == danger else ""}})
+            segs.append([round(f + 25, 1), round(f + 25 + 650, 1), ROUTES[safe][1]])
+
+        def env_at(d):
+            for a0, b0, e in segs:
+                if a0 <= d < b0:
+                    return e
+            return "highway"
+        obs, d = [], 110.0
+        while d < CH_D - 260:
+            d += random.uniform(0.85, 1.4) * _ch_v(d)
+            if d >= CH_D - 260:
+                break
+            if any(abs(d - f) < 2.2 * _ch_v(f) for f in fk):
+                continue
+            pool = list(ENV_POOL[env_at(d)])
+            if d / CH_D > 0.35 and env_at(d) in ("highway", "bridge", "coast"):
+                pool.append("light")
+            kind = random.choice(pool)
+            if kind == "wall":
+                free = random.randrange(3)
+                obs.append([round(d, 1), 7 & ~(1 << free), "wall", CH_LEN["wall"]])
+                continue
+            lanes = random.sample(range(3), 2 if random.random() < 0.3 else 1)
+            for i, ln in enumerate(lanes):
+                kk = kind if i == 0 else random.choice(ENV_POOL[env_at(d)])
+                if kk == "wall":
+                    kk = "block"
+                obs.append([round(d + i * 0.1, 1), 1 << ln, kk, CH_LEN[kk]])
+        obs.sort()
+        if _chase_feasible(obs, forks):
             break
-        if any(abs(d - f) < 2.6 * _ch_v(f) for f in fk):
-            continue
-        p = d / CH_D
-        pool = ["oil", "pit", "block"] + (["oil", "pit"] if p > 0.2 else []) + (["car", "wall"] if p > 0.2 else []) + (["light", "car"] if p > 0.4 else [])
-        kind = random.choice(pool)
-        if kind == "wall":
-            free = random.randrange(3)
-            mask = 7 & ~(1 << free)
-        else:
-            mask = 1 << random.randrange(3)
-        obs.append([round(d, 1), mask, kind, CH_LEN[kind]])
-    g["st"]["c"] = {"obs": obs, "forks": forks, "t0": time.time() + delay}
+    g["st"]["c"] = {"obs": obs, "forks": forks, "segs": segs, "t0": time.time() + delay}
     g["phase"] = "chase"
 
 
@@ -385,7 +488,7 @@ def _chase_check(c, ev, sl, fin_ms):
                     return False
                 strict.add(i)
         while fi < len(forks) and p >= forks[fi]["d"]:
-            if lane != (2 if forks[fi]["heli"] == "L" else 0):
+            if lane != forks[fi]["safe"]:
                 return False
             fi += 1
     return strict <= claimed and abs(n * dt - fin) <= CH_FINISH_TOL
