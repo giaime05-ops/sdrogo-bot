@@ -447,11 +447,15 @@ async def _avi_cashout(uid: int, name: str, t_click: float):
 
 def _avi_call(coro):
     """Esegue sul loop del bot. Restituisce (risposta_di_errore, None) oppure (None, risultato)."""
+    t0 = time.time()
     try:
         out = _run(coro)
     except Exception as e:
-        logging.error(f"Errore API Aviator: {e}")
+        # tipo + percorso + durata: prima il messaggio vuoto (TimeoutError) non diceva né cosa né perché
+        logging.error(f"Errore API {request.path}: {type(e).__name__} {e} dopo {time.time() - t0:.1f}s", exc_info=not isinstance(e, TimeoutError))
         return _err("Il bot non risponde, riprova.", 503), None
+    if time.time() - t0 > 1.5:
+        logging.warning(f"🐢 API lenta {request.path}: {time.time() - t0:.1f}s sul loop del bot")
     if isinstance(out, dict) and out.get("error"):
         body = {"success": False, "error": out["error"]}
         if out.get("view") or out.get("state"):

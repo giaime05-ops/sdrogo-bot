@@ -104,7 +104,8 @@ def _install_perf(application):
             return await orig_post(self, endpoint, *args, **kwargs)
         finally:
             dt = time.perf_counter() - t
-            _perf_add("api", dt)
+            if endpoint != "getUpdates":                          # l'attesa dei messaggi (~10 s) non è una chiamata lenta
+                _perf_add("api", dt)
             if dt > SLOW_SECS and endpoint != "getUpdates":      # getUpdates è l'attesa normale dei messaggi (~10 s): non è lentezza
                 logging.warning(f"🐢 Chiamata a Telegram lenta: {endpoint} ha impiegato {dt:.2f}s (rete + coda del limitatore)")
     ExtBot._do_post = timed_post
