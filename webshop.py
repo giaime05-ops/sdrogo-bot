@@ -4,7 +4,7 @@ import time
 
 import economy
 from economy import inv, fmt, today_str, quests_for, spin_daily, DAILY_WHEEL, main_chat_id
-from state import USER_DATA, USER_INVENTORIES, MUTE_FILTER, SYSTEM_FLAGS
+from state import USER_DATA, USER_INVENTORIES, MUTE_FILTER
 from storage import ukey, add_user_coins, get_user_data_dict, save_db, is_web_sandbox, find_user_id
 from handlers import v2
 from utils import is_v2
@@ -30,7 +30,7 @@ def wallet(uid: int) -> dict:
         "wr_single": min(100, int(sw / sp * 100)) if sp > 0 else 0,
         "wr_duels": min(100, int(d_wins / dp * 100)) if dp > 0 else 0,
         "wheel_prizes": [{"prize": p, "pct": w} for p, w in DAILY_WHEEL],
-        "wheel_available": (u.get("last_daily") or "") != today_str() or is_web_sandbox() or bool(SYSTEM_FLAGS.get("WHEEL_UNLIMITED")),
+        "wheel_available": (u.get("last_daily") or "") != today_str() or is_web_sandbox(),
         "sandbox": is_web_sandbox(),
     }
 

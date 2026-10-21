@@ -4,7 +4,7 @@ import time
 
 from economy import (make_puzzle, work_cooldown_left, work_set_cooldown, WORK_REWARD, WORK_TIME, WORK_MAX_BALANCE,
                      main_chat_id, fmt)
-from state import USER_DATA, DAILY_DONATIONS, SYSTEM_FLAGS
+from state import USER_DATA, DAILY_DONATIONS
 from storage import ukey, add_user_coins, get_user_data_dict, save_db, log_play, is_web_sandbox, chat_user_ids
 from utils import is_v2
 
@@ -28,7 +28,7 @@ def work_state(uid: int) -> dict:
     too_rich = (WORK_MAX_BALANCE is not None and _bal(uid) >= WORK_MAX_BALANCE and not sbx)
     from economy import rome_now, today_str
     n = rome_now()
-    wheel_ok = ((get_user_data_dict(uid, uid).get("last_daily") or "") != today_str()) or sbx or bool(SYSTEM_FLAGS.get("WHEEL_UNLIMITED"))
+    wheel_ok = ((get_user_data_dict(uid, uid).get("last_daily") or "") != today_str()) or sbx
     return {"wheel_available": wheel_ok, "wheel_in": 86400 - (n.hour * 3600 + n.minute * 60 + n.second),
             "v2": v2u, "reward": WORK_REWARD, "time": WORK_TIME, "cooldown": cd, "max_balance": WORK_MAX_BALANCE,
             "too_rich": too_rich, "balance": _bal(uid), "sandbox": sbx}

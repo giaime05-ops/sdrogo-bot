@@ -521,16 +521,13 @@ async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     u_data = get_user_data_dict(chat_id, user_id)
     today = today_str()
 
-    from state import SYSTEM_FLAGS
-    unl = bool(SYSTEM_FLAGS.get("WHEEL_UNLIMITED"))            # l'admin può togliere il limite di una volta al giorno
-    if u_data.get("last_daily") == today and not unl:
+    if u_data.get("last_daily") == today:
         await query.answer("❌ Bonus giornaliero già riscosso oggi!", show_alert=True)
         return
 
     # --- V1: bonus fisso da 50 $SDG ---
     if not is_v2(user_id):
-        if not unl:
-            u_data["last_daily"] = today
+        u_data["last_daily"] = today
         add_user_coins(chat_id, user_id, 50)
         await query.answer("🎉 Hai riscosso +💳 50 $SDG!", show_alert=True)
         await backup_to_telegram(context)
@@ -538,8 +535,7 @@ async def claim_daily_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     # --- V2: Ruota Daily. Premio estratto e pagato PRIMA dell'animazione ---
-    if not unl:
-        u_data["last_daily"] = today
+    u_data["last_daily"] = today
     prize = spin_daily()
     add_user_coins(chat_id, user_id, prize)
     await query.answer()

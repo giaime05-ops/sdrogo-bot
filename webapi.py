@@ -226,7 +226,7 @@ def api_me():
             "follia_active": follia,
             "follia_left": follia_left_text() if follia else "",
         },
-        "daily": {"available": (profile.get("last_daily") or "") != today_str() or _wheel_unl()},
+        "daily": {"available": (profile.get("last_daily") or "") != today_str()},
         "admin": _is_admin_id(user["id"]),
         "maintenance": maint_mode(),
         "style": __import__("websocial")._style(USER_DATA.get(str(user["id"])) or {}),
@@ -748,13 +748,9 @@ async def _scr_pick(uid: int, idx: int):
     return {"view": _scr_view(uid), "sym": sym, "idx": idx, "result": res}
 
 
-def _wheel_unl() -> bool:
-    return bool(SYSTEM_FLAGS.get("WHEEL_UNLIMITED"))
-
-
 def _wheel_view(uid: int) -> dict:
     prof = USER_DATA.get(ukey(uid)) or {}
-    return {"success": True, "available": (prof.get("last_daily") or "") != today_str() or is_web_sandbox() or _wheel_unl(),
+    return {"success": True, "available": (prof.get("last_daily") or "") != today_str() or is_web_sandbox(),
             "segments": [p for p, _ in DAILY_WHEEL], "balance": _balance(uid), "admin": _is_admin_id(uid)}
 
 
@@ -771,19 +767,19 @@ async def _wheel_spin(uid: int, test: bool = False):
                          "available": (get_user_data_dict(uid, uid).get("last_daily") or "") != today_str(), "balance": _balance(uid)}}
     u = get_user_data_dict(uid, uid)
     today = today_str()
-    if u.get("last_daily") == today and not is_web_sandbox() and not _wheel_unl():
+    if u.get("last_daily") == today and not is_web_sandbox():
         return {"error": "Bonus giornaliero già riscosso oggi.", "code": 409, "view": _wheel_view(uid)}
     segments = [p for p, _ in DAILY_WHEEL]
     if is_v2(uid):
         prize = spin_daily()
     else:
         prize = 50                                  # utenti V1: bonus fisso, come nel bot
-    if not is_web_sandbox() and not _wheel_unl():
+    if not is_web_sandbox():
         u["last_daily"] = today
     add_user_coins(uid, uid, prize)
     idx = segments.index(prize) if prize in segments else None
     return {"view": {"success": True, "prize": prize, "index": idx, "segments": segments,
-                     "available": _wheel_unl(), "balance": _balance(uid)}}
+                     "available": False, "balance": _balance(uid)}}
 
 
 def _post_json():
