@@ -7,10 +7,10 @@ Il server genera e controlla tutto (risposte giuste, tempi, tracciati)."""
 import random
 import time
 
-from economy import today_str, record_single_result
+from economy import today_str, record_single_result, banco_take
 from handlers.games import _charge
 from storage import get_user_coins, add_user_coins, is_web_sandbox
-from state import game_enabled as _ge
+from state import game_enabled as _ge, SYSTEM_FLAGS
 
 MINI_COSTS = (0, 50, 100)           # costo del 1°, 2° e 3° tentativo del giorno: la prima volta è gratis
 MINI_PRIZE = 350
@@ -20,9 +20,9 @@ ROUNDS = 3
 MINI_ALARM_PEN = 10
 MINI_PLAYS = 3
 MINI_GAP = 2 * 3600
-POOL = ["face", "cable", "print", "freq", "voice", "logic", "laser"]
+POOL = ["face", "cable", "print", "freq", "voice", "logic", "laser", "dodge", "simon"]
 NAMES = {"face": "Riconoscimento facciale", "cable": "Taglio cavi", "print": "Impronta digitale",
-         "freq": "Hacking frequenze", "voice": "Impronta vocale", "logic": "Decifra il codice", "laser": "Corridoio laser"}
+         "freq": "Hacking frequenze", "voice": "Impronta vocale", "logic": "Decifra il codice", "laser": "Corridoio laser", "dodge": "Fuga lampo", "simon": "Sequenza di sicurezza"}
 TITLES = {"A": "Colpo Rapido 1", "B": "Colpo Rapido 2"}
 
 MINI = {}        # uid -> rapina in corso
@@ -200,6 +200,21 @@ def _gen(kind, r=0):
             per = round(rn.uniform(lo, hi), 2)
             lasers.append({"x": x + rn.randint(-3, 3), "p": per, "ph": round(rn.uniform(0, per), 2), "duty": 0.5})
         return {"lasers": lasers, "speed": LASER_SPEED, "zone": 1.8, "delay": 1.0, "limit": 22}
+    if kind == "dodge":                                                          # mini fuga a 3 checkpoint: sbarre laser che scendono, tu cambi corsia
+        n, gap0 = (6, 8, 10)[r], (1.35, 1.05, 0.85)[r]
+        bars, t, lane = [], 2.2, 1
+        for i in range(n):
+            safe = max(0, min(2, lane + rn.choice((-1, 0, 0, 1))))                   # la corsia libera si sposta al massimo di una: sempre superabile
+            opts = [l for l in range(3) if l != safe]
+            mask = 1 << opts[0] if (r == 0 or rn.random() < 0.35) else 7 & ~(1 << safe)
+            if r == 0 and rn.random() < 0.5:
+                mask = 1 << rn.choice(opts)
+            bars.append([round(t, 2), mask])
+            lane, t = safe, t + gap0 + rn.uniform(-0.1, 0.15)
+        return {"bars": bars, "delay": 1.0, "fall": 1.4, "limit": int(t + 3)}
+    if kind == "simon":
+        n = (4, 5, 6)[r]
+        return {"seq": [rn.randrange(4) for _ in range(n)], "show": int(n * 0.8 + 2), "limit": 12}
     # voice
     n = (2, 3, 4)[r]
     w = (0.16, 0.12, 0.10)[r]
@@ -248,6 +263,7 @@ def _fail(uid, g, reason):
 
 def _win(uid, g):
     MINI.pop(uid, None)
+    banco_take(MINI_PRIZE)                                    # il premio esce (se c'è) dal Banco; in prova non tocca nulla
     add_user_coins(uid, uid, MINI_PRIZE)
     record_single_result(uid, uid, True, MINI_PRIZE - g["cost"], game="mini", bet=max(1, g["cost"]))
     return {"end": {"result": "win", "prize": MINI_PRIZE, "elapsed": int(time.time() - g["t_start"]), "alarms": g["alarms"], "mini": True, "which": g["id"], "msg": ""},
@@ -297,7 +313,7 @@ def state(uid):
 
 
 def start(uid, which="A"):
-    if not is_web_sandbox():
+    if not is_web_sandbox() and not SYSTEM_FLAGS.get("NEW_PUBLIC"):
         return {"error": "Disponibile solo nell'account di prova.", "code": 403}
     if not _ge("heist"):
         return {"error": "Lo Sdrogo Heist è in manutenzione.", "code": 503}
@@ -393,6 +409,36 @@ def act(uid, a, data):
         if ok:
             return _next(uid, g)
         return _alarm(uid, g, "Impronta vocale non riconosciuta!")
+    if kind == "simon" and a == "sq":
+        try:
+            got = [int(x) for x in (data.get("s") or [])][:12]
+        except (TypeError, ValueError):
+            return _out(g)
+        if got == st["seq"]:
+            return _next(uid, g)
+        return _alarm(uid, g, "Sequenza sbagliata!")
+    if kind == "dodge" and a == "dg":
+        if data.get("hit"):
+            return _alarm(uid, g, "Sei finito contro un laser!")
+        try:
+            ev = sorted((int(x), int(y)) for x, y in (data.get("ev") or []))[:80]
+            fin = int(data.get("fin"))
+        except (TypeError, ValueError):
+            return _out(g)
+        if any(l not in (0, 1, 2) for _, l in ev) or fin / 1000.0 > el + 0.8:
+            return _alarm(uid, g, "Corsa non valida.")
+
+        def lane_at(tt):
+            ln = 1
+            for tm, l in ev:
+                if tm / 1000.0 <= tt:
+                    ln = l
+            return ln
+        for tb, mask in st["bars"]:
+            for k in range(5):                                  # la sbarra occupa la riga del furgone per ~0,4 s: il server è un po' più permissivo
+                if (mask >> lane_at(tb + 0.1 + k * 0.05)) & 1:
+                    return _alarm(uid, g, "Sei finito contro un laser!")
+        return _next(uid, g)
     if kind == "laser" and a == "lz":
         if data.get("hit"):
             return _alarm(uid, g, "Raggio laser! Hai fatto scattare l'allarme.")

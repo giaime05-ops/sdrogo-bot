@@ -161,6 +161,26 @@ async def _announce(bot, text: str):
         return None
 
 
+def bump_stat(user_id: int, key: str, n: int = 1):
+    """Contatori speciali per gli sblocchi del profilo (es. roul_zero)."""
+    try:
+        u = get_user_data_dict(user_id, user_id)
+        st = u.setdefault("stats", {})
+        st[key] = st.get(key, 0) + n
+    except Exception as e:                                  # mai bloccare una partita per un contatore
+        logging.warning(f"bump_stat: {e}")
+
+
+def max_stat(user_id: int, key: str, val: float):
+    try:
+        u = get_user_data_dict(user_id, user_id)
+        st = u.setdefault("stats", {})
+        if val > st.get(key, 0):
+            st[key] = round(float(val), 2)
+    except Exception as e:
+        logging.warning(f"max_stat: {e}")
+
+
 def record_single_result(chat_id: int, user_id: int, won: bool, profit: int, is_casino: bool = True,
                          game: str = "", bet: int = 0, count_game: str = ""):
     """Aggiorna le statistiche. Con game/bet registra anche la giocata nello storico (/storico)."""
@@ -517,6 +537,8 @@ async def settle_single(bot, chat_id: int, user_id: int, game: str, bet: int, ba
     state = inv(chat_id, user_id)
     notes = []
     base_payout = int(base_payout)
+    if game == "aviator" and bet > 0 and base_payout > bet:         # miglior moltiplicatore incassato (sblocchi profilo)
+        max_stat(user_id, "avi_best", base_payout / bet)
     payout = base_payout
     profit = payout - bet
 

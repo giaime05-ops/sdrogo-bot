@@ -1219,6 +1219,9 @@ async def handle_sp_roulette(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 mult = roulette_multiplier(choice, n)
                 luck_used = True
 
+            if n == 0:
+                from economy import bump_stat
+                bump_stat(user.id, "roul_zero")
             paid, notes = await _settle(context.bot, chat_id, user.id, "roulette", bet, bet * mult)   # PRIMA dell'animazione
             qmsg = quest_progress(chat_id, user.id, "roulette_play")
             if luck_used:

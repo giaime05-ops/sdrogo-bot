@@ -45,14 +45,8 @@ def set_chat_type(chat_type):
 
 
 def is_v2(user_id: int) -> bool:
-    """Con UPDATE_V2_PUBLIC attivo la V2 la vedono tutti.
-    Altrimenti: in chat privata solo l'admin, nei gruppi nessuno (nemmeno l'admin)."""
-    if SYSTEM_FLAGS.get("UPDATE_V2_PUBLIC"):
-        return True
-    ctype = _CHAT_TYPE.get()
-    if ctype is None or ctype == "private":     # DM (o contesto sconosciuto: job in background, mai gruppi)
-        return is_admin(user_id)
-    return False
+    """La V2 è ormai definitiva per tutti (l'interruttore ON/OFF è stato tolto dal pannello admin)."""
+    return True
 
 
 # --- RITMO DELLE ANIMAZIONI (privato vs gruppo) ---

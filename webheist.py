@@ -6,15 +6,15 @@ import math
 import random
 import time
 
-from economy import fmt, inv, banco_balance, follia_active, record_single_result, quest_progress
+from economy import fmt, inv, banco_balance, banco_take, follia_active, record_single_result, quest_progress, today_str
 from handlers import heist as H
 from handlers.games import _charge
 from storage import get_user_coins, add_user_coins, save_db, is_web_sandbox
-from state import game_enabled as _ge
+from state import game_enabled as _ge, SYSTEM_FLAGS
 
 WEB_HEIST = {}
 WEB_COST = 350                  # la rapina principale della mini app costa di più di quella del bot
-WEB_TIME = 600                  # dieci minuti: 7 livelli lunghi e una fuga finale più dura
+WEB_TIME = 510                  # otto minuti e mezzo (con 7 livelli più duri, ma gli errori tolgono secondi)
 WEB_PRIZE_MIN = 500             # premio minimo se il Banco è sotto soglia (caso raro): deve superare il costo del pass
 KINDS = ["seq", "laser", "hack", "lock", "vault", "circuit", "chase"]          # livelli 1..7
 NAMES = ["Centralino", "Corridoio laser", "Hacking", "Serratura", "Caveau", "Bypass circuiti", "Inseguimento"]
@@ -23,6 +23,7 @@ TOTAL = len(KINDS)
 SEQ_SHOW_PER = 0.8
 HACK_WEB_ROUNDS = (3,)          # un solo terminale (verificato con BFS: si può sempre risolvere)
 LASER_X = [14, 30, 46, 62, 78]  # posizioni dei laser lungo il corridoio (0..100)
+LASER_GREEN = [(22, 3.4, 0.17), (54, 2.5, 0.19), (70, 1.9, 0.21)]      # (posizione, periodo di andata e ritorno in s, mezza larghezza): sempre più veloci
 LASER_SPEED = 24.0              # unità al secondo mentre tieni premuto
 LASER_ZONE = 1.5                # il server è un po' più permissivo del telefono (1,8)
 LOCK_ROUNDS = [(0.20, 0.50), (0.14, 0.70), (0.09, 0.90)]            # (larghezza zona verde, cicli al secondo)
@@ -109,7 +110,7 @@ def _fail(uid, g, reason):
 def _win(uid, g, qmsg=""):
     WEB_HEIST.pop(uid, None)
     bal = banco_balance()
-    prize = WEB_PRIZE_MIN if bal < H.BANCO_PROTECT else int(bal * (H.SHARE_FOLLIA if follia_active() else WEB_SHARE))
+    prize = WEB_PRIZE_MIN if bal < H.BANCO_PROTECT else banco_take(int(bal * (H.SHARE_FOLLIA if follia_active() else WEB_SHARE)))
     prize = max(prize, WEB_PRIZE_MIN)
     add_user_coins(uid, uid, prize)
     record_single_result(uid, uid, True, prize - WEB_COST, game="heist", bet=WEB_COST)
@@ -172,6 +173,8 @@ def _laser_begin(g, delay):
     for x in LASER_X:
         per = round(random.uniform(1.25, 2.0), 2)
         lasers.append({"x": x + random.randint(-3, 3), "p": per, "ph": round(random.uniform(0, per), 2), "duty": 0.5})
+    for x, per, hw in LASER_GREEN:                                   # laser VERDI: una lineetta che scivola a destra e a sinistra tra i rossi
+        lasers.append({"g": 1, "x": x + random.randint(-2, 2), "p": per, "ph": round(random.uniform(0, per), 2), "hw": hw, "amp": 0.40})
     g["st"]["L"] = {"lasers": lasers, "t0": time.time() + delay}
     g["phase"] = "laser"
 
@@ -186,7 +189,12 @@ def _laser_check(lasers, ev, fin_ms):
         if hold:
             x += LASER_SPEED * dt
             for L in lasers:
-                if abs(x - L["x"]) < LASER_ZONE and ((t + L["ph"]) % L["p"]) < L["p"] * L["duty"]:
+                if abs(x - L["x"]) >= LASER_ZONE:
+                    continue
+                if L.get("g"):                                          # verde: colpisce solo quando la lineetta passa sopra il ladro (al centro)
+                    if abs(L["amp"] * math.sin(2 * math.pi * (t + L["ph"]) / L["p"])) < L["hw"] - 0.03:
+                        return False
+                elif ((t + L["ph"]) % L["p"]) < L["p"] * L["duty"]:
                     return False
         t += dt
     return x >= 100
@@ -226,10 +234,30 @@ def _maze(n):
     return op
 
 
-def _patrols(op, n, k, banned):
+def _bfs_path(op, n, a, b):
+    """Percorso più breve (lista di celle) tra due celle del labirinto."""
+    prev, q = {a: None}, [a]
+    for cur in q:
+        if cur == b:
+            break
+        x, y = cur
+        for d in range(4):
+            if (op[y][x] >> d) & 1:
+                nx = (x + DIRS[d][0], y + DIRS[d][1])
+                if nx not in prev:
+                    prev[nx] = cur
+                    q.append(nx)
+    path, c = [], b
+    while c is not None:
+        path.append(c)
+        c = prev[c]
+    return path[::-1]
+
+
+def _patrols(op, n, k, banned, prefer=()):
     """Scariche che pattugliano un tratto dritto di 3 piastrelle (tipo fantasmini): sempre aggirabili o da aspettare."""
-    res, used = [], set(banned)
-    for _ in range(300):
+    res, used, prefer = [], set(banned), set(prefer)
+    for tr in range(600):
         if len(res) >= k:
             break
         x, y, d = random.randrange(n), random.randrange(n), random.randrange(4)
@@ -239,7 +267,7 @@ def _patrols(op, n, k, banned):
             if not (op[cy][cx] >> d) & 1:
                 break
             cells.append((cx + DIRS[d][0], cy + DIRS[d][1]))
-        if len(cells) == 3 and not any(c in used for c in cells):
+        if len(cells) == 3 and not any(c in used for c in cells) and (tr >= 350 or sum(c in prefer for c in cells) >= 2):
             res.append(cells)
             used.update(cells)
             for cx, cy in cells:                                        # niente due scariche vicine: lasciano sempre un passaggio
@@ -298,11 +326,18 @@ def _circ_begin(g, delay):
         start, exit_ = (sx, sy), (n - 1 - sx, n - 1 - sy)
         cells = [(x, y) for x in range(n) for y in range(n) if (x, y) not in (start, exit_)]
         pins = []
-        for _ in range(300):
+        for _ in range(500):                                             # perni lontani (sul percorso vero, non solo in linea d'aria): mai 1-2-3 attaccati, mai il 3 sulla porta
             pins = random.sample(cells, npins)
-            if all(abs(a[0] - b[0]) + abs(a[1] - b[1]) >= 3 for i, a in enumerate(pins) for b in pins[i + 1:]):
+            seq = [start] + pins + [exit_]
+            need = 3 if n <= 5 else 4
+            if all(len(_bfs_path(op, n, seq[i], seq[i + 1])) - 1 >= need for i in range(len(seq) - 1)) and \
+               all(len(_bfs_path(op, n, a, b)) - 1 >= need for i, a in enumerate(pins) for b in pins[i + 1:]):
                 break
-        hz = [{"cells": [list(c) for c in cs], "T": T} for cs in _patrols(op, n, nhz, [start, exit_] + pins)]
+        route = set()                                                    # le scariche si mettono SUL percorso che serve davvero
+        seq = [start] + pins + [exit_]
+        for i in range(len(seq) - 1):
+            route.update(_bfs_path(op, n, seq[i], seq[i + 1]))
+        hz = [{"cells": [list(c) for c in cs], "T": T} for cs in _patrols(op, n, nhz, [start, exit_] + pins, route)]
         c = {"n": n, "open": op, "start": list(start), "exit": list(exit_), "pins": [list(p) for p in pins], "hz": hz,
              "t0": time.time() + delay}
         tmin = _circ_solvable(c)
@@ -357,8 +392,9 @@ CH_V0, CH_A, CH_VMAX = 26.0, 1.0, 70.0
 CH_SLOW = 0.5                   # olio, buche, fango e coni dimezzano la velocità
 CH_H_SRV = 0.6                  # mezza lunghezza del furgone per il server: il telefono usa 2,0 (margine per gli scarti di tempo)
 CH_FINISH_TOL = 0.7
-LETHAL = ("block", "car", "wall", "light", "rock", "wreck", "palm")
-CH_LEN = {"block": 3.0, "car": 5.0, "wall": 3.0, "light": 16.0, "oil": 4.0, "pit": 3.0, "rock": 3.0, "wreck": 5.0, "mud": 6.0, "cone": 3.0, "palm": 3.0}
+CH_TAIL = 700.0                 # metri finali senza ostacoli: si chiudono le corsie (circa 10 secondi alla velocità massima)
+LETHAL = ("block", "car", "wall", "light", "rock", "wreck", "palm", "barr")
+CH_LEN = {"block": 3.0, "car": 5.0, "wall": 3.0, "light": 16.0, "oil": 4.0, "pit": 3.0, "rock": 3.0, "wreck": 5.0, "mud": 6.0, "cone": 3.0, "palm": 3.0, "barr": 0.0}
 # Percorsi ai bivi: nome, ambientazione che si incontra dopo, simboli di pericolo possibili (compaiono SOLO accanto alla strada pericolosa)
 ROUTES = {
     "tunnel": ("TUNNEL", "tunnel", ["🚔", "🚨"]),
@@ -426,16 +462,14 @@ def _chase_begin(g, delay):
                     return e
             return "highway"
         obs, d = [], 110.0
-        while d < CH_D - 260:
+        while d < CH_D - CH_TAIL - 80:
             pr = d / CH_D                                             # più si avanza, più gli ostacoli sono ravvicinati e doppi
             d += random.uniform(0.85 - 0.2 * pr, 1.4 - 0.45 * pr) * _ch_v(d)
-            if d >= CH_D - 260:
+            if d >= CH_D - CH_TAIL - 80:
                 break
             if any(abs(d - f) < 2.2 * _ch_v(f) for f in fk):
                 continue
             pool = list(ENV_POOL[env_at(d)])
-            if d / CH_D > 0.35 and env_at(d) in ("highway", "bridge", "coast"):
-                pool.append("light")
             kind = random.choice(pool)
             if kind == "wall":
                 free = random.randrange(3)
@@ -447,6 +481,11 @@ def _chase_begin(g, delay):
                 if kk == "wall":
                     kk = "block"
                 obs.append([round(d + i * 0.1, 1), 1 << ln, kk, CH_LEN[kk]])
+        keep = random.randrange(3)                                    # ultimi ~10 s: niente ostacoli, le corsie si chiudono una alla volta; resta una corsia (a caso) dove c'è la rampa
+        shut = [ln for ln in range(3) if ln != keep]
+        random.shuffle(shut)
+        for ln, dist in zip(shut, (CH_TAIL, CH_TAIL - 280)):
+            obs.append([round(CH_D - dist, 1), 1 << ln, "barr", float(dist + 30)])
         obs.sort()
         if _chase_feasible(obs, forks):
             break
@@ -518,10 +557,10 @@ def _hack_new(g):
     g["phase"] = "hack"
 
 
-def _vault_new(g, hints=1):
-    """Nuovo caveau con `hints` cifre già al loro posto (1 all'inizio, +1 ogni volta che finiscono i 9 tentativi)."""
+def _vault_new(g, hints=0):
+    """Nuovo caveau con `hints` cifre già al loro posto (0 all'inizio, +1 ogni volta che finiscono i 9 tentativi)."""
     vt = H.make_vault()
-    vt["hints"] = sorted(random.sample(range(4), max(1, min(3, hints))))
+    vt["hints"] = sorted(random.sample(range(4), max(0, min(3, hints))))
     g["st"] = {"v": vt}
     g["phase"] = "vault"
 
@@ -551,7 +590,8 @@ def state(uid):
 
 
 def start(uid, lvl=1):
-    if not is_web_sandbox():
+    sbx = is_web_sandbox()
+    if not sbx and not SYSTEM_FLAGS.get("NEW_PUBLIC"):
         return {"error": "Disponibile solo nell'account di prova.", "code": 403}
     if not _ge("heist"):
         return {"error": "Lo Sdrogo Heist è in manutenzione.", "code": 503}
@@ -560,6 +600,12 @@ def start(uid, lvl=1):
         return _out(g)
     if get_user_coins(uid, uid) < WEB_COST:
         return {"error": f"Servono {WEB_COST} $SDG per il pass.", "code": 400}
+    if not sbx:                                                # account vero: una rapina al giorno (come nel bot), salvo "Heist sempre" dell'admin
+        from storage import get_user_data_dict
+        hd = get_user_data_dict(uid, uid)
+        if hd.get("heist_day") == today_str() and not SYSTEM_FLAGS.get("HEIST_UNLIMITED"):
+            return {"error": "Hai già tentato la rapina oggi: riprova domani (intanto fai le rapine giornaliere!).", "code": 409}
+        hd["heist_day"] = today_str()
     _charge(uid, uid, WEB_COST)
     now = time.time()
     try:
@@ -766,7 +812,7 @@ def act(uid, a, data):
             code = "".join(map(str, v["secret"]))
             n = len(v["hints"]) + 1                                  # nessun allarme: nuovo codice, con una cifra già svelata in più
             _vault_new(g, n)
-            return _out(g, {"type": "info", "msg": f"Tentativi finiti: il codice era {code}. Nuovo codice con {min(3, n)} cifre già svelate."})
+            return _out(g, {"type": "info", "msg": f"Tentativi finiti: il codice era {code}. Nuovo codice: {min(3, n)} {'cifra già svelata' if n == 1 else 'cifre già svelate'}."})
         return _out(g, {"type": "tap", "b": b, "c": c})
 
     if kind == "flight" and phase == "flight" and a == "ft":

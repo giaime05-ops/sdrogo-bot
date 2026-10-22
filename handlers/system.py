@@ -98,7 +98,6 @@ def _admin_allowed(user_id: int, chat_type: str) -> bool:
 
 
 def _admin_view():
-    v2_on = bool(SYSTEM_FLAGS.get("UPDATE_V2_PUBLIC"))
     gc = GROUP_CHALLENGE
     if gc.get("active"):
         left = max(0, int(gc.get("end", 0) - time.time()))
@@ -107,8 +106,7 @@ def _admin_view():
         chal = "nessuna sfida attiva"
     text = (
         "🛠️ <b>DASHBOARD ADMIN</b>\n\n"
-        f"🆕 V2 pubblica: <b>{'ON — tutti la vedono' if v2_on else 'OFF — solo tu la vedi'}</b>\n"
-        f"🛠️ Sandbox: <b>{'ACCESA — giochi su un profilo di prova' if SANDBOX.get('on') else 'spenta'}</b>\n"
+        f"🆕 Novità Arcade (nuovo Sdrogo Heist + profilo): <b>{'ON — la vedono tutti' if SYSTEM_FLAGS.get('NEW_PUBLIC') else 'OFF — solo account di prova'}</b>\n"
         f"📱 Mini app Arcade: <b>{'APERTA ai membri del gruppo' if SYSTEM_FLAGS.get('ARCADE_PUBLIC') else 'CHIUSA — solo tu'}</b>\n"
         f"🎯 Sfida di gruppo: <b>{chal}</b>\n"
         f"{follia_line() or '🎪 Follia Sdrogo: spenta'}\n\n"
@@ -117,9 +115,8 @@ def _admin_view():
         "<i>Le partite già in corso possono sempre finire.</i>"
     )
     rows = [
-        [InlineKeyboardButton("🟢 V2 Pubblica: ON" if v2_on else "🔴 V2 Pubblica: OFF", callback_data="adm_v2")],
-        [InlineKeyboardButton("🛠️ MODALITÀ SANDBOX: ON" if SANDBOX.get("on") else "🛠️ MODALITÀ SANDBOX: OFF",
-                              callback_data="adm_sbx")],
+        [InlineKeyboardButton("🟢 Novità Arcade: ON" if SYSTEM_FLAGS.get("NEW_PUBLIC") else "🔴 Novità Arcade: OFF (solo prova)",
+                              callback_data="adm_new")],
         [InlineKeyboardButton("🟢 Mini app Arcade: APERTA" if SYSTEM_FLAGS.get("ARCADE_PUBLIC") else "🔴 Mini app Arcade: CHIUSA",
                               callback_data="adm_arc")],
         [InlineKeyboardButton("🎯 Configura Sfida di Gruppo", callback_data="adm_cfg"),
@@ -405,11 +402,11 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for key in GAME_STATUS:
             GAME_STATUS[key] = value
         await query.answer("Tutti i giochi " + ("🟢 accesi" if value else "🔴 spenti"))
-    elif action == "v2":
-        SYSTEM_FLAGS["UPDATE_V2_PUBLIC"] = not SYSTEM_FLAGS.get("UPDATE_V2_PUBLIC", False)
+    elif action == "new":
+        SYSTEM_FLAGS["NEW_PUBLIC"] = not SYSTEM_FLAGS.get("NEW_PUBLIC", False)
         save_db()                                   # persistente: sopravvive ai riavvii
-        await query.answer("🟢 V2 PUBBLICA: tutti la vedono!" if SYSTEM_FLAGS["UPDATE_V2_PUBLIC"]
-                           else "🔴 V2 nascosta: solo tu la vedi.", show_alert=True)
+        await query.answer("🟢 NOVITÀ ATTIVE: nuovo Sdrogo Heist e personalizzazione profilo per tutti i membri."
+                           if SYSTEM_FLAGS["NEW_PUBLIC"] else "🔴 Novità spente: restano solo nell'account di prova.", show_alert=True)
     elif action == "arc":
         SYSTEM_FLAGS["ARCADE_PUBLIC"] = not SYSTEM_FLAGS.get("ARCADE_PUBLIC", False)
         save_db()                                   # persistente: sopravvive ai riavvii
@@ -425,14 +422,6 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logging.warning(f"Pulsante Arcade per tutti non aggiornato: {e}")
         await query.answer("🟢 Mini app APERTA ai membri del gruppo." if SYSTEM_FLAGS["ARCADE_PUBLIC"]
                            else "🔴 Mini app CHIUSA: solo tu.", show_alert=True)
-    elif action == "sbx":
-        sandbox_set(not SANDBOX.get("on"))
-        await query.answer(
-            "🛠️ SANDBOX ACCESA: da ora giochi con un profilo di prova (10.000 $SDG e oggetti). "
-            "Saldo, livello e statistiche veri non cambiano; Banco, Follia e Sfida restano fuori."
-            if SANDBOX.get("on") else
-            "✅ Sandbox spenta: sei tornato al tuo profilo vero. Il profilo di prova è stato cancellato.",
-            show_alert=True)
     elif action == "cfg":
         await query.answer()
         await smart_edit(query, *_chal_cfg_view())

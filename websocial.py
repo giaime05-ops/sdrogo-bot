@@ -14,16 +14,62 @@ TOP_N = 10
 
 
 # ---- personalizzazione del profilo ("Modifica profilo"): salvata sull'account VERO e mostrata a tutti ----
+def _hv(n):
+    return ["stars", n, "Vinci %d Sdrogo Heist" % n if n > 1 else "Vinci 1 Sdrogo Heist"]
+
+
+def _cw(n):
+    return ["casino_wins", n, "Vinci %d partite al casinò" % n]
+
+
+def _gw(g, n, label):
+    return ["gw:" + g, n, "Vinci %d %s" % (n, label)]
+
+
+# Requisiti di sblocco (fonte unica: il telefono li legge dal portafoglio). Chiave "categoria.id"; senza voce = libero.
+STYLE_REQ = {
+    # --- colore nome ---
+    "name.ciano": ["quizzes_won", 10, "Vinci 10 quiz"], "name.rosa": ["duels_wins", 5, "Vinci 5 duelli"],
+    "name.verde": _gw("wordle", 3, "partite a Wordle"), "name.giallo": _gw("scratch", 3, "Gratta e vinci"),
+    "name.blu": _gw("blackjack", 5, "mani a Blackjack"), "name.arancio": _cw(25), "name.argento": _cw(75),
+    "name.smeraldo": _gw("mastermind", 5, "partite a Mastermind"), "name.neonfucsia": _gw("slot", 15, "volte alle slot"),
+    "name.neonviola": _gw("aviator", 8, "partite ad Aviator"), "name.oro": _hv(1),
+    "name.tramonto": ["st:roul_zero", 1, "Fai uscire lo 0 verde alla roulette"], "name.oceano": _gw("poker", 5, "partite a Poker"),
+    "name.lava": ["st:avi_best", 10, "Incassa un moltiplicatore x10 ad Aviator"], "name.aurora": _hv(3),
+    "name.galassia": _cw(250), "name.diamante": _cw(500), "name.arcobaleno": _hv(5),
+    # --- colore avatar ---
+    "av.nero": _cw(10), "av.giallo": _gw("scratch", 3, "Gratta e vinci"), "av.verde": _gw("wordle", 3, "partite a Wordle"),
+    "av.azzurro": ["quizzes_won", 3, "Vinci 3 quiz"], "av.arancio": ["duels_wins", 3, "Vinci 3 duelli"], "av.argento": _cw(75),
+    "av.smeraldo": _gw("blackjack", 10, "mani a Blackjack"), "av.neonfucsia": _gw("roulette", 8, "volte alla roulette"),
+    "av.neonviola": _gw("poker", 5, "partite a Poker"), "av.notte": _cw(120),
+    "av.tramonto": ["st:roul_zero", 1, "Fai uscire lo 0 verde alla roulette"], "av.oceano": _gw("mastermind", 8, "partite a Mastermind"),
+    "av.lava": ["st:avi_best", 20, "Incassa un moltiplicatore x20 ad Aviator"], "av.aurora": _hv(3), "av.galassia": _cw(300),
+    "av.oro": _hv(1), "av.diamante": _cw(600), "av.arcobaleno": _hv(7),
+    # --- cornice ---
+    "frame.ghiaccio": ["quizzes_won", 10, "Vinci 10 quiz"], "frame.fuoco": _cw(50), "frame.argento": _gw("wordle", 8, "partite a Wordle"),
+    "frame.smeraldo": _gw("scratch", 8, "Gratta e vinci"), "frame.onde": _gw("aviator", 15, "partite ad Aviator"),
+    "frame.vento": _gw("slot", 30, "volte alle slot"), "frame.elettrico": ["st:roul_zero", 3, "Fai uscire lo 0 verde 3 volte alla roulette"],
+    "frame.neonfucsia": _gw("roulette", 15, "volte alla roulette"), "frame.galassia": _cw(300), "frame.oro": _hv(2),
+    "frame.diamante": ["st:avi_best", 30, "Incassa un moltiplicatore x30 ad Aviator"], "frame.arcobaleno": _hv(10),
+    # --- barra in classifica: SOLO Sdrogo Heist (viola e ciano sono liberi) ---
+    "bar.fiamme": _hv(1), "bar.onde": _hv(2), "bar.fiammeblu": _hv(3), "bar.vento": _hv(4), "bar.inferno": _hv(5),
+    "bar.tempesta": _hv(7), "bar.fiammeverdi": _hv(10), "bar.aurora": _hv(12), "bar.dragone": _hv(15), "bar.leggenda": _hv(20),
+}
+
+
+def style_req_table() -> dict:
+    return STYLE_REQ
+
+
 STYLE_OPTS = {
-    # colori base (liberi) + effetti speciali (sbloccabili con i traguardi: vedi KIT in social.js)
-    "name":  {"", "nero", "viola", "rosso", "giallo", "verde", "blu", "ciano", "rosa", "arancio", "argento", "smeraldo",
-              "neonfucsia", "neonviola", "oro", "diamante", "arcobaleno"},
-    "av":    {"", "nero", "viola", "rosso", "giallo", "verde", "blu", "azzurro", "arancio", "argento", "smeraldo",
-              "neonfucsia", "neonviola", "oro", "notte", "diamante", "arcobaleno"},
-    "frame": {"", "neon", "bianco", "nero", "rosso", "giallo", "verde", "blu", "ghiaccio", "fuoco", "argento", "smeraldo",
-              "neonfucsia", "oro", "diamante", "arcobaleno"},
-    # barre in classifica: le fiamme si sbloccano SOLO con le vittorie allo Sdrogo Heist (stelle)
-    "bar":   {"", "viola", "ciano", "verde", "fiamme", "fiammeblu", "inferno", "fiammeverdi", "dragone", "leggenda"},
+    "name":  {"", "nero", "viola", "rosso", "giallo", "verde", "blu", "ciano", "rosa", "arancio", "argento", "smeraldo", "neonfucsia",
+              "neonviola", "oro", "tramonto", "oceano", "lava", "aurora", "galassia", "diamante", "arcobaleno"},
+    "av":    {"", "nero", "viola", "rosso", "giallo", "verde", "blu", "azzurro", "arancio", "argento", "smeraldo", "neonfucsia",
+              "neonviola", "oro", "notte", "tramonto", "oceano", "lava", "aurora", "galassia", "diamante", "arcobaleno"},
+    "frame": {"", "neon", "bianco", "nero", "rosso", "giallo", "verde", "blu", "ghiaccio", "fuoco", "argento", "smeraldo", "onde", "vento",
+              "elettrico", "neonfucsia", "galassia", "oro", "diamante", "arcobaleno"},
+    "bar":   {"", "viola", "ciano", "verde", "fiamme", "onde", "fiammeblu", "vento", "inferno", "tempesta", "fiammeverdi", "aurora",
+              "dragone", "leggenda"},
 }
 
 
@@ -41,14 +87,31 @@ def _style(d: dict) -> dict:
     return clean_style((d or {}).get("style"))
 
 
-def set_style(uid: int, data: dict) -> dict:
+def _real_stat(u: dict, inv: dict, key: str):
+    if key == "stars":
+        return int(inv.get("stars", 0) or 0)
+    if key.startswith("gw:"):
+        return int((u.get("game_wins") or {}).get(key[3:], 0) or 0)
+    if key.startswith("st:"):
+        return float((u.get("stats") or {}).get(key[3:], 0) or 0)
+    return float(u.get(key, 0) or 0)
+
+
+def set_style(uid: int, data: dict, enforce: bool = False) -> dict:
     """Salva lo stile sul profilo reale (anche se l'admin sta giocando nell'account di prova). Per ora solo admin."""
     from storage import _touched_users, save_db
     k = str(uid)
     d = USER_DATA.get(k)
     if d is None:
         return {"error": "Profilo non trovato.", "code": 404}
-    d["style"] = clean_style(data)
+    st = clean_style(data)
+    if enforce:                                                  # giocatori veri: solo ciò che hanno davvero sbloccato (l'admin prova tutto)
+        inv = USER_INVENTORIES.get(str(uid)) or {}
+        for cat, val in st.items():
+            rq = STYLE_REQ.get(cat + "." + val)
+            if rq and _real_stat(d, inv, rq[0]) < rq[1]:
+                return {"error": "Non hai ancora sbloccato: " + val + " (" + rq[2] + ").", "code": 403}
+    d["style"] = st
     _touched_users.add(k)
     save_db()
     return {"style": d["style"]}

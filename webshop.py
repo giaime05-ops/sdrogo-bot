@@ -28,6 +28,8 @@ def wallet(uid: int) -> dict:
         "balance": int(u.get("coins", 0)), "net_profit": int(u.get("net_profit", 0)), "stars": int(d.get("stars", 0)),
         "quizzes_won": int(u.get("quizzes_won", 0)), "casino_wins": int(c_wins), "duels_wins": int(d_wins),
         "game_wins": {k: int(v) for k, v in (u.get("game_wins") or {}).items()},
+        "stats": {k: v for k, v in (u.get("stats") or {}).items()},
+        "style_req": __import__("websocial").style_req_table(),
         "wr_single": min(100, int(sw / sp * 100)) if sp > 0 else 0,
         "wr_duels": min(100, int(d_wins / dp * 100)) if dp > 0 else 0,
         "wheel_prizes": [{"prize": p, "pct": w} for p, w in DAILY_WHEEL],

@@ -138,6 +138,11 @@ def _is_member(uid) -> bool:
     return ok
 
 
+def new_open() -> bool:
+    """Novità (nuovo Sdrogo Heist + personalizzazione profilo): aperte a tutti solo se l'admin accende l'interruttore."""
+    return bool(SYSTEM_FLAGS.get("NEW_PUBLIC"))
+
+
 def arcade_open() -> bool:
     return bool(SYSTEM_FLAGS.get("ARCADE_PUBLIC"))
 
@@ -233,6 +238,7 @@ def api_me():
         "maintenance": maint_mode(),
         "style": __import__("websocial")._style(USER_DATA.get(str(user["id"])) or {}),
         "sandbox": bool(is_web_sandbox()),
+        "new": new_open(),
         "badge": (USER_DATA.get(str(user["id"])) or {}).get("badge", ""),
         "stars": int((USER_INVENTORIES.get(ukey(user["id"])) or {}).get("stars", 0) or 0),
     })
@@ -593,6 +599,9 @@ async def _roul_spin(uid: int, bet: int, choice: str):
         n = random.randint(0, 36)
         mult = G.roulette_multiplier(choice, n)
         luck_used = True
+    if n == 0:
+        from economy import bump_stat
+        bump_stat(uid, "roul_zero")
     paid, notes = await G._settle(_bot(), uid, uid, "roulette", bet, bet * mult)
     notes = list(notes)
     if luck_used and paid > 0:
@@ -661,6 +670,9 @@ async def _roul_table(uid: int, bets):
     payout, luck_used = pay(n), False
     if payout == 0 and luck and random.random() < G.LUCK_REROLL_CHANCE:
         n = random.randint(0, 37); payout = pay(n); luck_used = True
+    if n in (0, 37):
+        from economy import bump_stat
+        bump_stat(uid, "roul_zero")
     paid, notes = await G._settle(_bot(), uid, uid, "roulette", total, payout)
     notes = list(notes)
     if luck_used and paid > 0:
@@ -856,7 +868,7 @@ def api_heist(what):
     user, err = require_admin()
     if err:
         return err
-    if not is_web_sandbox():
+    if not is_web_sandbox() and not new_open():
         return _err("Disponibile solo nell'account di prova.", 403)
     import webheist
     uid = int(user["id"])
@@ -884,7 +896,7 @@ def api_mini(what):
     user, err = require_admin()
     if err:
         return err
-    if not is_web_sandbox():
+    if not is_web_sandbox() and not new_open():
         return _err("Disponibile solo nell'account di prova.", 403)
     import webmini
     uid = int(user["id"])
@@ -1052,10 +1064,10 @@ def api_social_style():
     user, data, err = _post_json()
     if err:
         return err
-    if not _is_admin_id(user["id"]) or not is_web_sandbox():
+    if not new_open() and not (_is_admin_id(user["id"]) and is_web_sandbox()):
         return _err("Personalizzazione non ancora disponibile.", 403)
     import websocial
-    resp, out = _avi_call(_social_call(websocial.set_style, int(user["id"]), data))
+    resp, out = _avi_call(_social_call(websocial.set_style, int(user["id"]), data, not _is_admin_id(user["id"])))
     if resp is not None:
         return resp
     return jsonify({"success": True, **out})
