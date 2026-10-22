@@ -162,7 +162,7 @@ async def _announce(bot, text: str):
 
 
 def record_single_result(chat_id: int, user_id: int, won: bool, profit: int, is_casino: bool = True,
-                         game: str = "", bet: int = 0):
+                         game: str = "", bet: int = 0, count_game: str = ""):
     """Aggiorna le statistiche. Con game/bet registra anche la giocata nello storico (/storico)."""
     if game:
         log_play(user_id, game, bet, bet + profit)
@@ -174,6 +174,10 @@ def record_single_result(chat_id: int, user_id: int, won: bool, profit: int, is_
         u["single_won"] = u.get("single_won", 0) + 1
         if is_casino:
             u["casino_wins"] = u.get("casino_wins", 0) + 1
+        g = game or count_game
+        if g:
+            gw = u.setdefault("game_wins", {})
+            gw[g] = gw.get(g, 0) + 1
     save_db()
 
 
@@ -561,7 +565,7 @@ async def settle_single(bot, chat_id: int, user_id: int, game: str, bet: int, ba
     user_payout = payout - steal
     if user_payout > 0:
         add_user_coins(chat_id, user_id, user_payout)
-    record_single_result(chat_id, user_id, user_payout > bet, user_payout - bet, is_casino=is_casino)
+    record_single_result(chat_id, user_id, user_payout > bet, user_payout - bet, is_casino=is_casino, count_game=game)
     log_play(user_id, game, bet, user_payout)
     qmsg = single_quest_events(chat_id, user_id, game, bet, base_payout, user_payout)
     if qmsg:

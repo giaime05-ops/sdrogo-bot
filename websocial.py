@@ -15,10 +15,15 @@ TOP_N = 10
 
 # ---- personalizzazione del profilo ("Modifica profilo"): salvata sull'account VERO e mostrata a tutti ----
 STYLE_OPTS = {
-    "name":  {"", "oro", "ciano", "viola", "rosa", "verde", "rosso", "arancio", "arcobaleno"},
-    "av":    {"", "viola", "azzurro", "verde", "arancio", "rosso", "oro", "notte", "arcobaleno"},
-    "frame": {"", "neon", "oro", "fuoco", "ghiaccio", "arcobaleno"},
-    "bar":   {"", "viola", "rossonero", "ciano", "verde", "fuoco", "royal"},
+    # colori base (liberi) + effetti speciali (sbloccabili con i traguardi: vedi KIT in social.js)
+    "name":  {"", "nero", "viola", "rosso", "giallo", "verde", "blu", "ciano", "rosa", "arancio", "argento", "smeraldo",
+              "neonfucsia", "neonviola", "oro", "diamante", "arcobaleno"},
+    "av":    {"", "nero", "viola", "rosso", "giallo", "verde", "blu", "azzurro", "arancio", "argento", "smeraldo",
+              "neonfucsia", "neonviola", "oro", "notte", "diamante", "arcobaleno"},
+    "frame": {"", "neon", "bianco", "nero", "rosso", "giallo", "verde", "blu", "ghiaccio", "fuoco", "argento", "smeraldo",
+              "neonfucsia", "oro", "diamante", "arcobaleno"},
+    # barre in classifica: le fiamme si sbloccano SOLO con le vittorie allo Sdrogo Heist (stelle)
+    "bar":   {"", "viola", "ciano", "verde", "fiamme", "fiammeblu", "inferno", "fiammeverdi", "dragone", "leggenda"},
 }
 
 
