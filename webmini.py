@@ -12,8 +12,8 @@ from handlers.games import _charge
 from storage import get_user_coins, add_user_coins, is_web_sandbox
 from state import game_enabled as _ge
 
-MINI_COST = 100
-MINI_PRIZE = 300
+MINI_COSTS = (0, 50, 100)           # costo del 1°, 2° e 3° tentativo del giorno: la prima volta è gratis
+MINI_PRIZE = 350
 MINI_TIME = 150
 MINI_MAX_ALARMS = 2
 ROUNDS = 3
@@ -50,6 +50,11 @@ def _log(uid):
     return d
 
 
+def _cost(uid, which):
+    n = len(_log(uid)[which])
+    return MINI_COSTS[min(n, len(MINI_COSTS) - 1)]
+
+
 def _wait(uid, which):
     L = _log(uid)[which]
     if len(L) >= MINI_PLAYS:
@@ -64,8 +69,8 @@ def info(uid):
     minis = []
     for w in ("A", "B"):
         L = _log(uid)[w]
-        minis.append({"id": w, "title": TITLES[w], "games": [NAMES[k] for k in sc[w]], "used": len(L), "max": MINI_PLAYS, "wait": _wait(uid, w)})
-    return {"cost": MINI_COST, "prize": MINI_PRIZE, "time": MINI_TIME, "max_alarms": MINI_MAX_ALARMS, "alarm_penalty": MINI_ALARM_PEN,
+        minis.append({"id": w, "title": TITLES[w], "games": [NAMES[k] for k in sc[w]], "used": len(L), "max": MINI_PLAYS, "wait": _wait(uid, w), "cost": _cost(uid, w)})
+    return {"cost": MINI_COSTS[0], "costs": list(MINI_COSTS), "prize": MINI_PRIZE, "time": MINI_TIME, "max_alarms": MINI_MAX_ALARMS, "alarm_penalty": MINI_ALARM_PEN,
             "gap": MINI_GAP, "plays": MINI_PLAYS, "minis": minis, "balance": get_user_coins(uid, uid)}
 
 
@@ -103,21 +108,44 @@ def _gen(kind, r=0):
     rn = random
     if kind == "face":
         n = (4, 5, 6)[r]
-        badges, hats = rn.sample(range(6), n), rn.sample(range(6), n)
-        glasses = [True] * n
-        glasses[rn.randrange(n)] = False
-        guards = [{"hat": hats[i], "glasses": glasses[i], "badge": badges[i], "skin": rn.randrange(4)} for i in range(n)]
-        t = rn.randrange(n)
-        mode = rn.choice(["badge", "hat"] if r == 0 else ["badge", "hat", "glass"] if r == 1 else ["both", "hat", "glass", "badge"])
-        if mode == "badge":
-            ans, q = t, f"Chi aveva la scheda {BADGE[badges[t]].upper()}?"
-        elif mode == "hat":
-            ans, q = t, f"Chi portava il cappello {HATN[hats[t]].upper()}?"
-        elif mode == "glass":
-            ans, q = glasses.index(False), "Chi NON portava gli occhiali?"
-        else:
-            ans, q = t, f"Chi aveva il cappello {HATN[hats[t]].upper()} E la scheda {BADGE[badges[t]].upper()}?"
-        return {"guards": guards, "q": q, "ans": ans, "show": (3.0, 3.5, 4.0)[r], "limit": (7, 8, 9)[r]}
+        for _ in range(400):
+            if r == 0:                                                 # round 1: tutti diversi, una sola caratteristica da ricordare
+                hats, badges = rn.sample(range(6), n), rn.sample(range(6), n)
+            else:                                                      # round 2-3: colori che si ripetono, serve ricordare DUE caratteristiche
+                hats, badges = [rn.randrange(4) for _ in range(n)], [rn.randrange(4) for _ in range(n)]
+            glasses = [rn.random() < 0.5 for _ in range(n)]
+            if all(glasses) or not any(glasses):
+                continue
+            guards = [{"hat": hats[i], "glasses": glasses[i], "badge": badges[i], "skin": rn.randrange(4)} for i in range(n)]
+            t = rn.randrange(n)
+            if r == 0:
+                mode = rn.choice(["badge", "hat", "glass"])
+                if mode == "badge":
+                    ans, q = t, f"Chi aveva la scheda {BADGE[badges[t]].upper()}?"
+                elif mode == "hat":
+                    ans, q = t, f"Chi aveva il cappello {HATN[hats[t]].upper()}?"
+                else:
+                    wo = rn.random() < 0.5
+                    cand = [i for i in range(n) if glasses[i] != wo]
+                    if len(cand) != 1:
+                        continue
+                    ans, q = cand[0], "Chi NON portava gli occhiali?" if not wo else "Chi portava gli occhiali?"
+                break
+            mode = rn.choice(["hb", "hg", "bg"])
+            gl_txt = "con gli occhiali" if glasses[t] else "senza occhiali"
+            if mode == "hb":
+                m = [i for i in range(n) if hats[i] == hats[t] and badges[i] == badges[t]]
+                q = f"Chi aveva il cappello {HATN[hats[t]].upper()} E la scheda {BADGE[badges[t]].upper()}?"
+            elif mode == "hg":
+                m = [i for i in range(n) if hats[i] == hats[t] and glasses[i] == glasses[t]]
+                q = f"Chi aveva il cappello {HATN[hats[t]].upper()} ed era {gl_txt.upper()}?"
+            else:
+                m = [i for i in range(n) if badges[i] == badges[t] and glasses[i] == glasses[t]]
+                q = f"Chi aveva la scheda {BADGE[badges[t]].upper()} ed era {gl_txt.upper()}?"
+            if len(m) == 1:
+                ans = t
+                break
+        return {"guards": guards, "q": q, "ans": ans, "show": (3.0, 3.0, 3.5)[r], "limit": (7, 8, 9)[r]}
     if kind == "cable":
         n = (4, 5, 6)[r]
         order = rn.sample(CABLES, n)
@@ -213,14 +241,15 @@ def _out(g, event=None):
 
 def _fail(uid, g, reason):
     MINI.pop(uid, None)
-    record_single_result(uid, uid, False, -MINI_COST, game="mini", bet=MINI_COST)
-    return {"end": {"result": "fail", "msg": reason, "mini": True, "which": g["id"]}, "balance": get_user_coins(uid, uid), "view": None}
+    if g["cost"]:
+        record_single_result(uid, uid, False, -g["cost"], game="mini", bet=g["cost"])
+    return {"end": {"result": "fail", "msg": reason, "mini": True, "which": g["id"], "paid": g["cost"]}, "balance": get_user_coins(uid, uid), "view": None}
 
 
 def _win(uid, g):
     MINI.pop(uid, None)
     add_user_coins(uid, uid, MINI_PRIZE)
-    record_single_result(uid, uid, True, MINI_PRIZE - MINI_COST, game="mini", bet=MINI_COST)
+    record_single_result(uid, uid, True, MINI_PRIZE - g["cost"], game="mini", bet=max(1, g["cost"]))
     return {"end": {"result": "win", "prize": MINI_PRIZE, "elapsed": int(time.time() - g["t_start"]), "alarms": g["alarms"], "mini": True, "which": g["id"], "msg": ""},
             "balance": get_user_coins(uid, uid), "view": None}
 
@@ -281,12 +310,14 @@ def start(uid, which="A"):
         return {"error": "Hai già fatto le 3 prove di oggi: torna domani.", "code": 409}
     if w > 0:
         return {"error": "Devi ancora aspettare prima di riprovare.", "code": 409}
-    if get_user_coins(uid, uid) < MINI_COST:
-        return {"error": f"Servono {MINI_COST} $SDG.", "code": 400}
-    _charge(uid, uid, MINI_COST)
+    cost = _cost(uid, which)
+    if get_user_coins(uid, uid) < cost:
+        return {"error": f"Servono {cost} $SDG.", "code": 400}
+    if cost:
+        _charge(uid, uid, cost)
     _log(uid)[which].append(time.time())
     now = time.time()
-    g = {"uid": uid, "id": which, "games": scheme()[which], "i": 0, "alarms": 0, "deadline": now + MINI_TIME, "t_start": now}
+    g = {"uid": uid, "id": which, "cost": cost, "games": scheme()[which], "i": 0, "alarms": 0, "deadline": now + MINI_TIME, "t_start": now}
     MINI[uid] = g
     _begin_game(g)
     return _out(g, {"type": "start"})

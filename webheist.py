@@ -14,7 +14,8 @@ from state import game_enabled as _ge
 
 WEB_HEIST = {}
 WEB_COST = 350                  # la rapina principale della mini app costa di più di quella del bot
-WEB_TIME = 480                  # otto minuti: i livelli sono 7 e più lunghi di abilità
+WEB_TIME = 600                  # dieci minuti: 7 livelli lunghi e una fuga finale più dura
+WEB_PRIZE_MIN = 500             # premio minimo se il Banco è sotto soglia (caso raro): deve superare il costo del pass
 KINDS = ["seq", "laser", "hack", "lock", "vault", "circuit", "chase"]          # livelli 1..7
 NAMES = ["Centralino", "Corridoio laser", "Hacking", "Serratura", "Caveau", "Bypass circuiti", "Inseguimento"]
 WEB_SHARE = 0.25                # con 7 livelli la rapina principale paga il 25% del Banco
@@ -34,7 +35,7 @@ def _left(g):
 def info(uid):
     return {"cost": WEB_COST, "time": WEB_TIME, "alarm_penalty": H.ALARM_PENALTY, "max_alarms": H.MAX_ALARMS,
             "share": int(WEB_SHARE * 100), "share_follia": int(H.SHARE_FOLLIA * 100), "banco_protect": H.BANCO_PROTECT,
-            "prize_fixed": H.PRIZE_FIXED, "balance": get_user_coins(uid, uid), "total": TOTAL, "names": NAMES,
+            "prize_fixed": WEB_PRIZE_MIN, "balance": get_user_coins(uid, uid), "total": TOTAL, "names": NAMES,
             "levels": [["Centralino", "Memorizza le sequenze di colori"], ["Corridoio laser", "Tieni premuto e fermati quando il raggio è acceso"],
                        ["Hacking", "Raggiungi il codice con mosse contate"], ["Serratura", "Rilascia quando l'indicatore è nel verde"],
                        ["Caveau", "Indovina il codice a 4 cifre"], ["Bypass circuiti", "Guida la sonda nel circuito senza toccare pareti e scariche"],
@@ -66,8 +67,8 @@ def _view(g):
         v.update({"r": st["r"], "rounds": len(LOCK_ROUNDS), "c": k["c"], "w": k["w"], "speed": k["speed"], "phase0": k["phase0"]})
     elif kind == "vault":
         vt = st["v"]
-        v.update({"hint": [vt["hint"], vt["secret"][vt["hint"]]], "tries": vt["tries"], "max_tries": H.VAULT_TRIES,
-                  "hist": [[gs, b, c] for gs, b, c in vt["hist"]], "vault_left": max(0, int(H.VAULT_TIME - (time.time() - vt["t0"])))})
+        v.update({"hints": [[i, vt["secret"][i]] for i in vt["hints"]], "tries": vt["tries"], "max_tries": H.VAULT_TRIES,
+                  "hist": [[gs, b, c] for gs, b, c in vt["hist"]]})
     elif kind == "circuit":
         c = st.get("c")
         if g["phase"] == "circuit" and c:
@@ -108,8 +109,8 @@ def _fail(uid, g, reason):
 def _win(uid, g, qmsg=""):
     WEB_HEIST.pop(uid, None)
     bal = banco_balance()
-    prize = H.PRIZE_FIXED if bal < H.BANCO_PROTECT else int(bal * (H.SHARE_FOLLIA if follia_active() else WEB_SHARE))
-    prize = max(prize, H.PRIZE_FIXED)
+    prize = WEB_PRIZE_MIN if bal < H.BANCO_PROTECT else int(bal * (H.SHARE_FOLLIA if follia_active() else WEB_SHARE))
+    prize = max(prize, WEB_PRIZE_MIN)
     add_user_coins(uid, uid, prize)
     record_single_result(uid, uid, True, prize - WEB_COST, game="heist", bet=WEB_COST)
     d = inv(uid, uid)
@@ -351,20 +352,20 @@ def _circ_check(c, moves, fin_ms):
 # Corsa a DISTANZA: il furgone parte lento e accelera da solo; cambi corsia. Ostacoli che bocciano la fuga (posti di blocco,
 # auto contromano, muri, faro dell'elicottero) e ostacoli che fanno solo rallentare (olio, buche). Ai bivi leggi il cartello:
 # l'elicottero sorveglia un percorso, prendi l'altro. Il server rigioca corsie e velocità e verifica il tempo di arrivo.
-CH_D = 4300.0                   # metri totali
-CH_V0, CH_A, CH_VMAX = 26.0, 0.9, 62.0
+CH_D = 5000.0                   # metri totali
+CH_V0, CH_A, CH_VMAX = 26.0, 1.0, 70.0
 CH_SLOW = 0.5                   # olio, buche, fango e coni dimezzano la velocità
 CH_H_SRV = 0.6                  # mezza lunghezza del furgone per il server: il telefono usa 2,0 (margine per gli scarti di tempo)
 CH_FINISH_TOL = 0.7
-LETHAL = ("block", "car", "wall", "light", "rock", "wreck")
-CH_LEN = {"block": 3.0, "car": 5.0, "wall": 3.0, "light": 16.0, "oil": 4.0, "pit": 3.0, "rock": 3.0, "wreck": 5.0, "mud": 6.0, "cone": 3.0}
+LETHAL = ("block", "car", "wall", "light", "rock", "wreck", "palm")
+CH_LEN = {"block": 3.0, "car": 5.0, "wall": 3.0, "light": 16.0, "oil": 4.0, "pit": 3.0, "rock": 3.0, "wreck": 5.0, "mud": 6.0, "cone": 3.0, "palm": 3.0}
 # Percorsi ai bivi: nome, ambientazione che si incontra dopo, simboli di pericolo possibili (compaiono SOLO accanto alla strada pericolosa)
 ROUTES = {
     "tunnel": ("TUNNEL", "tunnel", ["🚔", "🚨"]),
     "overpass": ("SOPRAELEVATA", "bridge", ["🚁", "🚔"]),
     "dirt": ("STERRATO", "dirt", ["🚧", "🚨"]),
     "city": ("CENTRO CITTÀ", "city", ["🚔", "🚧", "🚨"]),
-    "coast": ("LUNGOMARE", "coast", ["🚁", "🚓"]),
+    "coast": ("SPIAGGIA", "coast", ["🚁", "🚓"]),
 }
 ENV_POOL = {                                                            # ostacoli tipici di ogni ambientazione
     "highway": ["oil", "pit", "block", "car", "wall", "oil", "pit"],
@@ -372,7 +373,7 @@ ENV_POOL = {                                                            # ostaco
     "bridge": ["cone", "cone", "block", "car", "wall", "oil"],
     "dirt": ["rock", "rock", "mud", "mud", "pit", "wall"],
     "city": ["car", "block", "oil", "wall", "cone", "car"],
-    "coast": ["oil", "car", "block", "pit", "cone", "wall"],
+    "coast": ["oil", "palm", "block", "pit", "palm", "wall", "cone"],
 }
 
 
@@ -406,13 +407,17 @@ def _chase_begin(g, delay):
         fk = [CH_D * 0.2, CH_D * 0.45, CH_D * 0.7]
         forks, segs = [], []
         for f in fk:
-            a, b = random.sample(list(ROUTES), 2)                      # due strade diverse a caso
-            side = random.choice([0, 2])                               # corsia della strada SICURA (0 = sinistra, 2 = destra)
-            safe, danger = (a, b)
-            names = {side: safe, 2 - side: danger}
-            emo = random.choice(ROUTES[danger][2])
-            forks.append({"d": round(f, 1), "safe": side, "L": {"r": names[0], "name": ROUTES[names[0]][0], "emo": emo if names[0] == danger else ""},
-                          "R": {"r": names[2], "name": ROUTES[names[2]][0], "emo": emo if names[2] == danger else ""}})
+            names = random.sample(list(ROUTES), 3)                     # tre strade diverse, una per corsia
+            safe = random.randrange(3)                                 # corsia della strada LIBERA (0 sinistra, 1 centro, 2 destra)
+            emos = random.sample(["🚁", "🚓", "🚧", "🚨"], 2)           # le due strade controllate hanno simboli diversi
+            opts, k = [], 0
+            for ln in range(3):
+                emo = ""
+                if ln != safe:
+                    emo = emos[k]; k += 1
+                opts.append({"r": names[ln], "name": ROUTES[names[ln]][0], "emo": emo})
+            forks.append({"d": round(f, 1), "safe": safe, "opts": opts})
+            side, safe = safe, names[safe]
             segs.append([round(f + 25, 1), round(f + 25 + 650, 1), ROUTES[safe][1]])
 
         def env_at(d):
@@ -422,7 +427,8 @@ def _chase_begin(g, delay):
             return "highway"
         obs, d = [], 110.0
         while d < CH_D - 260:
-            d += random.uniform(0.85, 1.4) * _ch_v(d)
+            pr = d / CH_D                                             # più si avanza, più gli ostacoli sono ravvicinati e doppi
+            d += random.uniform(0.85 - 0.2 * pr, 1.4 - 0.45 * pr) * _ch_v(d)
             if d >= CH_D - 260:
                 break
             if any(abs(d - f) < 2.2 * _ch_v(f) for f in fk):
@@ -435,7 +441,7 @@ def _chase_begin(g, delay):
                 free = random.randrange(3)
                 obs.append([round(d, 1), 7 & ~(1 << free), "wall", CH_LEN["wall"]])
                 continue
-            lanes = random.sample(range(3), 2 if random.random() < 0.3 else 1)
+            lanes = random.sample(range(3), 2 if random.random() < 0.3 + 0.2 * pr else 1)
             for i, ln in enumerate(lanes):
                 kk = kind if i == 0 else random.choice(ENV_POOL[env_at(d)])
                 if kk == "wall":
@@ -512,8 +518,11 @@ def _hack_new(g):
     g["phase"] = "hack"
 
 
-def _vault_new(g):
-    g["st"] = {"v": H.make_vault()}
+def _vault_new(g, hints=1):
+    """Nuovo caveau con `hints` cifre già al loro posto (1 all'inizio, +1 ogni volta che finiscono i 9 tentativi)."""
+    vt = H.make_vault()
+    vt["hints"] = sorted(random.sample(range(4), max(1, min(3, hints))))
+    g["st"] = {"v": vt}
     g["phase"] = "vault"
 
 
@@ -743,12 +752,6 @@ def act(uid, a, data):
 
     if kind == "vault" and phase == "vault" and a == "vs":
         v = st["v"]
-        if now - v["t0"] > H.VAULT_TIME:
-            res = _alarm(uid, g, "Tempo del caveau scaduto! Il sistema si è riarmato.")
-            if res:
-                return res
-            _vault_new(g)
-            return _out(g, {"type": "alarm", "msg": "ALLARME! Nuovo caveau."})
         try:
             guess = [int(x) for x in (data.get("g") or [])]
         except (TypeError, ValueError):
@@ -761,11 +764,9 @@ def act(uid, a, data):
             return _level_done(uid, g)
         if v["tries"] >= H.VAULT_TRIES:
             code = "".join(map(str, v["secret"]))
-            res = _alarm(uid, g, f"Tentativi finiti! Il codice era {code}.")
-            if res:
-                return res
-            _vault_new(g)
-            return _out(g, {"type": "alarm", "msg": f"ALLARME! Il codice era {code}. Nuovo caveau."})
+            n = len(v["hints"]) + 1                                  # nessun allarme: nuovo codice, con una cifra già svelata in più
+            _vault_new(g, n)
+            return _out(g, {"type": "info", "msg": f"Tentativi finiti: il codice era {code}. Nuovo codice con {min(3, n)} cifre già svelate."})
         return _out(g, {"type": "tap", "b": b, "c": c})
 
     if kind == "flight" and phase == "flight" and a == "ft":
