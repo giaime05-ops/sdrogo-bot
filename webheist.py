@@ -18,14 +18,16 @@ WEB_TIME = 510                  # otto minuti e mezzo (con 7 livelli più duri, 
 WEB_PRIZE_MIN = 500             # premio minimo se il Banco è sotto soglia (caso raro): deve superare il costo del pass
 KINDS = ["seq", "laser", "hack", "lock", "vault", "circuit", "chase"]          # livelli 1..7
 NAMES = ["Centralino", "Corridoio laser", "Hacking", "Serratura", "Caveau", "Bypass circuiti", "Inseguimento"]
+ALARM_PRIZE = (1.0, 0.9, 0.7)   # moltiplicatore del premio con 0, 1, 2 allarmi (il terzo fa fallire)
 WEB_SHARE = 0.25                # con 7 livelli la rapina principale paga il 25% del Banco
 TOTAL = len(KINDS)
 SEQ_SHOW_PER = 0.8
 HACK_WEB_ROUNDS = (3,)          # un solo terminale (verificato con BFS: si può sempre risolvere)
-LASER_X = [14, 30, 46, 62, 78]  # posizioni dei laser lungo il corridoio (0..100)
-LASER_GREEN = [(22, 3.4, 0.17), (54, 2.5, 0.19), (70, 1.9, 0.21)]      # (posizione, periodo di andata e ritorno in s, mezza larghezza): sempre più veloci
+LASER_X = [12, 30, 48, 66, 84]  # posizioni dei laser lungo il corridoio (0..100)
+LASER_GREEN = [(21, 3.4, 0.17), (57, 2.5, 0.19), (75, 1.9, 0.21)]      # (posizione, periodo di andata e ritorno in s, mezza larghezza): sempre più veloci
 LASER_SPEED = 24.0              # unità al secondo mentre tieni premuto
-LASER_ZONE = 1.5                # il server è un po' più permissivo del telefono (1,8)
+LASER_ZONE = 2.3                # il server è un po' più permissivo del telefono (2,6 = raggio della pallina)
+LASER_ZONE_PHONE = 2.6
 LOCK_ROUNDS = [(0.20, 0.50), (0.14, 0.70), (0.09, 0.90)]            # (larghezza zona verde, cicli al secondo)
 
 
@@ -35,7 +37,7 @@ def _left(g):
 
 def info(uid):
     return {"cost": WEB_COST, "time": WEB_TIME, "alarm_penalty": H.ALARM_PENALTY, "max_alarms": H.MAX_ALARMS,
-            "share": int(WEB_SHARE * 100), "share_follia": int(H.SHARE_FOLLIA * 100), "banco_protect": H.BANCO_PROTECT,
+            "share": int(WEB_SHARE * 100), "alarm_share": [round(WEB_SHARE * 100 * k, 1) for k in ALARM_PRIZE], "share_follia": int(H.SHARE_FOLLIA * 100), "banco_protect": H.BANCO_PROTECT,
             "prize_fixed": WEB_PRIZE_MIN, "balance": get_user_coins(uid, uid), "total": TOTAL, "names": NAMES,
             "levels": [["Centralino", "Memorizza le sequenze di colori"], ["Corridoio laser", "Tieni premuto e fermati quando il raggio è acceso"],
                        ["Hacking", "Raggiungi il codice con mosse contate"], ["Serratura", "Rilascia quando l'indicatore è nel verde"],
@@ -58,7 +60,7 @@ def _view(g):
     elif kind == "laser":
         L = st.get("L")
         if g["phase"] == "laser" and L:
-            v.update({"lasers": L["lasers"], "speed": LASER_SPEED, "zone": 1.8, "delay": max(0.0, L["t0"] - time.time()), "length": 100})
+            v.update({"lasers": L["lasers"], "speed": LASER_SPEED, "zone": LASER_ZONE_PHONE, "delay": max(0.0, L["t0"] - time.time()), "length": 100})
     elif kind == "hack":
         h = st["h"]
         v.update({"r": st["r"], "rounds": len(HACK_WEB_ROUNDS), "start": h["start"], "target": h["target"], "val": h["val"], "left_moves": h["left"],
@@ -110,7 +112,8 @@ def _fail(uid, g, reason):
 def _win(uid, g, qmsg=""):
     WEB_HEIST.pop(uid, None)
     bal = banco_balance()
-    prize = WEB_PRIZE_MIN if bal < H.BANCO_PROTECT else banco_take(int(bal * (H.SHARE_FOLLIA if follia_active() else WEB_SHARE)))
+    k = ALARM_PRIZE[min(g.get("alarms", 0), len(ALARM_PRIZE) - 1)]      # ogni allarme scattato taglia il premio: 25% → 22,5% → 17,5% del Banco
+    prize = WEB_PRIZE_MIN if bal < H.BANCO_PROTECT else banco_take(int(bal * (H.SHARE_FOLLIA if follia_active() else WEB_SHARE) * k))
     prize = max(prize, WEB_PRIZE_MIN)
     add_user_coins(uid, uid, prize)
     record_single_result(uid, uid, True, prize - WEB_COST, game="heist", bet=WEB_COST)
@@ -168,15 +171,50 @@ def _seq_begin(g, new, delay=0.4):
     g["phase"] = "show"
 
 
+def _laser_hit(L, x, t, m=0.0):
+    """Il punto x al tempo t è dentro un raggio? m = margine in secondi (per il controllo di fattibilità)."""
+    if abs(x - L["x"]) >= LASER_ZONE_PHONE:
+        return False
+    if L.get("g"):
+        return any(abs(L["amp"] * math.sin(2 * math.pi * (t + o + L["ph"]) / L["p"])) < L["hw"] + 0.04 for o in (-m, 0.0, m))
+    return any(((t + o + L["ph"]) % L["p"]) < L["p"] * L["duty"] for o in (-m, 0.0, m))
+
+
+def _laser_feasible(lasers, limit=45.0):
+    """Si può arrivare in fondo tenendo premuto/rilasciando, con margini larghi (zona del telefono, 0,1 s di tolleranza)?"""
+    dt = 0.02
+    step = LASER_SPEED * dt
+    cur, t = {0}, 0.0
+    while cur and t < limit:
+        t += dt
+        nxt = set()
+        for i in cur:
+            for j in (i, i + 1):
+                if not any(_laser_hit(L, j * step, t, 0.1) for L in lasers):
+                    nxt.add(j)
+        cur = nxt
+        if cur and max(cur) * step >= 100:
+            return True
+    return False
+
+
 def _laser_begin(g, delay):
+    for _try in range(30):
+        lasers = _laser_make()
+        if _laser_feasible(lasers):
+            break
+    g["st"]["L"] = {"lasers": lasers, "t0": time.time() + delay}
+    g["phase"] = "laser"
+
+
+def _laser_make():
     lasers = []
     for x in LASER_X:
         per = round(random.uniform(1.25, 2.0), 2)
-        lasers.append({"x": x + random.randint(-3, 3), "p": per, "ph": round(random.uniform(0, per), 2), "duty": 0.5})
+        lasers.append({"x": x + random.randint(-1, 1), "p": per, "ph": round(random.uniform(0, per), 2), "duty": 0.5})
     for x, per, hw in LASER_GREEN:                                   # laser VERDI: una lineetta che scivola a destra e a sinistra tra i rossi
-        lasers.append({"g": 1, "x": x + random.randint(-2, 2), "p": per, "ph": round(random.uniform(0, per), 2), "hw": hw, "amp": 0.40})
-    g["st"]["L"] = {"lasers": lasers, "t0": time.time() + delay}
-    g["phase"] = "laser"
+        lasers.append({"g": 1, "x": x, "p": per, "ph": round(random.uniform(0, per), 2), "hw": hw, "amp": 0.40})
+    return lasers
 
 
 def _laser_check(lasers, ev, fin_ms):
@@ -192,7 +230,7 @@ def _laser_check(lasers, ev, fin_ms):
                 if abs(x - L["x"]) >= LASER_ZONE:
                     continue
                 if L.get("g"):                                          # verde: colpisce solo quando la lineetta passa sopra il ladro (al centro)
-                    if abs(L["amp"] * math.sin(2 * math.pi * (t + L["ph"]) / L["p"])) < L["hw"] - 0.03:
+                    if abs(L["amp"] * math.sin(2 * math.pi * (t + L["ph"]) / L["p"])) < L["hw"]:
                         return False
                 elif ((t + L["ph"]) % L["p"]) < L["p"] * L["duty"]:
                     return False

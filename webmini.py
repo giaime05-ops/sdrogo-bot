@@ -22,7 +22,7 @@ MINI_PLAYS = 3
 MINI_GAP = 2 * 3600
 POOL = ["face", "cable", "print", "freq", "voice", "logic", "laser", "dodge", "simon"]
 NAMES = {"face": "Riconoscimento facciale", "cable": "Taglio cavi", "print": "Impronta digitale",
-         "freq": "Hacking frequenze", "voice": "Impronta vocale", "logic": "Decifra il codice", "laser": "Corridoio laser", "dodge": "Fuga lampo", "simon": "Sequenza di sicurezza"}
+         "freq": "Hacking frequenze", "voice": "Impronta vocale", "logic": "Decifra il codice", "laser": "Corridoio laser", "dodge": "Scatto laser", "simon": "Sequenza di sicurezza"}
 TITLES = {"A": "Colpo Rapido 1", "B": "Colpo Rapido 2"}
 
 MINI = {}        # uid -> rapina in corso
@@ -32,6 +32,7 @@ BADGE = ["rossa", "blu", "gialla", "verde", "viola", "arancione"]          # "sc
 HATN = ["rosso", "blu", "giallo", "verde", "viola", "arancione"]           # "cappello ..."
 CABLES = ["Rosso", "Blu", "Giallo", "Verde", "Viola", "Arancio"]
 LASER_SPEED = 24.0
+DG_AIR, DG_W = 0.7, 0.22        # durata di salto/abbassamento e larghezza (in secondi) di un raggio che passa
 
 
 def scheme(day=None):
@@ -199,19 +200,14 @@ def _gen(kind, r=0):
         for x in xs:
             per = round(rn.uniform(lo, hi), 2)
             lasers.append({"x": x + rn.randint(-3, 3), "p": per, "ph": round(rn.uniform(0, per), 2), "duty": 0.5})
-        return {"lasers": lasers, "speed": LASER_SPEED, "zone": 1.8, "delay": 1.0, "limit": 22}
-    if kind == "dodge":                                                          # mini fuga a 3 checkpoint: sbarre laser che scendono, tu cambi corsia
-        n, gap0 = (6, 8, 10)[r], (1.35, 1.05, 0.85)[r]
-        bars, t, lane = [], 2.2, 1
+        return {"lasers": lasers, "speed": LASER_SPEED, "zone": 2.6, "delay": 1.0, "limit": 22}
+    if kind == "dodge":                                                          # corsa laser a 3 checkpoint: salta i raggi a terra, abbassati sotto quelli alti
+        n, gap0 = (8, 10, 12)[r], (1.35, 1.1, 0.9)[r]
+        obs, t = [], 2.4
         for i in range(n):
-            safe = max(0, min(2, lane + rn.choice((-1, 0, 0, 1))))                   # la corsia libera si sposta al massimo di una: sempre superabile
-            opts = [l for l in range(3) if l != safe]
-            mask = 1 << opts[0] if (r == 0 or rn.random() < 0.35) else 7 & ~(1 << safe)
-            if r == 0 and rn.random() < 0.5:
-                mask = 1 << rn.choice(opts)
-            bars.append([round(t, 2), mask])
-            lane, t = safe, t + gap0 + rn.uniform(-0.1, 0.15)
-        return {"bars": bars, "delay": 1.0, "fall": 1.4, "limit": int(t + 3)}
+            obs.append([round(t, 2), rn.choice("LH")])
+            t += gap0 + rn.uniform(0.0, 0.3)
+        return {"obs": obs, "delay": 1.0, "limit": int(t + 3), "air": DG_AIR, "w": DG_W}
     if kind == "simon":
         n = (4, 5, 6)[r]
         return {"seq": [rn.randrange(4) for _ in range(n)], "show": int(n * 0.8 + 2), "limit": 12}
@@ -419,25 +415,24 @@ def act(uid, a, data):
         return _alarm(uid, g, "Sequenza sbagliata!")
     if kind == "dodge" and a == "dg":
         if data.get("hit"):
-            return _alarm(uid, g, "Sei finito contro un laser!")
+            return _alarm(uid, g, "Hai toccato un laser!")
         try:
-            ev = sorted((int(x), int(y)) for x, y in (data.get("ev") or []))[:80]
+            ev = sorted((int(x), str(y)[:1]) for x, y in (data.get("ev") or []))[:60]
             fin = int(data.get("fin"))
         except (TypeError, ValueError):
             return _out(g)
-        if any(l not in (0, 1, 2) for _, l in ev) or fin / 1000.0 > el + 0.8:
+        if any(k not in ("j", "d") for _, k in ev) or fin / 1000.0 > el + 0.8 or any(ev[i + 1][0] - ev[i][0] < DG_AIR * 1000 - 60 for i in range(len(ev) - 1)):
             return _alarm(uid, g, "Corsa non valida.")
 
-        def lane_at(tt):
-            ln = 1
-            for tm, l in ev:
-                if tm / 1000.0 <= tt:
-                    ln = l
-            return ln
-        for tb, mask in st["bars"]:
-            for k in range(5):                                  # la sbarra occupa la riga del furgone per ~0,4 s: il server è un po' più permissivo
-                if (mask >> lane_at(tb + 0.1 + k * 0.05)) & 1:
-                    return _alarm(uid, g, "Sei finito contro un laser!")
+        def state(tt):
+            for tm, k in ev:
+                if tm / 1000.0 - 0.06 <= tt <= tm / 1000.0 + DG_AIR:
+                    return k
+            return ""
+        for tb, typ in st["obs"]:
+            need = "j" if typ == "L" else "d"
+            if state(tb + 0.04) != need or state(tb + DG_W - 0.04) != need:
+                return _alarm(uid, g, "Hai toccato un laser!")
         return _next(uid, g)
     if kind == "laser" and a == "lz":
         if data.get("hit"):
