@@ -141,8 +141,10 @@ def _is_member(uid) -> bool:
 def _me_badge(uid) -> str:
     import websocial
     b = websocial.badge_of(USER_DATA.get(str(uid)) or {})
-    if _is_admin_id(uid) and is_web_sandbox() and "h5" not in b.split(","):
-        b += ",h5"                                    # anteprima del badge SOLO nell'account di prova
+    if _is_admin_id(uid) and is_web_sandbox():
+        for k in ("h5", "q0"):                        # anteprima dei badge SOLO nell'account di prova
+            if k not in b.split(","):
+                b += "," + k
     return b.strip(",")
 
 

@@ -139,10 +139,10 @@ def profile(uid: int, pid: str) -> dict:
 
 
 def badge_of(u) -> str:
-    """Badge mostrati: 'h5' (5 vittorie vecchia Struggle Heist) resta nascosto finché le novità non sono aperte."""
+    """Badge mostrati: quelli storici nuovi ('h5', 'q0') restano nascosti finché le novità non sono aperte."""
     b = str((u or {}).get("badge", "") or "")
-    if "h5" in b and not (SYSTEM_FLAGS.get("NEW_PUBLIC") or is_web_sandbox()):
-        b = ",".join(x for x in b.split(",") if x != "h5")
+    if not (SYSTEM_FLAGS.get("NEW_PUBLIC") or is_web_sandbox()):
+        b = ",".join(x for x in b.split(",") if x not in ("h5", "q0"))
     return b
 
 

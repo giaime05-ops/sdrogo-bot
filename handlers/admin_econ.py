@@ -479,7 +479,22 @@ def fix_admin_h5():
     save_db()
 
 
+def give_q0_badge():
+    """Una tantum: badge 'q0' (Re dei Quiz, Sdrogobot V0) all'utente chiamato Spoleto."""
+    if SYSTEM_FLAGS.get("Q0_BADGE_DONE"):
+        return
+    for k, u in list(USER_DATA.items()):
+        if str(k).startswith("sbx_"):
+            continue
+        if str(u.get("name", "")).split("#")[0].strip().lower() == "spoleto" and "q0" not in str(u.get("badge", "")):
+            u["badge"] = (str(u.get("badge", "")) + ",q0").strip(",")
+            _touched_users.add(str(k))
+    SYSTEM_FLAGS["Q0_BADGE_DONE"] = True
+    save_db()
+
+
 async def _arm_job(context):
+    give_q0_badge()
     migrate_h5_badge()
     fix_admin_h5()
     arm_tonight_reset()
