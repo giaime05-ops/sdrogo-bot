@@ -649,7 +649,7 @@ def start(uid, lvl=1):
     _charge(uid, uid, WEB_COST)
     now = time.time()
     try:
-        lvl = max(1, min(TOTAL, int(lvl)))                   # strumento admin: si può partire da un livello qualsiasi
+        lvl = max(1, min(TOTAL, int(lvl))) if sbx else 1     # solo nell'account di prova si può partire da un livello qualsiasi
     except (TypeError, ValueError):
         lvl = 1
     g = {"uid": uid, "level": lvl, "deadline": now + WEB_TIME, "alarms": 0, "t_start": now, "phase": "brief", "st": {"r": 0}}
@@ -668,6 +668,8 @@ def act(uid, a, data):
     lvl, phase, st, now = g["level"], g["phase"], g["st"], time.time()
 
     kind = KINDS[lvl - 1]
+    if a in ("retry", "skip") and not is_web_sandbox():        # strumenti riservati all'account di prova
+        return {"error": "Azione non disponibile.", "code": 403}
     if a == "retry":                                           # strumenti admin: riprova il livello da capo / salta al prossimo
         g["alarms"] = 0
         g["deadline"] = max(g["deadline"], now + 180)

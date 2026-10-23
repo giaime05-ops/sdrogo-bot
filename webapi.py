@@ -141,8 +141,8 @@ def _is_member(uid) -> bool:
 def _me_badge(uid) -> str:
     import websocial
     b = websocial.badge_of(USER_DATA.get(str(uid)) or {})
-    if _is_admin_id(uid) and "h5" not in b.split(","):
-        b += ",h5"                                    # l'admin vede subito l'anteprima del badge
+    if _is_admin_id(uid) and is_web_sandbox() and "h5" not in b.split(","):
+        b += ",h5"                                    # anteprima del badge SOLO nell'account di prova
     return b.strip(",")
 
 
@@ -778,7 +778,7 @@ async def _scr_pick(uid: int, idx: int):
 def _wheel_view(uid: int) -> dict:
     prof = USER_DATA.get(ukey(uid)) or {}
     return {"success": True, "available": (prof.get("last_daily") or "") != today_str() or is_web_sandbox(),
-            "segments": [p for p, _ in DAILY_WHEEL], "balance": _balance(uid), "admin": _is_admin_id(uid)}
+            "segments": [p for p, _ in DAILY_WHEEL], "balance": _balance(uid), "admin": _is_admin_id(uid) and is_web_sandbox()}
 
 
 async def _wheel_state(uid: int):
@@ -786,7 +786,7 @@ async def _wheel_state(uid: int):
 
 
 async def _wheel_spin(uid: int, test: bool = False):
-    if test and _is_admin_id(uid):
+    if test and _is_admin_id(uid) and is_web_sandbox():
         # prova per l'admin: estrae un premio come al solito ma NON paga e NON consuma la giocata di oggi
         prize = spin_daily()
         segments = [p for p, _ in DAILY_WHEEL]
@@ -1076,7 +1076,7 @@ def api_social_style():
     if not new_open() and not (_is_admin_id(user["id"]) and is_web_sandbox()):
         return _err("Personalizzazione non ancora disponibile.", 403)
     import websocial
-    resp, out = _avi_call(_social_call(websocial.set_style, int(user["id"]), data, not _is_admin_id(user["id"])))
+    resp, out = _avi_call(_social_call(websocial.set_style, int(user["id"]), data, not (_is_admin_id(user["id"]) and is_web_sandbox())))
     if resp is not None:
         return resp
     return jsonify({"success": True, **out})

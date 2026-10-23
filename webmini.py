@@ -338,7 +338,9 @@ def start(uid, which="A"):
 
 
 def reset_waits(uid):
-    """Strumento admin: azzera tentativi e attese di oggi."""
+    """Strumento admin: azzera tentativi e attese di oggi (solo account di prova)."""
+    if not is_web_sandbox():
+        return {"error": "Azione non disponibile.", "code": 403}
     LOG.pop(uid, None)
     return {"info": info(uid)}
 
@@ -350,6 +352,8 @@ def act(uid, a, data):
     now = time.time()
     if now > g["deadline"]:
         return _fail(uid, g, "⏰ Tempo scaduto.")
+    if a in ("skip", "retry") and not is_web_sandbox():
+        return {"error": "Azione non disponibile.", "code": 403}
     if a == "skip":                                            # strumento admin
         return _done(uid, g)
     if a == "retry":

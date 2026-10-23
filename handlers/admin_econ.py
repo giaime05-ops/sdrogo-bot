@@ -458,8 +458,25 @@ def migrate_h5_badge():
     logging.getLogger(__name__).info("stelle v1 congelate, badge h5 assegnati: %s", n)
 
 
+def fix_admin_h5():
+    """Una tantum: l'admin non deve avere il badge H5 sul profilo vero (lo vede solo nell'account di prova)."""
+    if SYSTEM_FLAGS.get("H5_ADMIN_FIX"):
+        return
+    for k, u in list(USER_DATA.items()):
+        try:
+            adm = is_admin(int(str(k)))
+        except (TypeError, ValueError):
+            continue
+        if adm and "h5" in str(u.get("badge", "")):
+            u["badge"] = ",".join(x for x in str(u["badge"]).split(",") if x and x != "h5")
+            _touched_users.add(str(k))
+    SYSTEM_FLAGS["H5_ADMIN_FIX"] = True
+    save_db()
+
+
 async def _arm_job(context):
     migrate_h5_badge()
+    fix_admin_h5()
     arm_tonight_reset()
     if not SYSTEM_FLAGS.get("NEW_PUBLIC") and "NEW_AT" not in SYSTEM_FLAGS and not SYSTEM_FLAGS.get("NEW_LAUNCH_DONE") \
             and time.time() < NEW_LAUNCH_TS:

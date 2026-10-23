@@ -259,12 +259,11 @@ def _shop_view(chat_id: int, user_id: int, owner_id: int, back_button: list):
             f"📦 <b>Inventario:</b> {d['titles']} Titoli | {d['persecutes']} Persecuzioni | {d['stars']} ⭐\n\n"
             "🏷️ <b>1. Titolo Umiliante (100 $SDG)</b>\nAssegna '🏳️‍🌈GAY🏳️‍🌈' a una vittima per 24 ore!\n\n"
             "🗣️ <b>2. Tag Persecutore (120 $SDG)</b>\nIl bot risponde 'frocio hah' ai prossimi 15 messaggi!\n\n"
-            f"🏢 <b>3. Pass SDROGO HEIST ({HEIST_COST} $SDG)</b>\nRapina a 5 livelli in PRIVATO col bot per Jackpot + Stelle!"
+            "🏢 <b>Sdrogo Heist</b>: ora si gioca nella mini app Arcade."
         )
         keyboard = [
             [InlineKeyboardButton("🏷️ Compra Titolo (100 $SDG)", callback_data=f"buy_title_{owner_id}")],
             [InlineKeyboardButton("🗣️ Compra Tag Persecutore (120 $SDG)", callback_data=f"buy_persecute_{owner_id}")],
-            [InlineKeyboardButton(f"🏢 Avvia SDROGO HEIST ({HEIST_COST} $SDG)", callback_data=f"buy_heist_{owner_id}")],
             back_button
         ]
         return text, InlineKeyboardMarkup(keyboard)
@@ -284,8 +283,6 @@ def _shop_view(chat_id: int, user_id: int, owner_id: int, back_button: list):
             left = v2.shop_left_today(chat_id, user_id, key)
             text += f"<b>{label}</b> — {price} $SDG · oggi {left}/{meta.get('limit')}\n<i>{short}</i>\n\n"
             keyboard.append([InlineKeyboardButton(f"{label} ({price})", callback_data=f"buy_{key}_{owner_id}")])
-    text += f"🏢 <b>Pass SDROGO HEIST</b> — {HEIST_COST} $SDG\n<i>Escape room a tempo in PRIVATO: svaligia il Banco Centrale!</i>"
-    keyboard.append([InlineKeyboardButton(f"🏢 Avvia SDROGO HEIST ({HEIST_COST})", callback_data=f"buy_heist_{owner_id}")])
     keyboard.append([InlineKeyboardButton("🎒 Inventario", callback_data=f"hub_inv_{owner_id}")])
     keyboard.append(back_button)
     return text, InlineKeyboardMarkup(keyboard)
@@ -591,6 +588,8 @@ async def shop_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ---------------- PASS HEIST ----------------
     if item == "heist":
+        await query.answer("🏢 Lo Sdrogo Heist ora si gioca solo nella mini app Arcade.", show_alert=True)
+        return
         if not game_enabled("heist"):
             await query.answer(MAINT_GAME_TEXT, show_alert=True)
             return
