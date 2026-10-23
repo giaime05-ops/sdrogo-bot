@@ -493,6 +493,47 @@ def give_q0_badge():
     save_db()
 
 
+async def live_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/live [nome] — chi sta giocando ora nella mini app e le ultime azioni (tutti, oppure solo un giocatore)."""
+    user, msg = update.effective_user, update.effective_message
+    if not user or not msg or not is_admin(user.id):
+        return
+    import livelog
+    from datetime import datetime
+    q = " ".join(context.args).strip().lower() if context.args else ""
+
+    def nm(uid):
+        d = USER_DATA.get(str(uid)) or {}
+        n = str(d.get("name") or "").split("#")[0].strip()
+        return n or ("sbx" if str(uid).startswith("sbx_") else f"id {str(uid)[-4:]}")
+
+    def match(uid):
+        return not q or q in nm(uid).lower() or q == str(uid)
+
+    now = time.time()
+    lines = ["🔴 <b>LIVE mini app</b>" + (f" — «{html.escape(q)}»" if q else "")]
+    try:
+        import webheist, webmini
+        act = []
+        for uid, g in list(webheist.WEB_HEIST.items()):
+            if match(uid) and now <= g.get("deadline", 0) + 1:
+                act.append(f"🏢 <b>{html.escape(nm(uid))}</b> · Sdrogo Heist · livello {g.get('level')} · allarmi {g.get('alarms', 0)}/3 · {int(g['deadline'] - now)}s")
+        for uid, g in list(webmini.MINI.items()):
+            if match(uid) and now <= g.get("deadline", 0) + 1:
+                act.append(f"🕵️ <b>{html.escape(nm(uid))}</b> · Daily Heist · {g.get('kind', '?')} · {int(g['deadline'] - now)}s")
+        lines.append("\n<b>In partita adesso:</b>\n" + ("\n".join(act) if act else "nessuno"))
+    except Exception:
+        pass
+    rows = [r for r in livelog.recent(300) if match(r[1])][-25:]
+    lines.append("\n<b>Ultime azioni:</b>")
+    for t, uid, method, path, sbx in reversed(rows):
+        hh = datetime.fromtimestamp(t).astimezone(__import__("economy")._TZ).strftime("%H:%M:%S") if __import__("economy")._TZ else time.strftime("%H:%M:%S", time.gmtime(t))
+        lines.append(f"{hh} {html.escape(nm(uid))}{' (prova)' if sbx else ''}: {html.escape(livelog.label(path))}")
+    if not rows:
+        lines.append("niente di recente (il registro si azzera a ogni riavvio)")
+    await msg.reply_text("\n".join(lines)[:3900], parse_mode="HTML")
+
+
 async def _arm_job(context):
     give_q0_badge()
     migrate_h5_badge()
@@ -507,6 +548,7 @@ async def _arm_job(context):
 
 def register(app):
     app.add_handler(CommandHandler("sfida", sfida_command))
+    app.add_handler(CommandHandler("live", live_command))
     app.add_handler(CommandHandler("resettutti", resettutti_command))
     app.add_handler(CommandHandler("ricaricatutti", ricaricatutti_command))
     app.add_handler(CommandHandler("resetbanco", resetbanco_command))

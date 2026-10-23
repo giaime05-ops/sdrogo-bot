@@ -80,6 +80,25 @@ def loan_take(uid: int, amount) -> dict:
     return out
 
 
+def loan_repay(uid: int) -> dict:
+    """Salda in un colpo solo tutto il debito rimasto (se hai abbastanza $SDG)."""
+    from economy import loan_get, banco_add
+    L = loan_get(uid)
+    if not L:
+        return {"error": "Non hai nessun prestito da saldare.", "code": 409}
+    owed = int(L["owed"])
+    if _bal(uid) < owed:
+        return {"error": f"Per saldare servono {owed} $SDG: te ne mancano {owed - _bal(uid)}.", "code": 409}
+    add_user_coins(uid, uid, -owed)
+    banco_add(owed)
+    get_user_data_dict(uid, uid).pop("loan", None)
+    save_db()
+    out = loan_state(uid)
+    out["balance"] = _bal(uid)
+    out["msg"] = f"Prestito saldato: {owed} $SDG restituiti al Banco."
+    return out
+
+
 def work_start(uid: int) -> dict:
     st = work_state(uid)
     if not st["v2"]:

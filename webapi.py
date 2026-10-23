@@ -198,6 +198,11 @@ def require_admin():
                                    "🛠️ Server in manutenzione: puoi finire la partita in corso ma non iniziarne di nuove."}), 503)
     uid = str(user["id"])
     mark_seen(uid)                                    # la mini app conta come uso del bot (Utenti online)
+    try:
+        import livelog
+        livelog.note(uid, request.method, request.path, _is_admin_id(user["id"]) and request.headers.get("X-Arcade-Sandbox") == "1")
+    except Exception:
+        pass
     # "Account admin" della mini app: solo l'admin, solo se la richiesta lo chiede; il valore vale per questa richiesta
     sbx = _is_admin_id(user["id"]) and request.headers.get("X-Arcade-Sandbox") == "1"
     set_web_sandbox(sbx)
@@ -1149,10 +1154,12 @@ def api_extra(action):
         except (TypeError, ValueError):
             return _err("Risposta non valida.")
         coro = _social_call(webextra.work_answer, uid, idx)
-    elif action in ("loan", "loan_take") and not (is_web_sandbox() or new_open()):
+    elif action in ("loan", "loan_take", "loan_repay") and not (is_web_sandbox() or new_open()):
         return _err("Non ancora disponibile.", 403)
     elif action == "loan":
         coro = _social_call(webextra.loan_state, uid)
+    elif action == "loan_repay":
+        coro = _social_call(webextra.loan_repay, uid)
     elif action == "loan_take":
         coro = _social_call(webextra.loan_take, uid, data.get("amount"))
     elif action == "donate":
