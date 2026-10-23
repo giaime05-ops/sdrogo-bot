@@ -209,6 +209,15 @@ async def free_chal_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user, msg = update.effective_user, update.effective_message
     if not user or not msg or not is_admin(user.id) or update.effective_chat.type != "private":
         return
+    if context.user_data.get("await_newat"):
+        r = set_new_at(msg.text)
+        if r is None:
+            await msg.reply_text("Scrivi l'ora come HH:MM (es. 13:55), oppure «ora» / «off».")
+        else:
+            context.user_data.pop("await_newat", None)
+            await msg.reply_text(r)
+        from telegram.ext import ApplicationHandlerStop
+        raise ApplicationHandlerStop
     if not context.user_data.get("await_chal"):
         return
     context.user_data.pop("await_chal", None)
@@ -404,32 +413,52 @@ async def _run_new_launch(context: ContextTypes.DEFAULT_TYPE):
     await _notify_admin(context, "🚀 <b>Novità Arcade attivate</b> (timer): Sdrogo Heist, Daily Heist, profilo e prestiti sono aperti a tutti.")
 
 
-async def aprinovita_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/aprinovita HH:MM (oggi, ora italiana) | ora | off"""
-    user, msg = update.effective_user, update.effective_message
-    if not user or not msg or not is_admin(user.id):
-        return
-    a = (context.args[0].lower() if context.args else "")
-    if a == "off":
+def set_new_at(text: str):
+    """'HH:MM' (oggi/domani, ora italiana) | 'ora' | 'off'. Ritorna il messaggio per l'admin."""
+    a = (text or "").strip().lower()
+    if a in ("off", "annulla"):
         SYSTEM_FLAGS.pop("NEW_AT", None); save_db()
-        return await msg.reply_text("Timer novità annullato.")
+        return "Timer novità annullato."
     if a == "ora":
         SYSTEM_FLAGS.pop("NEW_AT", None); SYSTEM_FLAGS["NEW_PUBLIC"] = True; save_db()
-        return await msg.reply_text("🟢 Novità Arcade attive per tutti.")
+        return "🟢 Novità Arcade attive per tutti."
     try:
-        hh, mm = [int(x) for x in a.split(":")]
+        hh, mm = [int(x) for x in a.replace(".", ":").split(":")]
         from economy import rome_now
+        import datetime
         n = rome_now()
         t = n.replace(hour=hh, minute=mm, second=0, microsecond=0)
         if t <= n:
-            t = t + __import__("datetime").timedelta(days=1)
-        SYSTEM_FLAGS["NEW_AT"] = t.timestamp(); save_db()
+            t += datetime.timedelta(days=1)
+        SYSTEM_FLAGS["NEW_AT"] = t.timestamp(); SYSTEM_FLAGS["NEW_LAUNCH_DONE"] = True; save_db()
     except Exception:
-        return await msg.reply_text("Uso: /aprinovita HH:MM (ora italiana) · /aprinovita ora · /aprinovita off")
-    await msg.reply_text(f"⏰ Le Novità Arcade si apriranno alle {t.strftime('%d/%m %H:%M')} (ora italiana).")
+        return None
+    return f"⏰ Le Novità Arcade si apriranno alle {t.strftime('%d/%m %H:%M')} (ora italiana)."
+
+
+def migrate_h5_badge():
+    """Una tantum: chi ha già 5+ stelle della vecchia Struggle Heist riceve il badge storico 'h5' (visibile solo con le novità aperte)."""
+    if SYSTEM_FLAGS.get("H5_BADGE_DONE"):
+        return
+    n = 0
+    for k, inv in list(USER_INVENTORIES.items()):
+        k = str(k)
+        if k.startswith("sbx_") or int((inv or {}).get("stars", 0) or 0) < 5:
+            continue
+        u = USER_DATA.get(k)
+        if u is None or "h5" in str(u.get("badge", "")):
+            continue
+        u["badge"] = (str(u.get("badge", "")) + ",h5").strip(",")
+        u["stars_v1"] = int(inv.get("stars", 0))          # quante stelle sono della vecchia versione
+        _touched_users.add(k)
+        n += 1
+    SYSTEM_FLAGS["H5_BADGE_DONE"] = True
+    save_db()
+    logging.getLogger(__name__).info("badge h5 assegnati: %s", n)
 
 
 async def _arm_job(context):
+    migrate_h5_badge()
     arm_tonight_reset()
     if not SYSTEM_FLAGS.get("NEW_PUBLIC") and "NEW_AT" not in SYSTEM_FLAGS and not SYSTEM_FLAGS.get("NEW_LAUNCH_DONE") \
             and time.time() < NEW_LAUNCH_TS:
@@ -445,7 +474,6 @@ def register(app):
     app.add_handler(CommandHandler("resetbanco", resetbanco_command))
     app.add_handler(CommandHandler("resetsoldi", resetsoldi_command))
     app.add_handler(CommandHandler("resetauto", resetauto_command))
-    app.add_handler(CommandHandler("aprinovita", aprinovita_command))
     app.add_handler(CallbackQueryHandler(aec_callback, pattern="^aec_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, free_chal_text), group=-1)
     if app.job_queue:

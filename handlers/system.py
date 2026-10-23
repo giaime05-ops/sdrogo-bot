@@ -119,6 +119,7 @@ def _admin_view():
                               ("🔴 Novità: OFF · timer %s" % __import__("datetime").datetime.fromtimestamp(float(SYSTEM_FLAGS["NEW_AT"]), __import__("economy")._TZ).strftime("%d/%m %H:%M")
                                if SYSTEM_FLAGS.get("NEW_AT") and __import__("economy")._TZ else "🔴 Novità Arcade: OFF (solo prova)"),
                               callback_data="adm_new")],
+        [InlineKeyboardButton("⏰ Programma apertura novità", callback_data="adm_newat")],
         [InlineKeyboardButton("🟢 Mini app Arcade: APERTA" if SYSTEM_FLAGS.get("ARCADE_PUBLIC") else "🔴 Mini app Arcade: CHIUSA",
                               callback_data="adm_arc")],
         [InlineKeyboardButton("🎯 Configura Sfida di Gruppo", callback_data="adm_cfg"),
@@ -409,6 +410,11 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_db()                                   # persistente: sopravvive ai riavvii
         await query.answer("🟢 NOVITÀ ATTIVE: nuovo Sdrogo Heist e personalizzazione profilo per tutti i membri."
                            if SYSTEM_FLAGS["NEW_PUBLIC"] else "🔴 Novità spente: restano solo nell'account di prova.", show_alert=True)
+    elif action == "newat":
+        context.user_data["await_newat"] = True
+        await query.answer()
+        await query.message.reply_text("⏰ A che ora aprire le novità? Scrivi l'ora italiana (es. <b>13:55</b>), oppure «ora» per aprire subito, «off» per annullare il timer.", parse_mode="HTML")
+        return
     elif action == "arc":
         SYSTEM_FLAGS["ARCADE_PUBLIC"] = not SYSTEM_FLAGS.get("ARCADE_PUBLIC", False)
         save_db()                                   # persistente: sopravvive ai riavvii

@@ -1,8 +1,8 @@
 """Mini app, fase 5: parti "sociali" (classifiche e diario). Solo lettura: non modificano saldi né statistiche.
 Sono funzioni normali, eseguite sul loop del bot (webapi._run) perché USER_DATA cambia solo lì."""
 import hashlib
-from state import USER_DATA, USER_INVENTORIES
-from storage import ukey
+from state import USER_DATA, USER_INVENTORIES, SYSTEM_FLAGS
+from storage import ukey, is_web_sandbox
 
 LB = {                                   # stessi campi e stesse categorie di /topricconi
     "coins":   {"title": "Re dei Ricconi", "icon": "🪙", "field": "coins",       "unit": "$SDG"},
@@ -130,12 +130,20 @@ def profile(uid: int, pid: str) -> dict:
         c_wins, d_wins = int(u.get("casino_wins", 0) or 0), int(u.get("duels_wins", 0) or 0)
         sp, dp = int(u.get("single_played", 0) or 0), int(u.get("duels_played", 0) or 0)
         sw = int(u.get("single_won", c_wins) or 0)
-        return {"name": _name(str(k), u), "badge": u.get("badge", ""), "stars": int(inv.get("stars", 0) or 0),
+        return {"name": _name(str(k), u), "badge": badge_of(u), "stars": int(inv.get("stars", 0) or 0),
                 "balance": int(u.get("coins", 0) or 0), "net_profit": int(u.get("net_profit", 0) or 0),
                 "quizzes_won": int(u.get("quizzes_won", 0) or 0), "casino_wins": c_wins, "duels_wins": d_wins,
                 "wr_single": min(100, int(sw / sp * 100)) if sp > 0 else 0,
                 "wr_duels": min(100, int(d_wins / dp * 100)) if dp > 0 else 0, "style": _style(u)}
     return {"error": "Giocatore non trovato."}
+
+
+def badge_of(u) -> str:
+    """Badge mostrati: 'h5' (5 vittorie vecchia Struggle Heist) resta nascosto finché le novità non sono aperte."""
+    b = str((u or {}).get("badge", "") or "")
+    if "h5" in b and not (SYSTEM_FLAGS.get("NEW_PUBLIC") or is_web_sandbox()):
+        b = ",".join(x for x in b.split(",") if x != "h5")
+    return b
 
 
 def _name(uid: str, d: dict) -> str:
@@ -156,7 +164,7 @@ def leaderboard(uid: int, cat: str) -> dict:
             rows.append((str(k), v, d))
     rows.sort(key=lambda r: r[1], reverse=True)
     me = ukey(uid)
-    top = [{"rank": i, "name": _name(k, d), "value": v, "me": k == str(uid), "badge": d.get("badge", ""), "pid": _pid(k), "style": _style(d)}
+    top = [{"rank": i, "name": _name(k, d), "value": v, "me": k == str(uid), "badge": badge_of(d), "pid": _pid(k), "style": _style(d)}
            for i, (k, v, d) in enumerate(rows[:TOP_N], start=1)]
     mine = None
     for i, (k, v, d) in enumerate(rows, start=1):

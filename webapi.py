@@ -138,6 +138,14 @@ def _is_member(uid) -> bool:
     return ok
 
 
+def _me_badge(uid) -> str:
+    import websocial
+    b = websocial.badge_of(USER_DATA.get(str(uid)) or {})
+    if _is_admin_id(uid) and "h5" not in b.split(","):
+        b += ",h5"                                    # l'admin vede subito l'anteprima del badge
+    return b.strip(",")
+
+
 def new_open() -> bool:
     """Novità (nuovo Sdrogo Heist + personalizzazione profilo): aperte a tutti solo se l'admin accende l'interruttore."""
     return bool(SYSTEM_FLAGS.get("NEW_PUBLIC"))
@@ -239,7 +247,7 @@ def api_me():
         "style": __import__("websocial")._style(USER_DATA.get(str(user["id"])) or {}),
         "sandbox": bool(is_web_sandbox()),
         "new": new_open(),
-        "badge": (USER_DATA.get(str(user["id"])) or {}).get("badge", ""),
+        "badge": _me_badge(user["id"]),
         "stars": int((USER_INVENTORIES.get(ukey(user["id"])) or {}).get("stars", 0) or 0),
     })
 
