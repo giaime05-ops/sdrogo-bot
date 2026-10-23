@@ -487,7 +487,10 @@ def give_q0_badge():
         if str(k).startswith("sbx_"):
             continue
         if str(u.get("name", "")).split("#")[0].strip().lower() == "spoleto" and "q0" not in str(u.get("badge", "")):
-            u["badge"] = (str(u.get("badge", "")) + ",q0").strip(",")
+            old = [x for x in str(u.get("badge", "")).split(",") if x]
+            if "v1" in old:                                   # Spoleto non è il Re del Casinò: il V1 (dato per errore) viene sostituito
+                u["badge_prev"] = ",".join(old)
+            u["badge"] = ",".join([x for x in old if x != "v1"] + ["q0"])
             _touched_users.add(str(k))
     SYSTEM_FLAGS["Q0_BADGE_DONE"] = True
     save_db()
