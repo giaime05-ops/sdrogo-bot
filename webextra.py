@@ -43,7 +43,9 @@ def loan_state(uid: int) -> dict:
     sbx = is_web_sandbox()
     left = LOAN_DAILY_MAX if sbx else max(0, LOAN_DAILY_MAX - taken)
     bal = _bal(uid)
-    return {"owed": int(L["owed"]) if L else 0, "balance": bal, "trigger": LOAN_TRIGGER, "fee": int(LOAN_FEE * 100),
+    tot = int(L.get("total", L["owed"])) if L else 0
+    return {"owed": int(L["owed"]) if L else 0, "total": tot, "paid": max(0, tot - int(L["owed"])) if L else 0,
+            "amount": int(L.get("amount", 0)) if L else 0, "balance": bal, "trigger": LOAN_TRIGGER, "fee": int(LOAN_FEE * 100),
             "cut": int(LOAN_CUT * 100), "daily_left": left, "daily_max": LOAN_DAILY_MAX,
             "options": [o for o in LOAN_OPTIONS if o <= left],
             "eligible": (L is None and (bal < LOAN_TRIGGER or sbx) and left > 0), "low": bal < LOAN_TRIGGER or sbx}
@@ -64,7 +66,7 @@ def loan_take(uid: int, amount) -> dict:
         return {"error": "Importo non disponibile oggi.", "code": 400}
     u = get_user_data_dict(uid, uid)
     owed = int(round(amount * (1 + LOAN_FEE)))
-    u["loan"] = {"owed": owed, "amount": amount, "day": today_str()}
+    u["loan"] = {"owed": owed, "amount": amount, "total": owed, "day": today_str()}
     ld = u.get("loan_day") or {}
     if ld.get("day") != today_str():
         ld = {"day": today_str(), "taken": 0}

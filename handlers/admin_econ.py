@@ -439,7 +439,7 @@ def set_new_at(text: str):
 def migrate_h5_badge():
     """Una tantum, prima dell'apertura delle novità: congela le stelle della vecchia Struggle Heist (stars_v1, restano gialle)
     e dà il badge storico 'h5' a chi ne ha 5 o più (le stelle gialle vengono sostituite dal badge)."""
-    if SYSTEM_FLAGS.get("H5_BADGE_DONE"):
+    if SYSTEM_FLAGS.get("STARS_V1_DONE"):
         return
     n = 0
     for k, inv in list(USER_INVENTORIES.items()):
@@ -448,12 +448,17 @@ def migrate_h5_badge():
         u = USER_DATA.get(k)
         if k.startswith("sbx_") or st < 1 or u is None or "stars_v1" in u:
             continue
+        st = max(0, st - int((inv or {}).get("stars_v2", 0) or 0))      # le stelle vinte nel nuovo Heist non sono "vecchie"
         u["stars_v1"] = st
-        if st >= 5 and "h5" not in str(u.get("badge", "")):
+        try:
+            adm = is_admin(int(k))
+        except ValueError:
+            adm = False
+        if st >= 5 and not adm and "h5" not in str(u.get("badge", "")):
             u["badge"] = (str(u.get("badge", "")) + ",h5").strip(",")
             n += 1
         _touched_users.add(k)
-    SYSTEM_FLAGS["H5_BADGE_DONE"] = True
+    SYSTEM_FLAGS["STARS_V1_DONE"] = True
     save_db()
     logging.getLogger(__name__).info("stelle v1 congelate, badge h5 assegnati: %s", n)
 

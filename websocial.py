@@ -159,6 +159,8 @@ def stars_split(u, inv):
 
 def _name(uid: str, d: dict) -> str:
     n = (d.get("name") or "").strip()
+    short = n.split("#")[0].strip()                 # nomi del tipo «Marco#maF…»: in classifica si mostra solo la parte prima del # (il nome salvato non cambia)
+    n = short or n
     return n or f"Giocatore {uid[-4:]}"
 
 

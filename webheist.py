@@ -120,7 +120,7 @@ def _win(uid, g, qmsg=""):
     add_user_coins(uid, uid, prize - cut)
     record_single_result(uid, uid, True, prize - WEB_COST, game="heist", bet=WEB_COST)
     d = inv(uid, uid)
-    d["stars"] = d.get("stars", 0) + 1; d["titles"] = d.get("titles", 0) + 1; d["persecutes"] = d.get("persecutes", 0) + 1
+    d["stars"] = d.get("stars", 0) + 1; d["stars_v2"] = d.get("stars_v2", 0) + 1; d["titles"] = d.get("titles", 0) + 1; d["persecutes"] = d.get("persecutes", 0) + 1
     save_db()
     el = int(time.time() - g["t_start"])
     return {"end": {"result": "win", "prize": prize, "elapsed": el, "alarms": g["alarms"], "msg": qmsg, "loan_cut": cut}, "balance": get_user_coins(uid, uid), "view": None}
