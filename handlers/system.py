@@ -115,7 +115,9 @@ def _admin_view():
         "<i>Le partite già in corso possono sempre finire.</i>"
     )
     rows = [
-        [InlineKeyboardButton("🟢 Novità Arcade: ON" if SYSTEM_FLAGS.get("NEW_PUBLIC") else "🔴 Novità Arcade: OFF (solo prova)",
+        [InlineKeyboardButton("🟢 Novità Arcade: ON" if SYSTEM_FLAGS.get("NEW_PUBLIC") else
+                              ("🔴 Novità: OFF · timer %s" % __import__("datetime").datetime.fromtimestamp(float(SYSTEM_FLAGS["NEW_AT"]), __import__("economy")._TZ).strftime("%d/%m %H:%M")
+                               if SYSTEM_FLAGS.get("NEW_AT") and __import__("economy")._TZ else "🔴 Novità Arcade: OFF (solo prova)"),
                               callback_data="adm_new")],
         [InlineKeyboardButton("🟢 Mini app Arcade: APERTA" if SYSTEM_FLAGS.get("ARCADE_PUBLIC") else "🔴 Mini app Arcade: CHIUSA",
                               callback_data="adm_arc")],

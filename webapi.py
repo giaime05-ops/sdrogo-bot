@@ -1138,6 +1138,12 @@ def api_extra(action):
         except (TypeError, ValueError):
             return _err("Risposta non valida.")
         coro = _social_call(webextra.work_answer, uid, idx)
+    elif action in ("loan", "loan_take") and not (is_web_sandbox() or new_open()):
+        return _err("Non ancora disponibile.", 403)
+    elif action == "loan":
+        coro = _social_call(webextra.loan_state, uid)
+    elif action == "loan_take":
+        coro = _social_call(webextra.loan_take, uid, data.get("amount"))
     elif action == "donate":
         coro = _social_call(webextra.donate, uid, str(data.get("target", ""))[:32], data.get("amount"))
     else:

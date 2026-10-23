@@ -202,11 +202,11 @@ def _gen(kind, r=0):
             lasers.append({"x": x + rn.randint(-3, 3), "p": per, "ph": round(rn.uniform(0, per), 2), "duty": 0.5})
         return {"lasers": lasers, "speed": LASER_SPEED, "zone": 2.6, "delay": 1.0, "limit": 22}
     if kind == "dodge":                                                          # corsa laser a 3 checkpoint: salta i raggi a terra, abbassati sotto quelli alti
-        n, gap0 = (8, 10, 12)[r], (1.35, 1.1, 0.9)[r]
+        n, gap0 = (8, 10, 12)[r], (1.25, 1.05, 0.95)[r]
         obs, t = [], 2.4
-        for i in range(n):
+        for i in range(n):                      # come il dino di Chrome: gli ostacoli si infittiscono
             obs.append([round(t, 2), rn.choice("LH")])
-            t += gap0 + rn.uniform(0.0, 0.3)
+            t += max(0.8, gap0 * (1 - 0.3 * i / n)) + rn.uniform(0.0, 0.2)
         return {"obs": obs, "delay": 1.0, "limit": int(t + 3), "air": DG_AIR, "w": DG_W}
     if kind == "simon":
         n = (4, 5, 6)[r]
@@ -260,7 +260,9 @@ def _fail(uid, g, reason):
 def _win(uid, g):
     MINI.pop(uid, None)
     banco_take(MINI_PRIZE)                                    # il premio esce (se c'è) dal Banco; in prova non tocca nulla
-    add_user_coins(uid, uid, MINI_PRIZE)
+    from economy import loan_cut
+    cut = loan_cut(uid, MINI_PRIZE - g["cost"])
+    add_user_coins(uid, uid, MINI_PRIZE - cut)
     record_single_result(uid, uid, True, MINI_PRIZE - g["cost"], game="mini", bet=max(1, g["cost"]))
     return {"end": {"result": "win", "prize": MINI_PRIZE, "elapsed": int(time.time() - g["t_start"]), "alarms": g["alarms"], "mini": True, "which": g["id"], "msg": ""},
             "balance": get_user_coins(uid, uid), "view": None}

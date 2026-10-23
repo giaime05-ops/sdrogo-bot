@@ -115,13 +115,15 @@ def _win(uid, g, qmsg=""):
     k = ALARM_PRIZE[min(g.get("alarms", 0), len(ALARM_PRIZE) - 1)]      # ogni allarme scattato taglia il premio: 25% → 22,5% → 17,5% del Banco
     prize = WEB_PRIZE_MIN if bal < H.BANCO_PROTECT else banco_take(int(bal * (H.SHARE_FOLLIA if follia_active() else WEB_SHARE) * k))
     prize = max(prize, WEB_PRIZE_MIN)
-    add_user_coins(uid, uid, prize)
+    from economy import loan_cut
+    cut = loan_cut(uid, prize - WEB_COST)
+    add_user_coins(uid, uid, prize - cut)
     record_single_result(uid, uid, True, prize - WEB_COST, game="heist", bet=WEB_COST)
     d = inv(uid, uid)
     d["stars"] = d.get("stars", 0) + 1; d["titles"] = d.get("titles", 0) + 1; d["persecutes"] = d.get("persecutes", 0) + 1
     save_db()
     el = int(time.time() - g["t_start"])
-    return {"end": {"result": "win", "prize": prize, "elapsed": el, "alarms": g["alarms"], "msg": qmsg}, "balance": get_user_coins(uid, uid), "view": None}
+    return {"end": {"result": "win", "prize": prize, "elapsed": el, "alarms": g["alarms"], "msg": qmsg, "loan_cut": cut}, "balance": get_user_coins(uid, uid), "view": None}
 
 
 def _alarm(uid, g, reason):

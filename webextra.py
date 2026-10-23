@@ -31,7 +31,51 @@ def work_state(uid: int) -> dict:
     wheel_ok = ((get_user_data_dict(uid, uid).get("last_daily") or "") != today_str()) or sbx
     return {"wheel_available": wheel_ok, "wheel_in": 86400 - (n.hour * 3600 + n.minute * 60 + n.second),
             "v2": v2u, "reward": WORK_REWARD, "time": WORK_TIME, "cooldown": cd, "max_balance": WORK_MAX_BALANCE,
-            "too_rich": too_rich, "balance": _bal(uid), "sandbox": sbx}
+            "too_rich": too_rich, "balance": _bal(uid), "sandbox": sbx, "loan": loan_state(uid)}
+
+
+def loan_state(uid: int) -> dict:
+    from economy import LOAN_OPTIONS, LOAN_TRIGGER, LOAN_FEE, LOAN_CUT, LOAN_DAILY_MAX, today_str, loan_get
+    u = get_user_data_dict(uid, uid)
+    L = loan_get(uid)
+    ld = u.get("loan_day") or {}
+    taken = int(ld.get("taken", 0)) if ld.get("day") == today_str() else 0
+    sbx = is_web_sandbox()
+    left = LOAN_DAILY_MAX if sbx else max(0, LOAN_DAILY_MAX - taken)
+    bal = _bal(uid)
+    return {"owed": int(L["owed"]) if L else 0, "balance": bal, "trigger": LOAN_TRIGGER, "fee": int(LOAN_FEE * 100),
+            "cut": int(LOAN_CUT * 100), "daily_left": left, "daily_max": LOAN_DAILY_MAX,
+            "options": [o for o in LOAN_OPTIONS if o <= left],
+            "eligible": (L is None and (bal < LOAN_TRIGGER or sbx) and left > 0), "low": bal < LOAN_TRIGGER or sbx}
+
+
+def loan_take(uid: int, amount) -> dict:
+    from economy import LOAN_OPTIONS, LOAN_FEE, today_str, banco_add
+    st = loan_state(uid)
+    try:
+        amount = int(amount)
+    except (TypeError, ValueError):
+        return {"error": "Importo non valido.", "code": 400}
+    if st["owed"] > 0:
+        return {"error": "Hai già un prestito attivo: restituiscilo prima.", "code": 409}
+    if st["balance"] >= st["trigger"] and not is_web_sandbox():
+        return {"error": f"Il Banco presta solo a chi ha meno di {st['trigger']} $SDG.", "code": 409}
+    if amount not in LOAN_OPTIONS or amount > st["daily_left"]:
+        return {"error": "Importo non disponibile oggi.", "code": 400}
+    u = get_user_data_dict(uid, uid)
+    owed = int(round(amount * (1 + LOAN_FEE)))
+    u["loan"] = {"owed": owed, "amount": amount, "day": today_str()}
+    ld = u.get("loan_day") or {}
+    if ld.get("day") != today_str():
+        ld = {"day": today_str(), "taken": 0}
+    ld["taken"] = int(ld["taken"]) + amount
+    u["loan_day"] = ld
+    add_user_coins(uid, uid, amount)
+    save_db()
+    out = loan_state(uid)
+    out["balance"] = _bal(uid)
+    out["msg"] = f"Il Banco ti presta {amount} $SDG. Devi restituirne {owed}."
+    return out
 
 
 def work_start(uid: int) -> dict:
@@ -94,7 +138,9 @@ def donate(uid: int, target: str, amount) -> dict:
         return {"error": "Destinatario non valido.", "code": 400}
     if _bal(uid) < amount:
         return {"error": "Non hai abbastanza $SDG.", "code": 409}
-    from economy import today_str
+    from economy import today_str, loan_get
+    if loan_get(uid):
+        return {"error": "Finché hai un prestito col Banco non puoi donare.", "code": 409}
     day = today_str()
     DAILY_DONATIONS.difference_update({k for k in DAILY_DONATIONS if not k.endswith(day)})
     key = f"{cid}_{uid}_{target}_{day}"

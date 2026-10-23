@@ -166,7 +166,8 @@ async def _win(bot, uid: int, game: dict, qmsg: str = ""):
     chat_id = game["chat_id"]
     prize, _ = _prize_amount()
     elapsed = int(time.time() - game["t_start"])
-    add_user_coins(chat_id, uid, prize)
+    from economy import loan_cut
+    add_user_coins(chat_id, uid, prize - loan_cut(uid, prize - HEIST_COST))
     record_single_result(chat_id, uid, True, prize - HEIST_COST, game="heist", bet=HEIST_COST)
     d = inv(chat_id, uid)
     d["stars"] = d.get("stars", 0) + 1

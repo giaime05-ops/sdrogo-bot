@@ -35,6 +35,7 @@ def wallet(uid: int) -> dict:
         "wheel_prizes": [{"prize": p, "pct": w} for p, w in DAILY_WHEEL],
         "wheel_available": (u.get("last_daily") or "") != today_str() or is_web_sandbox(),
         "sandbox": is_web_sandbox(),
+        "loan_owed": int((u.get("loan") or {}).get("owed", 0)),
     }
 
 

@@ -48,6 +48,8 @@ def reset_all_players(amount: int) -> int:
         d.pop("shop_day", None)
         d.pop("boost_day", None)
         d.pop("heist_day", None)
+        d.pop("loan", None)                          # il reset azzera anche i debiti
+        d.pop("loan_day", None)
         _touched_users.add(k)
         n += 1
     save_db()
@@ -388,8 +390,52 @@ def arm_tonight_reset():
         save_db()
 
 
+NEW_LAUNCH_TS = 1792756800.0        # 2026-10-23 14:00 ora italiana (12:00 UTC)
+
+
+async def _run_new_launch(context: ContextTypes.DEFAULT_TYPE):
+    """Job (ogni 30s): all'ora fissata in SYSTEM_FLAGS['NEW_AT'] accende le Novità Arcade per tutti (una sola volta)."""
+    ts = SYSTEM_FLAGS.get("NEW_AT")
+    if not ts or time.time() < float(ts):
+        return
+    SYSTEM_FLAGS.pop("NEW_AT", None)               # prima si disarma: non riparte
+    SYSTEM_FLAGS["NEW_PUBLIC"] = True
+    save_db()
+    await _notify_admin(context, "🚀 <b>Novità Arcade attivate</b> (timer): Sdrogo Heist, Daily Heist, profilo e prestiti sono aperti a tutti.")
+
+
+async def aprinovita_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/aprinovita HH:MM (oggi, ora italiana) | ora | off"""
+    user, msg = update.effective_user, update.effective_message
+    if not user or not msg or not is_admin(user.id):
+        return
+    a = (context.args[0].lower() if context.args else "")
+    if a == "off":
+        SYSTEM_FLAGS.pop("NEW_AT", None); save_db()
+        return await msg.reply_text("Timer novità annullato.")
+    if a == "ora":
+        SYSTEM_FLAGS.pop("NEW_AT", None); SYSTEM_FLAGS["NEW_PUBLIC"] = True; save_db()
+        return await msg.reply_text("🟢 Novità Arcade attive per tutti.")
+    try:
+        hh, mm = [int(x) for x in a.split(":")]
+        from economy import rome_now
+        n = rome_now()
+        t = n.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        if t <= n:
+            t = t + __import__("datetime").timedelta(days=1)
+        SYSTEM_FLAGS["NEW_AT"] = t.timestamp(); save_db()
+    except Exception:
+        return await msg.reply_text("Uso: /aprinovita HH:MM (ora italiana) · /aprinovita ora · /aprinovita off")
+    await msg.reply_text(f"⏰ Le Novità Arcade si apriranno alle {t.strftime('%d/%m %H:%M')} (ora italiana).")
+
+
 async def _arm_job(context):
     arm_tonight_reset()
+    if not SYSTEM_FLAGS.get("NEW_PUBLIC") and "NEW_AT" not in SYSTEM_FLAGS and not SYSTEM_FLAGS.get("NEW_LAUNCH_DONE") \
+            and time.time() < NEW_LAUNCH_TS:
+        SYSTEM_FLAGS["NEW_AT"] = NEW_LAUNCH_TS
+        SYSTEM_FLAGS["NEW_LAUNCH_DONE"] = True
+        save_db()
 
 
 def register(app):
@@ -399,8 +445,10 @@ def register(app):
     app.add_handler(CommandHandler("resetbanco", resetbanco_command))
     app.add_handler(CommandHandler("resetsoldi", resetsoldi_command))
     app.add_handler(CommandHandler("resetauto", resetauto_command))
+    app.add_handler(CommandHandler("aprinovita", aprinovita_command))
     app.add_handler(CallbackQueryHandler(aec_callback, pattern="^aec_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, free_chal_text), group=-1)
     if app.job_queue:
         app.job_queue.run_repeating(_run_auto_reset, interval=30, first=20)
+        app.job_queue.run_repeating(_run_new_launch, interval=30, first=25)
         app.job_queue.run_once(_arm_job, 5)

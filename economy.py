@@ -161,6 +161,35 @@ async def _announce(bot, text: str):
         return None
 
 
+# ---------------- PRESTITI DAL BANCO (sezione Extra) ----------------
+LOAN_OPTIONS = (250, 500, 1000)   # importi richiedibili (max 1000 al giorno, un solo prestito alla volta)
+LOAN_TRIGGER = 500                # si può chiedere solo con meno di 500 $SDG
+LOAN_DAILY_MAX = 1000             # massimo prestato al giorno
+LOAN_FEE = 0.10                   # commissione: si restituisce il 10% in più
+LOAN_CUT = 0.25                   # quota di OGNI vincita (profitto) trattenuta per restituire il debito
+
+
+def loan_get(user_id: int):
+    L = get_user_data_dict(user_id, user_id).get("loan")
+    return L if L and int(L.get("owed", 0)) > 0 else None
+
+
+def loan_cut(user_id: int, profit: int) -> int:
+    """Trattiene il 25% di una vincita (profitto) a copertura del prestito e lo gira al Banco. Ritorna quanto è stato trattenuto."""
+    if profit <= 0:
+        return 0
+    u = get_user_data_dict(user_id, user_id)
+    L = u.get("loan")
+    if not L or int(L.get("owed", 0)) <= 0:
+        return 0
+    cut = min(int(L["owed"]), max(1, int(profit * LOAN_CUT)))
+    L["owed"] = int(L["owed"]) - cut
+    banco_add(cut)
+    if L["owed"] <= 0:
+        u.pop("loan", None)
+    return cut
+
+
 def bump_stat(user_id: int, key: str, n: int = 1):
     """Contatori speciali per gli sblocchi del profilo (es. roul_zero)."""
     try:
@@ -585,8 +614,12 @@ async def settle_single(bot, chat_id: int, user_id: int, game: str, bet: int, ba
         banco_add(bet - base_payout)
 
     user_payout = payout - steal
-    if user_payout > 0:
-        add_user_coins(chat_id, user_id, user_payout)
+    cut = loan_cut(user_id, user_payout - bet) if user_payout > bet else 0
+    if cut:
+        L = loan_get(user_id)
+        notes.append(f"🏦 Prestito: -{fmt(cut)} restituiti al Banco" + (f" (ancora {fmt(L['owed'])})" if L else " — debito saldato!"))
+    if user_payout - cut > 0:
+        add_user_coins(chat_id, user_id, user_payout - cut)
     record_single_result(chat_id, user_id, user_payout > bet, user_payout - bet, is_casino=is_casino, count_game=game)
     log_play(user_id, game, bet, user_payout)
     qmsg = single_quest_events(chat_id, user_id, game, bet, base_payout, user_payout)

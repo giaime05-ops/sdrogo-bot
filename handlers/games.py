@@ -831,7 +831,8 @@ async def _heist_win(context, query, game: dict, user):
     prize = max(taken, HEIST_MIN_PRIZE)
     elapsed = HEIST_TIME - _heist_left(game)
     HEIST_GAMES.pop(user_id, None)
-    add_user_coins(chat_id, user_id, prize)
+    from economy import loan_cut
+    add_user_coins(chat_id, user_id, prize - loan_cut(user_id, prize - HEIST_COST))
     record_single_result(chat_id, user_id, True, prize - HEIST_COST, game="heist", bet=HEIST_COST)
     d = inv(chat_id, user_id)
     d["stars"] = d.get("stars", 0) + 1
