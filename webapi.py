@@ -248,7 +248,8 @@ def api_me():
         "sandbox": bool(is_web_sandbox()),
         "new": new_open(),
         "badge": _me_badge(user["id"]),
-        "stars": int((USER_INVENTORIES.get(ukey(user["id"])) or {}).get("stars", 0) or 0),
+        "stars": __import__("websocial").stars_split(USER_DATA.get(str(user["id"])) or {}, USER_INVENTORIES.get(ukey(user["id"])) or {})[0],
+        "stars_old": __import__("websocial").stars_split(USER_DATA.get(str(user["id"])) or {}, USER_INVENTORIES.get(ukey(user["id"])) or {})[1],
     })
 
 

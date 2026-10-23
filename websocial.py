@@ -130,7 +130,7 @@ def profile(uid: int, pid: str) -> dict:
         c_wins, d_wins = int(u.get("casino_wins", 0) or 0), int(u.get("duels_wins", 0) or 0)
         sp, dp = int(u.get("single_played", 0) or 0), int(u.get("duels_played", 0) or 0)
         sw = int(u.get("single_won", c_wins) or 0)
-        return {"name": _name(str(k), u), "badge": badge_of(u), "stars": int(inv.get("stars", 0) or 0),
+        return {"name": _name(str(k), u), "badge": badge_of(u), "stars": stars_split(u, inv)[0], "stars_old": stars_split(u, inv)[1],
                 "balance": int(u.get("coins", 0) or 0), "net_profit": int(u.get("net_profit", 0) or 0),
                 "quizzes_won": int(u.get("quizzes_won", 0) or 0), "casino_wins": c_wins, "duels_wins": d_wins,
                 "wr_single": min(100, int(sw / sp * 100)) if sp > 0 else 0,
@@ -144,6 +144,17 @@ def badge_of(u) -> str:
     if "h5" in b and not (SYSTEM_FLAGS.get("NEW_PUBLIC") or is_web_sandbox()):
         b = ",".join(x for x in b.split(",") if x != "h5")
     return b
+
+
+def stars_split(u, inv):
+    """(nuove, vecchie): le vecchie (gialle) sono quelle della prima versione, congelate in stars_v1; chi ha il badge H5 non le mostra (le sostituisce il badge)."""
+    tot = int((inv or {}).get("stars", 0) or 0)
+    old = min(tot, int((u or {}).get("stars_v1", 0) or 0))
+    if "h5" in badge_of(u).split(","):
+        shown_old = 0
+    else:
+        shown_old = old
+    return tot - old, shown_old
 
 
 def _name(uid: str, d: dict) -> str:

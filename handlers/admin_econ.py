@@ -437,24 +437,25 @@ def set_new_at(text: str):
 
 
 def migrate_h5_badge():
-    """Una tantum: chi ha già 5+ stelle della vecchia Struggle Heist riceve il badge storico 'h5' (visibile solo con le novità aperte)."""
+    """Una tantum, prima dell'apertura delle novità: congela le stelle della vecchia Struggle Heist (stars_v1, restano gialle)
+    e dà il badge storico 'h5' a chi ne ha 5 o più (le stelle gialle vengono sostituite dal badge)."""
     if SYSTEM_FLAGS.get("H5_BADGE_DONE"):
         return
     n = 0
     for k, inv in list(USER_INVENTORIES.items()):
         k = str(k)
-        if k.startswith("sbx_") or int((inv or {}).get("stars", 0) or 0) < 5:
-            continue
+        st = int((inv or {}).get("stars", 0) or 0)
         u = USER_DATA.get(k)
-        if u is None or "h5" in str(u.get("badge", "")):
+        if k.startswith("sbx_") or st < 1 or u is None or "stars_v1" in u:
             continue
-        u["badge"] = (str(u.get("badge", "")) + ",h5").strip(",")
-        u["stars_v1"] = int(inv.get("stars", 0))          # quante stelle sono della vecchia versione
+        u["stars_v1"] = st
+        if st >= 5 and "h5" not in str(u.get("badge", "")):
+            u["badge"] = (str(u.get("badge", "")) + ",h5").strip(",")
+            n += 1
         _touched_users.add(k)
-        n += 1
     SYSTEM_FLAGS["H5_BADGE_DONE"] = True
     save_db()
-    logging.getLogger(__name__).info("badge h5 assegnati: %s", n)
+    logging.getLogger(__name__).info("stelle v1 congelate, badge h5 assegnati: %s", n)
 
 
 async def _arm_job(context):
