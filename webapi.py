@@ -1054,7 +1054,13 @@ def api_social(what):
     elif what == "friends":
         if not is_web_sandbox():                          # per ora solo nell'account di prova
             return _err("Non ancora disponibile.", 403)
-        coro = _social_call(websocial.friends, uid)
+        def _fr(u):
+            out = websocial.friends(u)
+            fake = [{"pid": "bot1", "name": "Bot 1", "badge": "", "style": {}, "online": True, "ago": 0},
+                    {"pid": "bot2", "name": "Bot 2", "badge": "h5", "style": {}, "online": True, "ago": 0}]   # per provare il fumetto
+            out["friends"] = fake + out["friends"]; out["online"] += 2
+            return out
+        coro = _social_call(_fr, uid)
     elif what == "donors":
         import webextra
         coro = _social_call(webextra.donors, uid)

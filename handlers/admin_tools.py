@@ -94,6 +94,15 @@ def _rome_from_ts(ts: int) -> str:
     return (datetime.utcfromtimestamp(ts) + timedelta(seconds=round(off.total_seconds()))).strftime("%d/%m %H:%M:%S")
 
 
+def _hm(secs) -> str:
+    secs = int(secs or 0)
+    return f"{secs // 3600}h {secs % 3600 // 60:02d}m"
+
+
+def _wk_now() -> str:
+    return rome_now().strftime("%G-W%V")
+
+
 async def storico_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/storico @username (o ID numerico): cronologia delle ultime giocate. Solo admin, solo in privato."""
     msg = update.effective_message
@@ -121,6 +130,7 @@ async def storico_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📜 <b>STORICO di {uname}</b> (ID <code>{uid}</code>)\n"
         f"💳 Saldo: <b>{fmt(d.get('coins', 0))} $SDG</b> · netto totale: <b>{fmt(d.get('net_profit', 0))}</b> · "
         f"giocate single: {d.get('single_played', 0)} · duelli: {d.get('duels_played', 0)}\n"
+        f"⏱️ Tempo d'uso: <b>{_hm(d.get('use_secs', 0))}</b> totali · questa settimana <b>{_hm((d.get('use_wk') or {}).get(_wk_now(), 0))}</b>\n"
     )
     if not hist:
         await msg.reply_text(head + "\nNessuna giocata registrata (la cronologia parte dall'aggiornamento).", parse_mode="HTML")

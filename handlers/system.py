@@ -124,6 +124,7 @@ def _admin_view():
                               callback_data="adm_arc")],
         [InlineKeyboardButton("🎯 Configura Sfida di Gruppo", callback_data="adm_cfg"),
          InlineKeyboardButton("👥 Utenti online", callback_data="adm_on_0")],
+        [InlineKeyboardButton("⏱️ Tempo d'uso (classifica settimanale)", callback_data="adm_use_0")],
         [InlineKeyboardButton("🗑️ Annulla sfida di gruppo", callback_data="adm_chalx")],
         [InlineKeyboardButton("🎪 Follia: ACCESA" if follia_enabled() else "🎪 Follia: SPENTA", callback_data="aec_fol"),
          InlineKeyboardButton("🔄 Reset saldi", callback_data="aec_menu")],
@@ -143,6 +144,40 @@ def _admin_view():
     ])
     rows.append([InlineKeyboardButton("✖️ Chiudi", callback_data="adm_close")])
     return text, InlineKeyboardMarkup(rows)
+
+
+# --- TEMPO D'USO ---
+def _hm(secs) -> str:
+    secs = int(secs or 0)
+    return f"{secs // 3600}h {secs % 3600 // 60:02d}m"
+
+
+def _usage_view(off: int = 0):
+    """Classifica del tempo passato sul bot / mini app: settimana corrente (off=0) o scorsa (off=1)."""
+    import datetime as _dt
+    from economy import rome_now
+    n = rome_now() - _dt.timedelta(days=7 * off)
+    wk = n.strftime("%G-W%V")
+    rows = []
+    for uid, d in USER_DATA.items():
+        if not str(uid).isdigit():
+            continue
+        w = int((d.get("use_wk") or {}).get(wk, 0))
+        if w > 0:
+            rows.append((w, int(d.get("use_secs", 0)), d.get("name") or uid))
+    rows.sort(reverse=True)
+    medals = ["🥇", "🥈", "🥉"]
+    lines = [f"⏱️ <b>TEMPO D'USO — {'questa settimana' if off == 0 else 'settimana scorsa'}</b> ({wk})\n"]
+    for i, (w, tot, name) in enumerate(rows[:20]):
+        lines.append(f"{medals[i] if i < 3 else str(i + 1) + '.'} <b>{html.escape(str(name).split('#')[0])}</b> — {_hm(w)} <i>(totale {_hm(tot)})</i>")
+    if not rows:
+        lines.append("Ancora nessun dato: il tempo si conta dall'ultimo aggiornamento.")
+    lines.append(f"\nTotale gruppo: <b>{_hm(sum(r[0] for r in rows))}</b> · si conta il tempo tra azioni ravvicinate (max 5 min di pausa)")
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⬅️ Settimana scorsa" if off == 0 else "➡️ Questa settimana", callback_data=f"adm_use_{1 - off}"),
+         InlineKeyboardButton("📤 Manda nel gruppo", callback_data=f"adm_usesend_{off}")],
+        [InlineKeyboardButton("⬅️ Dashboard", callback_data="adm_back")]])
+    return "\n".join(lines), kb
 
 
 # --- UTENTI ONLINE ---
@@ -486,6 +521,27 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         _set_block(uid_t, (user_block(uid_t) + 1) % 3)
         await query.answer(_BLOCK_LABEL[user_block(uid_t)])
         await smart_edit(query, *_block_view(page))
+        return
+    elif action == "use":                           # adm_use_<0|1>
+        await query.answer()
+        try:
+            off = int(parts[2])
+        except (IndexError, ValueError):
+            off = 0
+        await smart_edit(query, *_usage_view(off))
+        return
+    elif action == "usesend":                       # adm_usesend_<0|1>: pubblica la classifica nel gruppo
+        try:
+            off = int(parts[2])
+        except (IndexError, ValueError):
+            off = 0
+        from economy import main_chat_id
+        cid = main_chat_id()
+        if not cid:
+            await query.answer("Gruppo non trovato.", show_alert=True)
+            return
+        await context.bot.send_message(chat_id=int(cid), text=_usage_view(off)[0], parse_mode="HTML")
+        await query.answer("📤 Inviata nel gruppo.")
         return
     elif action == "on":                            # adm_on_<pagina>
         await query.answer()

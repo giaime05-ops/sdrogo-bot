@@ -832,9 +832,34 @@ LAST_SEEN = {}            # user_id (str) -> istante dell'ultimo messaggio/tasto
 SEEN_SAVE_EVERY = 600     # sul profilo l'ultimo accesso si aggiorna al massimo ogni 10 minuti (per non scrivere a ogni tocco)
 
 
+def _week_key(now: float) -> str:
+    try:
+        from economy import rome_now
+        return rome_now().strftime("%G-W%V")
+    except Exception:
+        return time.strftime("%G-W%V", time.gmtime(now))
+
+
+def _track_use(uid, prev, now):
+    """Somma al profilo il tempo d'uso: tra due azioni ravvicinate (< 5 min) conta la distanza tra le due."""
+    d = USER_DATA.get(str(uid))
+    if d is None or not prev or not (0 < now - prev <= 300):
+        return
+    gap = now - prev
+    d["use_secs"] = int(d.get("use_secs", 0)) + int(gap)
+    wk = d.setdefault("use_wk", {})
+    k = _week_key(now)
+    wk[k] = int(wk.get(k, 0)) + int(gap)
+    if len(wk) > 8:
+        for old in sorted(wk)[:-8]:
+            wk.pop(old, None)
+    _touched_users.add(str(uid))
+
+
 def mark_seen(uid):
     """Segna che la persona sta usando il bot adesso (tasto, comando o mini app): serve a 'Utenti online'."""
     now = time.time()
+    _track_use(uid, LAST_SEEN.get(str(uid)), now)
     LAST_SEEN[str(uid)] = now
     d = USER_DATA.get(str(uid))
     if d is not None and now - d.get("seen", 0) > SEEN_SAVE_EVERY:
@@ -850,6 +875,7 @@ def note_username(user, seen: bool = True):
         return
     now = time.time()
     if seen:
+        _track_use(user.id, LAST_SEEN.get(str(user.id)), now)
         LAST_SEEN[str(user.id)] = now
     d = USER_DATA.get(str(user.id))
     if d is None:
