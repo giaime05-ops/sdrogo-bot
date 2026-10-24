@@ -1051,6 +1051,10 @@ def api_social(what):
     elif what == "work":
         import webextra
         coro = _social_call(webextra.work_state, uid)
+    elif what == "friends":
+        if not is_web_sandbox():                          # per ora solo nell'account di prova
+            return _err("Non ancora disponibile.", 403)
+        coro = _social_call(websocial.friends, uid)
     elif what == "donors":
         import webextra
         coro = _social_call(webextra.donors, uid)

@@ -164,6 +164,28 @@ def _name(uid: str, d: dict) -> str:
     return n or f"Giocatore {uid[-4:]}"
 
 
+ONLINE_SECS = 150            # "online" = ha usato la mini app o il bot negli ultimi 2,5 minuti
+
+
+def friends(uid: int) -> dict:
+    """Sezione Amici: tutti i giocatori del gruppo con lo stato online/offline (chi è online per primo)."""
+    import time
+    from storage import LAST_SEEN
+    now = time.time()
+    rows = []
+    for k, u in list(USER_DATA.items()):
+        k = str(k)
+        if not k.isdigit() or k == str(uid):
+            continue
+        seen = max(float(LAST_SEEN.get(k) or 0), float(u.get("seen") or 0))
+        if not seen:
+            continue
+        rows.append({"pid": _pid(k), "name": _name(k, u), "badge": badge_of(u), "style": _style(u),
+                     "online": now - seen <= ONLINE_SECS, "ago": int(now - seen)})
+    rows.sort(key=lambda r: (not r["online"], r["ago"]))
+    return {"friends": rows[:60], "online": sum(1 for r in rows if r["online"])}
+
+
 def leaderboard(uid: int, cat: str) -> dict:
     meta = LB.get(cat) or LB["coins"]
     cat = cat if cat in LB else "coins"
