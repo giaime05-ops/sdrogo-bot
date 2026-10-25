@@ -127,10 +127,10 @@ def _gen(kind, r=0):
                     ans, q = t, f"Chi aveva il cappello {HATN[hats[t]].upper()}?"
                 else:
                     wo = rn.random() < 0.5
-                    cand = [i for i in range(n) if glasses[i] != wo]
+                    cand = [i for i in range(n) if glasses[i] == wo]
                     if len(cand) != 1:
                         continue
-                    ans, q = cand[0], "Chi NON portava gli occhiali?" if not wo else "Chi portava gli occhiali?"
+                    ans, q = cand[0], "Chi portava gli occhiali?" if wo else "Chi NON portava gli occhiali?"
                 break
             mode = rn.choice(["hb", "hg", "bg"])
             gl_txt = "con gli occhiali" if glasses[t] else "senza occhiali"
