@@ -264,6 +264,8 @@ def _win(uid, g):
     cut = loan_cut(uid, MINI_PRIZE - g["cost"])
     add_user_coins(uid, uid, MINI_PRIZE - cut)
     record_single_result(uid, uid, True, MINI_PRIZE - g["cost"], game="mini", bet=max(1, g["cost"]))
+    from economy import announce_web_win
+    announce_web_win(uid, "il Daily Heist", MINI_PRIZE, int(time.time() - g["t_start"]))
     return {"end": {"result": "win", "prize": MINI_PRIZE, "elapsed": int(time.time() - g["t_start"]), "alarms": g["alarms"], "mini": True, "which": g["id"], "msg": ""},
             "balance": get_user_coins(uid, uid), "view": None}
 

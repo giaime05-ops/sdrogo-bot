@@ -760,6 +760,35 @@ def quest_progress(chat_id: int, user_id: int, event: str, n=1) -> str:
     return "\n".join(msgs)
 
 
+def announce_web_win(uid, game: str, prize: int, elapsed: int = 0):
+    """Messaggio celebrativo nel gruppo quando qualcuno vince un Heist dalla mini app (chi ha vinto e quanto).
+    Nell'account di prova (denaro finto) NON si scrive nel gruppo: l'anteprima arriva solo in privato all'admin."""
+    import html as _h
+    from storage import USER_DATA, is_web_sandbox
+    try:
+        d = USER_DATA.get(str(uid)) or {}
+        nm = (d.get("name") or "").split("#")[0].strip() or "Un giocatore"
+        tm = f" in {elapsed // 60}m {elapsed % 60:02d}s" if elapsed else ""
+        text = (f"🏆 <b>COLPO RIUSCITO!</b> 💰\n\n<b>{_h.escape(nm)}</b> ha vinto <b>{game}</b>{tm}!\n"
+                f"Si porta a casa <b>💳 {fmt(prize)} $SDG</b> 🎉")
+        if is_web_sandbox():
+            target, text = uid, "🧪 <i>ANTEPRIMA (account di prova: nel gruppo non viene inviato)</i>\n\n" + text
+        else:
+            target = main_chat_id()
+        if _BOT is None or not target:
+            return
+        coro = _BOT.send_message(chat_id=target, text=text, parse_mode="HTML")
+        try:
+            asyncio.get_running_loop().create_task(coro)
+        except RuntimeError:
+            import webapi
+            if webapi.LOOP is None:
+                coro.close(); return
+            asyncio.run_coroutine_threadsafe(coro, webapi.LOOP)
+    except Exception as e:
+        logging.warning(f"Annuncio vittoria non inviato: {e}")
+
+
 QUEST_DM_TEXT = "🎯 Quest Completata! Vai nella sezione Sfide a riscattare il premio!"
 
 

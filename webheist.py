@@ -123,6 +123,8 @@ def _win(uid, g, qmsg=""):
     d["stars"] = d.get("stars", 0) + 1; d["stars_v2"] = d.get("stars_v2", 0) + 1; d["titles"] = d.get("titles", 0) + 1; d["persecutes"] = d.get("persecutes", 0) + 1
     save_db()
     el = int(time.time() - g["t_start"])
+    from economy import announce_web_win
+    announce_web_win(uid, "Sdrogo Heist", prize, el)
     return {"end": {"result": "win", "prize": prize, "elapsed": el, "alarms": g["alarms"], "msg": qmsg, "loan_cut": cut}, "balance": get_user_coins(uid, uid), "view": None}
 
 
