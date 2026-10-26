@@ -395,7 +395,7 @@ def act(uid, a, data):
             else:
                 run0 = None
             prev = t
-        if ok and fin / 1000.0 <= el + 0.6:
+        if ok and fin / 1000.0 <= el + 2.0:
             return _next(uid, g)
         return _alarm(uid, g, "Frequenze non sincronizzate!")
     if kind == "voice" and a == "vt":
@@ -404,7 +404,7 @@ def act(uid, a, data):
         except (TypeError, ValueError):
             return _out(g)
         nn = len(st["nodes"])
-        ok = len(taps) == nn and all(taps[i + 1] - taps[i] >= 250 for i in range(nn - 1)) and taps[0] >= 0 and taps[-1] / 1000.0 <= el + 0.6
+        ok = len(taps) == nn and all(taps[i + 1] - taps[i] >= 250 for i in range(nn - 1)) and taps[0] >= 0 and taps[-1] / 1000.0 <= el + 2.0
         if ok:
             for k, tp in enumerate(taps):
                 if abs(_tri(st["phase0"] + st["speed"] * tp / 1000.0) - st["nodes"][k]) > st["w"] / 2 + 0.01:
@@ -447,11 +447,11 @@ def act(uid, a, data):
             return _alarm(uid, g, "Raggio laser! Hai fatto scattare l'allarme.")
         from webheist import _laser_check
         try:
-            ev = [[int(x), int(y)] for x, y in (data.get("ev") or [])][:80]
+            ev = [[int(x), int(y)] for x, y in (data.get("ev") or [])][:400]
             fin = int(data.get("fin"))
         except (TypeError, ValueError):
             return _out(g)
-        if fin / 1000.0 <= el + 0.6 and _laser_check(st["lasers"], ev, fin):
+        if fin / 1000.0 <= el + 2.0 and _laser_check(st["lasers"], ev, fin):
             return _next(uid, g)
         return _alarm(uid, g, "Raggio laser! Hai fatto scattare l'allarme.")
     return _out(g)

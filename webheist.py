@@ -25,6 +25,7 @@ SEQ_SHOW_PER = 0.8
 HACK_WEB_ROUNDS = (3,)          # un solo terminale (verificato con BFS: si può sempre risolvere)
 LASER_X = [12, 30, 48, 66, 84]  # posizioni dei laser lungo il corridoio (0..100)
 LASER_GREEN = [(21, 3.4, 0.17), (57, 2.5, 0.19), (75, 1.9, 0.21)]      # (posizione, periodo di andata e ritorno in s, mezza larghezza): sempre più veloci
+LASER_VERIFY_ZONE = 2.0   # il server e' piu' indulgente del client: chi passa sul telefono non viene mai punito dal server
 LASER_SPEED = 24.0              # unità al secondo mentre tieni premuto
 LASER_ZONE = 2.3                # il server è un po' più permissivo del telefono (2,6 = raggio della pallina)
 LASER_ZONE_PHONE = 2.6
@@ -221,25 +222,26 @@ def _laser_make():
     return lasers
 
 
-def _laser_check(lasers, ev, fin_ms):
+def _laser_check(lasers, ev, fin_ms, zone=None):
+    zone = LASER_VERIFY_ZONE if zone is None else zone
     """Rigioca la partita del telefono: ritorna True se il giocatore arriva alla fine senza toccare un raggio acceso."""
     ev = sorted((int(a), int(b)) for a, b in ev)
     x, t, dt, i = 0.0, 0.0, 0.005, 0
     end = fin_ms / 1000.0
-    while t <= end + 0.02 and x < 100:
-        hold = any(a / 1000.0 <= t < b / 1000.0 for a, b in ev)
-        if hold:
-            x += LASER_SPEED * dt
+    while t <= end + 0.02 and x < 100 - 0.6:
+        ov = sum(max(0.0, min(b / 1000.0, t + dt) - max(a / 1000.0, t)) for a, b in ev)     # tempo premuto in questo passo (esatto, niente deriva)
+        if ov > 0:
+            x += LASER_SPEED * ov
             for L in lasers:
-                if abs(x - L["x"]) >= LASER_ZONE:
+                if abs(x - L["x"]) >= zone:
                     continue
                 if L.get("g"):                                          # verde: colpisce solo quando la lineetta passa sopra il ladro (al centro)
-                    if abs(L["amp"] * math.sin(2 * math.pi * (t + L["ph"]) / L["p"])) < L["hw"]:
+                    if abs(L["amp"] * math.sin(2 * math.pi * (t + L["ph"]) / L["p"])) < L["hw"] - 0.04:
                         return False
-                elif ((t + L["ph"]) % L["p"]) < L["p"] * L["duty"]:
+                elif all(((t + o + L["ph"]) % L["p"]) < L["p"] * L["duty"] for o in (-0.025, 0.0, 0.025)):   # acceso anche con 25 ms di tolleranza (lag/arrotondamenti)
                     return False
         t += dt
-    return x >= 100
+    return x >= 100 - 0.6      # tolleranza per gli arrotondamenti al millisecondo
 
 
 # ---------------------------------------------------------------- Bypass circuiti (livello 6)
@@ -540,7 +542,7 @@ def _chase_check(c, ev, sl, fin_ms):
     ostacolo] (il server li verifica e pretende anche quelli che non ha potuto evitare), così posizioni e tempi restano uguali."""
     try:
         ev = sorted((int(a), int(b)) for a, b in ev)[:260]
-        sl = sorted((int(a), int(b)) for a, b in sl)[:80]
+        sl = sorted((int(a), int(b)) for a, b in sl)[:400]
         fin = int(fin_ms) / 1000.0
     except (TypeError, ValueError):
         return False
@@ -731,11 +733,11 @@ def act(uid, a, data):
             _laser_begin(g, 1.4)
             return _out(g, {"type": "alarm", "msg": "ALLARME! I raggi si sono riavviati."})
         try:
-            ev = [[int(x), int(y)] for x, y in (data.get("ev") or [])][:80]
+            ev = [[int(x), int(y)] for x, y in (data.get("ev") or [])][:400]
             fin = int(data.get("fin"))
         except (TypeError, ValueError):
             return _out(g)
-        ok = (fin / 1000.0 <= (now - L["t0"]) + 0.4) and _laser_check(L["lasers"], ev, fin)
+        ok = (fin / 1000.0 <= (now - L["t0"]) + 2.0) and _laser_check(L["lasers"], ev, fin)
         if ok:
             return _level_done(uid, g)
         r = _alarm(uid, g, "Raggio laser! Hai fatto scattare l'allarme.")
@@ -778,7 +780,7 @@ def act(uid, a, data):
             return _out(g, {"type": "alarm", "msg": "ALLARME! L'inseguimento riparte."})
         try:
             ev = [[int(x), int(y)] for x, y in (data.get("ev") or [])][:260]
-            sl = [[int(x), int(y)] for x, y in (data.get("sl") or [])][:80]
+            sl = [[int(x), int(y)] for x, y in (data.get("sl") or [])][:400]
             fin = int(data.get("fin"))
         except (TypeError, ValueError):
             return _out(g)
