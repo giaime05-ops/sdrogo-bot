@@ -688,6 +688,11 @@ QUEST_POOL = [
     _q("du_qz", "mp", 1, "quiz1v1", "duel:quiz1v1:win", 1, 60, "Vinci 1 Quiz 1v1"),
     _q("du_qm", "mp", 1, "quizmulti", "quizmulti_win", 2, 50, "Rispondi per primo a 2 Quiz Multiplayer"),
 ]
+# Premi missioni: 100 facili / 200 medie / 250 difficili, 500 per le imprese più rare (uguali per tutti)
+_QUEST_REWARD = {1: 100, 2: 200, 3: 250}
+_QUEST_BIG = {"ro_s3", "av_m6", "pk_h6"}
+for _p in QUEST_POOL:
+    _p["reward"] = 500 if _p["id"] in _QUEST_BIG else _QUEST_REWARD[_p["tier"]]
 QUEST_IDS = {q["id"] for q in QUEST_POOL}
 QUEST_BY_ID = {q["id"]: q for q in QUEST_POOL}
 _TIER_WEIGHTS = {1: 50, 2: 35, 3: 15}      # facili più frequenti, quelle difficili ogni tanto
@@ -725,6 +730,11 @@ def quests_for(chat_id: int, user_id: int) -> list:
         q = {"date": today_str(), "streaks": {}, "list": [{**p, "progress": 0, "done": False} for p in picked]}
         u["quests"] = q
         save_db()
+    else:
+        for x in q.get("list", []):       # le missioni di oggi ancora da riscattare adottano subito i nuovi premi
+            nr = QUEST_BY_ID[x["id"]]["reward"]
+            if not x.get("claimed") and x.get("reward") != nr:
+                x["reward"] = nr
     return q["list"]
 
 
