@@ -100,7 +100,9 @@ def _settle(r):
     votes = {}
     for u, order in r["votes"].items():
         votes.setdefault(tuple(order), []).append(u)
-    need = len(r["players"]) // 2 + 1
+    now = _now()
+    active = [p for p in r["players"] if now - p["seen"] < 45 or p["uid"] in r["votes"]]   # chi ha abbandonato non blocca il pagamento
+    need = max(1, len(active) // 2 + 1)
     best = max(votes.items(), key=lambda kv: len(kv[1]), default=None)
     if not best or len(best[1]) < need:
         return False
@@ -367,7 +369,7 @@ def install(wa):
                 if p["uid"] == uid:
                     p["seen"] = _now()
             base = r.get("base", 0)
-            evs = r["events"][max(0, since - base):]
+            evs = [e for e in r["events"][max(0, since - base):] if "to" not in e or uid in e["to"]]
             v = _view(r, uid); v["n"] = base + len(r["events"])
         return jsonify({"success": True, "room": v, "events": evs, "from": max(since, base)})
 
@@ -395,7 +397,14 @@ def install(wa):
 
     def _settle_locked(r):
         with _L:
-            return _settle(r) if r["status"] != "done" else True
+            if r["status"] == "done":
+                return True
+            ok = _settle(r)
+            if not ok and len(r["votes"]) >= len(r["players"]) >= 2:      # tutti hanno votato ma non concordano: nessuno vince, puntate restituite
+                _refund(r)
+                r["settled"] = {"order": [], "pay": {}, "sim": r["sim"], "refund": True}
+                r["status"] = "done"; ok = True
+            return ok
 
     @bp.route("/api/room/cfg", methods=["POST", "OPTIONS"])
     def room_cfg():
@@ -445,10 +454,12 @@ def install(wa):
                     p["seen"] = _now()
             if isinstance(ev, dict) and len(repr(ev)) <= EV_BYTES and any(p["uid"] == uid for p in r["players"]):
                 ev = dict(ev); ev["u"] = uid
+                if "to" in ev and not (isinstance(ev["to"], list) and all(isinstance(x, str) for x in ev["to"])):
+                    ev.pop("to")
                 r["events"].append(ev); r["act"] = _now()
                 if len(r["events"]) > MAX_EV:
                     cut = len(r["events"]) - MAX_EV; r["events"] = r["events"][cut:]; r["base"] = r.get("base", 0) + cut
             base = r.get("base", 0)
-            evs = r["events"][max(0, since - base):]
+            evs = [e for e in r["events"][max(0, since - base):] if "to" not in e or uid in e["to"]]
             v = _view(r, uid); n = base + len(r["events"])
         return jsonify({"success": True, "room": v, "events": evs, "n": n})
