@@ -254,6 +254,7 @@ def api_me():
         "style": __import__("websocial")._style(USER_DATA.get(str(user["id"])) or {}),
         "sandbox": bool(is_web_sandbox()),
         "new": new_open(),
+        "multi": bool(SYSTEM_FLAGS.get("MULTI_PUBLIC")),
         "badge": _me_badge(user["id"]),
         "stars": __import__("websocial").stars_split(USER_DATA.get(str(user["id"])) or {}, USER_INVENTORIES.get(ukey(user["id"])) or {})[0],
         "stars_old": __import__("websocial").stars_split(USER_DATA.get(str(user["id"])) or {}, USER_INVENTORIES.get(ukey(user["id"])) or {})[1],
@@ -1052,7 +1053,7 @@ def api_social(what):
         import webextra
         coro = _social_call(webextra.work_state, uid)
     elif what == "friends":
-        if not is_web_sandbox():                          # per ora solo nell'account di prova
+        if not (is_web_sandbox() or SYSTEM_FLAGS.get("MULTI_PUBLIC")):   # solo account di prova, finché l'admin non apre il multiplayer a tutti
             return _err("Non ancora disponibile.", 403)
         def _fr(u):
             out = websocial.friends(u)

@@ -108,6 +108,7 @@ def _admin_view():
         "🛠️ <b>DASHBOARD ADMIN</b>\n\n"
         f"🆕 Novità Arcade (nuovo Sdrogo Heist + profilo): <b>{'ON — la vedono tutti' if SYSTEM_FLAGS.get('NEW_PUBLIC') else 'OFF — solo account di prova'}</b>\n"
         f"📱 Mini app Arcade: <b>{'APERTA ai membri del gruppo' if SYSTEM_FLAGS.get('ARCADE_PUBLIC') else 'CHIUSA — solo tu'}</b>\n"
+        f"🎮 Multiplayer per tutti: <b>{'ON — /sdrogocomm mostra solo profilo + Apri Arcade' if SYSTEM_FLAGS.get('MULTI_PUBLIC') else 'OFF — solo account di prova, /sdrogocomm come prima'}</b>\n"
         f"🎯 Sfida di gruppo: <b>{chal}</b>\n"
         f"{follia_line() or '🎪 Follia Sdrogo: spenta'}\n\n"
         "🟢 = attivo | 🔴 = in manutenzione\n"
@@ -122,6 +123,8 @@ def _admin_view():
         [InlineKeyboardButton("⏰ Programma apertura novità", callback_data="adm_newat")],
         [InlineKeyboardButton("🟢 Mini app Arcade: APERTA" if SYSTEM_FLAGS.get("ARCADE_PUBLIC") else "🔴 Mini app Arcade: CHIUSA",
                               callback_data="adm_arc")],
+        [InlineKeyboardButton("🟢 Multiplayer per tutti: ON" if SYSTEM_FLAGS.get("MULTI_PUBLIC") else "🔴 Multiplayer per tutti: OFF",
+                              callback_data="adm_mp")],
         [InlineKeyboardButton("🎯 Configura Sfida di Gruppo", callback_data="adm_cfg"),
          InlineKeyboardButton("👥 Utenti online", callback_data="adm_on_0")],
         [InlineKeyboardButton("⏱️ Tempo d'uso (classifica settimanale)", callback_data="adm_use_0")],
@@ -450,6 +453,13 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
         await query.message.reply_text("⏰ A che ora aprire le novità? Scrivi l'ora italiana (es. <b>13:55</b>), oppure «ora» per aprire subito, «off» per annullare il timer.", parse_mode="HTML")
         return
+    elif action == "mp":
+        SYSTEM_FLAGS["MULTI_PUBLIC"] = not SYSTEM_FLAGS.get("MULTI_PUBLIC", False)
+        if SYSTEM_FLAGS["MULTI_PUBLIC"]:
+            SYSTEM_FLAGS["ARCADE_PUBLIC"] = True       # senza mini app aperta il tasto "Apri Arcade" non avrebbe senso
+        save_db()                                   # persistente: sopravvive ai riavvii
+        await query.answer("🟢 MULTIPLAYER APERTO A TUTTI: la mini app mostra Multiplayer e /sdrogocomm diventa solo profilo + Apri Arcade (+ Quiz)."
+                           if SYSTEM_FLAGS["MULTI_PUBLIC"] else "🔴 Multiplayer di nuovo solo nell'account di prova, /sdrogocomm com'era.", show_alert=True)
     elif action == "arc":
         SYSTEM_FLAGS["ARCADE_PUBLIC"] = not SYSTEM_FLAGS.get("ARCADE_PUBLIC", False)
         save_db()                                   # persistente: sopravvive ai riavvii

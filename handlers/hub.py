@@ -144,6 +144,7 @@ def _single_button(update: Update, user_id: int):
 
 
 async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from state import SYSTEM_FLAGS
     chat_id = update.effective_chat.id
     user = update.effective_user
     coins = get_user_coins(chat_id, user.id)
@@ -161,12 +162,25 @@ async def show_hub(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"🏦 Banco: <code>{fmt(banco_balance())}</code>" + (" · 🎪 <b>FOLLIA ATTIVA!</b>" if follia_active() else "") + "\n"
     text += "\n<i>Seleziona una categoria per iniziare:</i>"
 
-    keyboard = [
+    if SYSTEM_FLAGS.get("MULTI_PUBLIC"):
+        # Multiplayer aperto a tutti: il menu diventa solo profilo (nome, saldo, Banco) + "Apri Arcade" (+ Quiz Show, finché non è nell'Arcade)
+        text = (
+            "🎰 <b>SDROGOBOT ARCADE</b> 🎮\n\n"
+            f"👤 <b>{display_name}</b>\n"
+            f"💰 <b>Saldo:</b> <code>💳 {fmt(coins)} $SDG</code>\n"
+            f"🏦 <b>Banco:</b> <code>{fmt(banco_balance())}</code>" + (" · 🎪 <b>FOLLIA ATTIVA!</b>" if follia_active() else "") + "\n"
+        )
+        open_btn = _single_button(update, user.id)
+        if isinstance(open_btn, InlineKeyboardButton) and (open_btn.web_app or open_btn.url):
+            open_btn = InlineKeyboardButton("🎮 Apri Arcade", web_app=open_btn.web_app) if open_btn.web_app else InlineKeyboardButton("🎮 Apri Arcade", url=open_btn.url)
+        keyboard = [[open_btn], [InlineKeyboardButton("🧠 Quiz Show", callback_data=f"hub_quiz_{user.id}")]]
+    else:
+      keyboard = [
         [_single_button(update, user.id), InlineKeyboardButton("⚔️ Multiplayer", callback_data=f"hub_multi_{user.id}")],
         [InlineKeyboardButton("🧠 Quiz Show", callback_data=f"hub_quiz_{user.id}"), InlineKeyboardButton("🛒 SdrogoShop", callback_data=f"hub_shop_{user.id}")],
         [InlineKeyboardButton("💳 Portafoglio", callback_data=f"hub_wallet_{user.id}"), InlineKeyboardButton("🏆 Classifiche", callback_data=f"hub_lead_{user.id}")]
-    ]
-    if v2u:
+      ]
+    if v2u and not SYSTEM_FLAGS.get("MULTI_PUBLIC"):
         keyboard.append([InlineKeyboardButton("🎯 SFIDE & MISSIONI", callback_data=f"hub_quests_{user.id}")])
 
     if update.message:
