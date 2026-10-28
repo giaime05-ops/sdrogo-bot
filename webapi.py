@@ -1183,3 +1183,12 @@ def api_extra(action):
     body = {"success": True}
     body.update(out)
     return jsonify(body)
+
+
+# stanze multiplayer in tempo reale (stesso servizio): le rotte /api/room/* stanno in webrooms.py
+try:
+    import sys as _sys
+    import webrooms
+    webrooms.install(_sys.modules[__name__])
+except Exception as _e:                                    # un errore qui non deve mai fermare il resto della mini app
+    logging.error(f"Stanze multiplayer non attivate: {_e}")
