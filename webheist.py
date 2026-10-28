@@ -411,8 +411,9 @@ def _circ_check(c, moves, fin_ms):
         t_in = tm / 1000.0
         if pins < len(c["pins"]) and pos == c["pins"][pins]:
             pins += 1
-    if fin < t_in:
+    if fin + 0.3 < t_in:                                                 # l'orologio del telefono può essere indietro di qualche ms: non è un errore
         return False
+    fin = max(fin, t_in)
     stay.append((tuple(pos), t_in, fin))
     if pos != c["exit"] or pins < len(c["pins"]):
         return False
