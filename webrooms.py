@@ -98,22 +98,30 @@ async def _co(fn, *a):
 def _settle(r):
     """Chiamata col lock preso, sul loop del bot. Paga se la maggioranza concorda, altrimenti rimborsa."""
     votes = {}
-    for u, order in r["votes"].items():
-        votes.setdefault(tuple(order), []).append(u)
+    for u, v in r["votes"].items():
+        order, chips = (v if isinstance(v, tuple) else (v, ()))
+        votes.setdefault((tuple(order), tuple(chips)), []).append(u)
     now = _now()
     active = [p for p in r["players"] if now - p["seen"] < 45 or p["uid"] in r["votes"]]   # chi ha abbandonato non blocca il pagamento
     need = max(1, len(active) // 2 + 1)
     best = max(votes.items(), key=lambda kv: len(kv[1]), default=None)
     if not best or len(best[1]) < need:
         return False
-    order = list(best[0])
+    order = list(best[0][0])
+    chips = dict(best[0][1])
     valid = {p["uid"] for p in r["players"]}
     order = [u for u in order if u in valid]
-    pot = sum(p.get("paid", 0) for p in r["players"]) if not r["sim"] else 0
+    chips = {u: c for u, c in chips.items() if u in valid and c > 0}
+    pot = sum(p.get("paid", 0) for p in r["players"]) if not r["sim"] else 0       # tutto ciò che i giocatori hanno messo (puntata + eventuali ricompre)
     pay = {}
-    stake_pool = int(r["cfg"].get("stake", 0)) * len(r["players"])
-    pot = stake_pool if not r["sim"] else 0
-    if order and pot:
+    if chips and pot:                                              # tavoli: ognuno incassa in proporzione alle fiches finali (il totale è sempre il piatto)
+        tot = sum(chips.values())
+        for u, c in chips.items():
+            pay[u] = int(pot * c / tot)
+        top = max(chips, key=lambda k: chips[k])
+        pay[top] += pot - sum(pay.values())
+        order = sorted(chips, key=lambda k: -chips[k])
+    elif order and pot:
         if r["game"] in ("race", "poker", "bj", "scopa") and len(order) >= 3:
             split = [0.6, 0.3, 0.1]
         elif len(order) >= 3:
@@ -388,8 +396,15 @@ def install(wa):
             return wa._err("Classifica non valida.")
         if r["status"] == "done":
             return jsonify({"success": True, "result": r.get("settled")})
+        ch = data.get("chips")
+        chips = ()
+        if isinstance(ch, dict) and len(ch) <= 8:
+            try:
+                chips = tuple(sorted((str(k), int(v)) for k, v in ch.items() if 0 <= int(v) <= 10 ** 7))
+            except (TypeError, ValueError):
+                return wa._err("Fiches non valide.")
         with _L:
-            r["votes"][uid] = [str(x) for x in order]; r["act"] = _now()
+            r["votes"][uid] = ([str(x) for x in order], chips); r["act"] = _now()
         resp, ok = wa._avi_call(_co(lambda: _settle_locked(r)))
         if resp is not None:
             return resp
@@ -405,6 +420,41 @@ def install(wa):
                 r["settled"] = {"order": [], "pay": {}, "sim": r["sim"], "refund": True}
                 r["status"] = "done"; ok = True
             return ok
+
+    @bp.route("/api/room/topup", methods=["POST", "OPTIONS"])
+    def room_topup():
+        """Ricompra al tavolo (poker): i soldi escono dal saldo vero e vanno nel piatto del tavolo."""
+        if request.method == "OPTIONS":
+            return "", 204
+        user, data, err = post()
+        if err:
+            return err
+        uid = str(user["id"]); r, e = need(data.get("id"), user)
+        if e:
+            return e
+        me = next((p for p in r["players"] if p["uid"] == uid), None)
+        if not me or r["status"] != "run" or r["game"] != "poker":
+            return wa._err("Ricompra non possibile.")
+        try:
+            amt = int(data.get("amount", 0))
+        except (TypeError, ValueError):
+            amt = 0
+        if amt <= 0 or amt > MAX_STAKE or me.get("topped", 0) + amt > 4 * MAX_STAKE:
+            return wa._err("Importo non valido.")
+        if not r["sim"]:
+            resp, ok = wa._avi_call(_co(_wallet_ok, uid, amt))
+            if resp is not None:
+                return resp
+            if not ok:
+                return wa._err("Saldo insufficiente.")
+            resp, _ = wa._avi_call(_co(_move, uid, -amt))
+            if resp is not None:
+                return resp
+            with _L:
+                me["paid"] = me.get("paid", 0) + amt
+        with _L:
+            me["topped"] = me.get("topped", 0) + amt; r["act"] = _now()
+        return jsonify({"success": True})
 
     @bp.route("/api/room/cfg", methods=["POST", "OPTIONS"])
     def room_cfg():
@@ -422,7 +472,7 @@ def install(wa):
         with _L:
             if "track" in c:
                 r["cfg"]["track"] = str(c["track"])[:16]
-            for k in ("laps", "prize"):
+            for k in ("laps", "prize", "hands"):
                 if k in c:
                     r["cfg"][k] = max(0, min(5000, int(c[k] or 0)))
             if "x" in c:
