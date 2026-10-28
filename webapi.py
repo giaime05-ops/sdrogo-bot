@@ -296,7 +296,7 @@ def _ip() -> str:
 def _guard_request():
     if request.method == "OPTIONS":
         return None
-    if (request.content_length or 0) > MAX_BODY:
+    if (request.content_length or 0) > (60000 if request.path == "/api/race/record" else MAX_BODY):
         return _err("Richiesta troppo grande.", 413)
     if not _take("ip:" + _ip(), IP_RATE, IP_BURST):
         return _err("Troppe richieste, rallenta un attimo.", 429)
@@ -1192,5 +1192,7 @@ try:
     import sys as _sys
     import webrooms
     webrooms.install(_sys.modules[__name__])
+    import webrace
+    webrace.install(_sys.modules[__name__])
 except Exception as _e:                                    # un errore qui non deve mai fermare il resto della mini app
     logging.error(f"Stanze multiplayer non attivate: {_e}")
