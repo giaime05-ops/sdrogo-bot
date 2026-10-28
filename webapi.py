@@ -1057,6 +1057,8 @@ def api_social(what):
             return _err("Non ancora disponibile.", 403)
         def _fr(u):
             out = websocial.friends(u)
+            if not is_web_sandbox():                                  # i bot finti servono solo all'account di prova
+                return out
             fake = [{"pid": "bot1", "name": "Bot 1", "badge": "", "style": {}, "online": True, "ago": 0},
                     {"pid": "bot2", "name": "Bot 2", "badge": "h5", "style": {}, "online": True, "ago": 0}]   # per provare il fumetto
             out["friends"] = fake + out["friends"]; out["online"] += 2
