@@ -5,7 +5,7 @@ Regole:
   * le prime 3 piste sono gratis; le altre si comprano con $SDG (prezzi in PRICE) e restano tue;
   * premio (REWARD) per ogni record che batte il record di UN ALTRO giocatore (o il primo record in assoluto);
     se il record è già tuo, paga solo se migliori di almeno 0,3 s (niente guadagni a colpi di millesimi);
-  * i premi NON escono dal Banco: li genera il server. Il Banco non viene toccato (nemmeno dalle puntate);
+  * i premi NON escono dal Banco: li genera il server. Il Banco incassa solo l'acquisto delle piste (single player);
   * controlli: tempo plausibile, fantasma di dimensione limitata, massimo 12 premi al giorno per giocatore;
   * l'account di prova dell'admin non usa queste rotte (simula in locale).
 """
@@ -122,7 +122,13 @@ def install(wa):
                 return {"ok": True}
             if get_user_coins(uid, uid) < PRICE[i]:
                 return {"error": "Saldo insufficiente: servono %d $SDG." % PRICE[i]}
-            add_user_coins(uid, uid, -PRICE[i]); lst.append(tid); save_db()
+            add_user_coins(uid, uid, -PRICE[i]); lst.append(tid)
+            try:
+                import economy
+                economy.banco_add(PRICE[i])                              # chi compra una pista alimenta il Banco (come gli altri giochi singoli)
+            except Exception as e:
+                logging.warning(f"Banco non aggiornato per lo sblocco: {e}")
+            save_db()
             return {"ok": True, "price": PRICE[i]}
         resp, out = wa._avi_call(_co(do))
         if resp is not None:

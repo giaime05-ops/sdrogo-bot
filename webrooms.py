@@ -55,6 +55,15 @@ def _uid_of_pid(pid):
     return None
 
 
+def _x(d):
+    out = {}
+    if isinstance(d, dict):
+        for k, v in list(d.items())[:12]:
+            if isinstance(k, str) and len(k) <= 8 and isinstance(v, (int, bool, float)):
+                out[k] = v
+    return out
+
+
 def _wallet_ok(uid, amount):
     from storage import get_user_coins
     return get_user_coins(int(uid), int(uid)) >= amount
@@ -113,12 +122,10 @@ def _settle(r):
             if i < len(order):
                 pay[order[i]] = pay.get(order[i], 0) + int(pot * share)
     prize = int(r["cfg"].get("prize", 0)) if r["game"] == "race" and len(r["players"]) >= 2 else 0
-    if prize and not r["sim"]:
-        import economy
+    if prize and not r["sim"]:                                   # il premio lo genera il server: il Banco non si tocca
         for i, f in enumerate((1.0, 0.75, 0.5)):
             if i < len(order):
-                got = economy.banco_take(int(prize * f))
-                pay[order[i]] = pay.get(order[i], 0) + got
+                pay[order[i]] = pay.get(order[i], 0) + int(prize * f)
     if not r["sim"]:
         for u, amt in pay.items():
             if amt:
@@ -176,7 +183,7 @@ def install(wa):
         p = dict(_prof(uid), ready=True, seen=_now(), paid=stake if not sim else 0)
         r = {"id": secrets.token_urlsafe(6), "game": game, "host": uid, "status": "lobby", "sim": sim, "act": _now(),
              "cfg": {"stake": stake, "prize": prize if len([1]) else 0, "laps": int(cfg.get("laps", 3) or 3), "track": str(cfg.get("track", ""))[:16],
-                     "hands": int(cfg.get("hands", 0) or 0), "max": min(MAX_PLAYERS[game], int(cfg.get("max", MAX_PLAYERS[game]) or 2))},
+                     "hands": int(cfg.get("hands", 0) or 0), "x": _x(cfg.get("x")), "max": min(MAX_PLAYERS[game], int(cfg.get("max", MAX_PLAYERS[game]) or 2))},
              "players": [p], "invited": [], "events": [], "votes": {}}
         with _L:
             ROOMS[r["id"]] = r
@@ -316,7 +323,7 @@ def install(wa):
         if len(r["players"]) < 2:
             return wa._err("Servono almeno 2 giocatori.")
         with _L:
-            r["status"] = "run"; r["act"] = _now(); r["events"].append({"k": "start", "seed": secrets.randbelow(2 ** 31)})
+            r["status"] = "run"; r["act"] = _now(); r["events"].append({"k": "start", "seed": secrets.randbelow(2 ** 31), "order": [p["uid"] for p in r["players"]]})
         return jsonify({"success": True, "room": _view(r, str(user["id"]))})
 
     @bp.route("/api/room/send", methods=["POST", "OPTIONS"])
@@ -389,3 +396,59 @@ def install(wa):
     def _settle_locked(r):
         with _L:
             return _settle(r) if r["status"] != "done" else True
+
+    @bp.route("/api/room/cfg", methods=["POST", "OPTIONS"])
+    def room_cfg():
+        if request.method == "OPTIONS":
+            return "", 204
+        user, data, err = post()
+        if err:
+            return err
+        r, e = need(data.get("id"), user)
+        if e:
+            return e
+        if r["host"] != str(user["id"]) or r["status"] != "lobby":
+            return wa._err("Solo l'host può cambiare le regole prima del via.", 403)
+        c = data.get("cfg") if isinstance(data.get("cfg"), dict) else {}
+        with _L:
+            if "track" in c:
+                r["cfg"]["track"] = str(c["track"])[:16]
+            for k in ("laps", "prize"):
+                if k in c:
+                    r["cfg"][k] = max(0, min(5000, int(c[k] or 0)))
+            if "x" in c:
+                r["cfg"]["x"] = _x(c["x"])
+            r["act"] = _now()
+        return jsonify({"success": True})
+
+    @bp.route("/api/room/sync", methods=["POST", "OPTIONS"])
+    def room_sync():
+        """Un'unica richiesta per ciclo: manda (facoltativo) il mio evento e riceve quelli nuovi."""
+        if request.method == "OPTIONS":
+            return "", 204
+        user, data, err = post()
+        if err:
+            return err
+        uid = str(user["id"]); r = ROOMS.get(str(data.get("id", "")))
+        if not r:
+            return jsonify({"success": True, "gone": True, "events": [], "n": 0})
+        if not any(p["uid"] == uid for p in r["players"]) and uid not in r["invited"]:
+            return wa._err("Non sei in questa stanza.", 403)
+        ev = data.get("ev")
+        try:
+            since = int(data.get("since", 0))
+        except (TypeError, ValueError):
+            since = 0
+        with _L:
+            for p in r["players"]:
+                if p["uid"] == uid:
+                    p["seen"] = _now()
+            if isinstance(ev, dict) and len(repr(ev)) <= EV_BYTES and any(p["uid"] == uid for p in r["players"]):
+                ev = dict(ev); ev["u"] = uid
+                r["events"].append(ev); r["act"] = _now()
+                if len(r["events"]) > MAX_EV:
+                    cut = len(r["events"]) - MAX_EV; r["events"] = r["events"][cut:]; r["base"] = r.get("base", 0) + cut
+            base = r.get("base", 0)
+            evs = r["events"][max(0, since - base):]
+            v = _view(r, uid); n = base + len(r["events"])
+        return jsonify({"success": True, "room": v, "events": evs, "n": n})

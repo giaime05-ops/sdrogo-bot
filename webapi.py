@@ -208,7 +208,7 @@ def require_admin():
     set_web_sandbox(sbx)
     if sbx:
         ensure_web_sandbox(user["id"])
-    if not _take("u:" + uid, USER_RATE, USER_BURST):
+    if not (_take("u:" + uid, 25.0, 60) if request.path.startswith("/api/room/") else _take("u:" + uid, USER_RATE, USER_BURST)):
         return None, (jsonify({"success": False, "error": "Troppe richieste, rallenta un attimo."}), 429)
     if request.method == "POST":                      # una sola mossa alla volta per giocatore: niente doppi tocchi né richieste parallele
         with _B_LOCK:
