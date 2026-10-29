@@ -231,6 +231,7 @@ def install(wa):
         with _L:
             r["players"].append(dict(_prof(uid), ready=True, seen=_now(), paid=stake if not r["sim"] else 0)); r["act"] = _now()
             r["events"].append({"k": "join", "u": uid})
+            r["invited"] = [x for x in r["invited"] if x != uid]
         return jsonify({"success": True, "room": _view(r, uid)})
 
     @bp.route("/api/room/leave", methods=["POST", "OPTIONS"])
@@ -244,6 +245,16 @@ def install(wa):
         if e:
             return e
         with _L:
+            if r["status"] == "lobby" and r["host"] == uid:      # l'host chiude la sua lobby: si chiude per tutti e gli inviti spariscono
+                if not r["sim"]:
+                    for p in r["players"]:
+                        if p.get("paid"):
+                            wa._avi_call(_co(_move, p["uid"], p["paid"])); p["paid"] = 0
+                    r["refunded"] = True
+                r["events"].append({"k": "leave", "u": uid}); r["status"] = "done"
+                ROOMS.pop(r["id"], None)
+                return jsonify({"success": True, "closed": True})
+            r["invited"] = [x for x in r["invited"] if x != uid]   # chi esce non ha più un invito pendente
             me = next((p for p in r["players"] if p["uid"] == uid), None)
             if me and r["status"] == "lobby" and me.get("paid") and not r["sim"]:
                 wa._avi_call(_co(_move, uid, me["paid"])); me["paid"] = 0
@@ -314,8 +325,15 @@ def install(wa):
         with _L:
             _gc()
             for r in ROOMS.values():
-                if r["status"] == "lobby" and (uid in r["invited"] or any(p["uid"] == uid for p in r["players"])):
+                if r["status"] != "lobby":
+                    continue
+                mine_p = any(p["uid"] == uid for p in r["players"])
+                if mine_p:
                     out.append(_view(r, uid))
+                elif uid in r["invited"]:                       # invito pendente: solo se l'host è ancora lì (non una lobby abbandonata)
+                    h = next((p for p in r["players"] if p["uid"] == r["host"]), None)
+                    if h and _now() - h["seen"] < 60:
+                        out.append(_view(r, uid))
         return jsonify({"success": True, "rooms": out})
 
     @bp.route("/api/room/start", methods=["POST", "OPTIONS"])

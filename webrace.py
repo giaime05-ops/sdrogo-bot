@@ -4,7 +4,7 @@ Regole:
   * il record di una pista = 3 giri completi in modalità Singolo (le gare rapide e le lobby non contano e non pagano);
   * le prime 3 piste sono gratis; le altre si comprano con $SDG (prezzi in PRICE) e restano tue;
   * premio (REWARD) per ogni record che batte il record di UN ALTRO giocatore (o il primo record in assoluto);
-    se il record è già tuo, paga solo se migliori di almeno 0,3 s (niente guadagni a colpi di millesimi);
+    anche se il record è già tuo paga, basta migliorarlo di un millesimo (il tetto giornaliero fa da freno agli abusi);
   * i premi NON escono dal Banco: li genera il server. Il Banco incassa solo l'acquisto delle piste (single player);
   * controlli: tempo plausibile, fantasma di dimensione limitata, massimo 12 premi al giorno per giocatore;
   * l'account di prova dell'admin non usa queste rotte (simula in locale).
@@ -18,7 +18,7 @@ TRACKS = ["neon", "serp", "tornanti", "salto", "zigzag", "gp", "canyon", "costa"
 PRICE = [0, 0, 0, 500, 750, 950, 1150, 1400, 1700, 2000]
 REWARD = [150, 150, 150, 300, 350, 400, 500, 600, 800, 1000]
 MIN_MS, MAX_MS = 20000, 900000
-MIN_GAIN_OWN_MS = 300
+MIN_GAIN_OWN_MS = 1
 MAX_REWARDS_DAY = 12
 MAX_GHOST = 9000                                  # numeri (x, y, angolo): ~20 Hz per 3 giri
 
