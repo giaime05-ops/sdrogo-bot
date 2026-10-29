@@ -57,6 +57,48 @@ def _fresh(game) -> bool:
     return bool(game) and time.time() - game.get("last", game.get("ts", 0)) <= _g().GAME_IDLE_SECS
 
 
+# ---- limiti anti-automatismi (Wordle e Mastermind pagano più di quanto costano a chi sa risolverli: uno script farebbe soldi all'infinito)
+WM_DAY_MAX = 15            # partite al giorno per gioco
+WM_MIN_GAP = 6             # secondi tra la fine di una partita e l'inizio della successiva
+WM_MIN_GUESS = 1.6         # secondi minimi tra un tentativo e il successivo
+
+
+def _wm_check(uid: int, kind: str):
+    """None se si può iniziare, altrimenti un errore. Conta la partita appena avviata."""
+    from storage import get_user_data_dict, is_web_sandbox
+    if is_web_sandbox():
+        return None
+    u = get_user_data_dict(uid, uid)
+    today = economy.today_str()
+    wm = u.get("wm")
+    if not isinstance(wm, dict) or wm.get("d") != today:
+        wm = u["wm"] = {"d": today, "wd": 0, "mm": 0, "end": 0}
+    if wm.get(kind, 0) >= WM_DAY_MAX:
+        return _err("Hai giocato tutte le %d partite di oggi a questo gioco: torna domani!" % WM_DAY_MAX, 429)
+    left = wm.get("end", 0) + WM_MIN_GAP - time.time()
+    if left > 0:
+        return _err("Un attimo: puoi iniziare una nuova partita tra %d secondi." % (int(left) + 1), 429)
+    wm[kind] = wm.get(kind, 0) + 1
+    return None
+
+
+def _wm_end(uid: int):
+    from storage import get_user_data_dict
+    wm = get_user_data_dict(uid, uid).get("wm")
+    if isinstance(wm, dict):
+        wm["end"] = time.time()
+
+
+def _wm_guess_gap(game: dict):
+    """None se il tentativo arriva con calma umana, altrimenti l'errore (il tentativo non conta)."""
+    from storage import is_web_sandbox
+    now = time.time()
+    if not is_web_sandbox() and now - game.get("lg", game.get("ts", 0)) < WM_MIN_GUESS:
+        return _err("Troppo veloce: rifletti un attimo prima di ogni tentativo.", 429)
+    game["lg"] = now
+    return None
+
+
 # ======================================================================================================
 # BLACKJACK
 # ======================================================================================================
@@ -203,6 +245,9 @@ async def wd_start(uid, name, data):
         add_user_coins(uid, uid, WD_COST)
     if _bal(uid) < WD_COST:
         return _err(f"Servono {WD_COST} $SDG per giocare.")
+    bad = _wm_check(uid, "wd")
+    if bad:
+        return bad
     G._charge(uid, uid, WD_COST)
     now = time.time()
     game = {"player_id": uid, "name": name, "secret": random.choice(G.WORDLE_WORDS), "attempts": 0,
@@ -225,6 +270,9 @@ async def wd_guess(uid, name, data):
         return _err("Scrivi una parola di 5 lettere.")
     if guess not in G.WORD_SET:
         return _err("Questa parola non è nel dizionario: il tentativo non conta.")
+    bad = _wm_guess_gap(game)
+    if bad:
+        return bad
     game["last"] = time.time()
     game["attempts"] += 1
     secret = game["secret"]
@@ -235,6 +283,7 @@ async def wd_guess(uid, name, data):
     if not (done_won or done_lost):
         return {"state": _wd_state(uid, game), "marks": marks}
     WORDLE_GAMES.pop(key, None)
+    _wm_end(uid)
     base = G.WORDLE_REWARDS.get(game["attempts"], G.WORDLE_REWARDS[5]) if done_won else 0
     paid, notes = await G._settle(_bot(), uid, uid, "wordle", WD_COST, base, is_casino=False)
     q = G.quest_progress(uid, uid, "wordle_win") if done_won else ""
@@ -277,6 +326,9 @@ async def mm_start(uid, name, data):
         add_user_coins(uid, uid, MM_COST)
     if _bal(uid) < MM_COST:
         return _err(f"Servono {MM_COST} $SDG per giocare.")
+    bad = _wm_check(uid, "mm")
+    if bad:
+        return bad
     G._charge(uid, uid, MM_COST)
     digits = list("0123456789")
     random.shuffle(digits)
@@ -298,6 +350,9 @@ async def mm_guess(uid, name, data):
         return _err("Il codice ha 3 cifre.")
     if len(set(code)) < 3:
         return _err("Il codice ha 3 cifre tutte diverse: il tentativo non conta.")
+    bad = _wm_guess_gap(game)
+    if bad:
+        return bad
     game["last"] = time.time()
     game["attempts"] += 1
     secret = game["secret"]
@@ -309,6 +364,7 @@ async def mm_guess(uid, name, data):
     if not (won or lost):
         return {"state": _mm_state(uid, game), "hits": hits, "present": present}
     MASTERMIND_GAMES.pop(key, None)
+    _wm_end(uid)
     base = G.MASTERMIND_REWARDS.get(game["attempts"], G.MASTERMIND_REWARDS[5]) if won else 0
     paid, notes = await G._settle(_bot(), uid, uid, "mastermind", MM_COST, base, is_casino=False)
     q = G.quest_progress(uid, uid, "mm_win") if won else ""

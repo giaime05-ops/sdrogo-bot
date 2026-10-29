@@ -264,9 +264,46 @@ async def purge_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await msg.reply_text("🧹 <b>Fatto</b>\n" + ("\n".join(html.escape(x) for x in out[:60]) if out else "Nessun record sospetto."), parse_mode="HTML")
 
 
+async def fonti_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/fonti @utente: da quali giochi arrivano i suoi soldi (registro per gioco + ultime giocate), per scoprire come ha fatto."""
+    t = await _adm_target(update)
+    if t is None:
+        return
+    uid, _ = t
+    msg = update.effective_message
+    if not uid:
+        await msg.reply_text("💸 Uso: <code>/fonti @utente</code>", parse_mode="HTML")
+        return
+    d = USER_DATA.get(uid, {})
+    led = d.get("g_led") or {}
+    L = ["💸 <b>FONTI di %s</b> (ID <code>%s</code>)" % (html.escape(d.get("name") or d.get("username") or uid), uid),
+         "Saldo <b>%s</b> · netto totale dichiarato <b>%s</b> · giocate single %s" % (fmt(d.get("coins", 0)), fmt(d.get("net_profit", 0)), d.get("single_played", 0))]
+    if led:
+        L.append("\n📒 <b>Registro per gioco</b> (parte dall'ultimo aggiornamento):")
+        for g, (n, sp, inc) in sorted(led.items(), key=lambda kv: kv[1][2] - kv[1][1], reverse=True):
+            L.append("• %s: %d giocate · netto <b>%+d</b>" % (html.escape(g), n, inc - sp))
+    else:
+        L.append("\n📒 Registro per gioco ancora vuoto (si riempie dalle prossime giocate).")
+    hist = d.get("history") or []
+    if hist:
+        agg = {}
+        for h in hist:
+            a = agg.setdefault(h["g"].split(" ")[0], [0, 0])
+            a[0] += 1; a[1] += h["w"] - h["b"]
+        L.append("\n🕓 <b>Ultime %d giocate</b> per gioco:" % len(hist))
+        for g, (n, net) in sorted(agg.items(), key=lambda kv: kv[1][1], reverse=True):
+            L.append("• %s: %d · netto <b>%+d</b>" % (html.escape(g), n, net))
+        L.append("Prima: %s · ultima: %s" % (_rome_from_ts(hist[0]["t"]), _rome_from_ts(hist[-1]["t"])))
+    wins = d.get("game_wins") or {}
+    if wins:
+        L.append("\n🏆 Vittorie totali: " + ", ".join("%s %d" % (html.escape(k), v) for k, v in sorted(wins.items(), key=lambda kv: -kv[1])))
+    await msg.reply_text("\n".join(L), parse_mode="HTML")
+
+
 def register(app):
     app.add_handler(CommandHandler("postgp", postgp_command))
     app.add_handler(CommandHandler(["annuncio", "dici"], annuncio_command))
     app.add_handler(CommandHandler("storico", storico_command))
     app.add_handler(CommandHandler("cheat", cheat_command))
+    app.add_handler(CommandHandler("fonti", fonti_command))
     app.add_handler(CommandHandler("purge", purge_command))

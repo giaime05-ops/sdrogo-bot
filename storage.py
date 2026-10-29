@@ -827,6 +827,12 @@ def log_play(user_id, game: str, bet: int, payout: int, outcome: str = ""):
     _touched_users.add(key)
     hist = d.setdefault("history", [])
     hist.append({"t": int(time.time()), "g": str(game), "b": bet, "o": outcome, "w": payout})
+    try:                                              # registro permanente per gioco (la cronologia sopra ne tiene solo 60): serve a capire da dove arrivano i soldi
+        gk = str(game).split(" ")[0][:14]
+        gl = d.setdefault("g_led", {}).setdefault(gk, [0, 0, 0])   # [giocate, speso, incassato]
+        gl[0] += 1; gl[1] += bet; gl[2] += payout
+    except Exception:
+        pass
     if len(hist) > HISTORY_MAX:
         del hist[:-HISTORY_MAX]
     save_db()
