@@ -37,7 +37,9 @@ def _view(r, uid):
     return {"id": r["id"], "game": r["game"], "host": r["host"], "status": r["status"], "cfg": r["cfg"], "sim": r["sim"],
             "players": [{"uid": p["uid"], "pid": p["pid"], "name": p["name"], "style": p["style"], "ready": p["ready"],
                          "online": _now() - p["seen"] < 12} for p in r["players"]],
-            "invited": r["invited"], "n": len(r["events"]), "me": uid, "result": r.get("settled")}
+            "invited": r["invited"], "n": len(r["events"]), "me": uid, "result": r.get("settled"),
+            "away": max(0, int(r["closeAt"] - _now())) if r.get("closeAt") else 0, "st": round(_now(), 3),
+            "sy": {"rdy": r.get("rdy", {}), "go": r.get("go", {}), "q": r.get("q", {}), "grid": r.get("gridv")}}
 
 
 def _prof(uid):
@@ -77,10 +79,21 @@ def _move(uid, amount):
 
 def _gc():
     now = _now()
-    for rid in [k for k, r in ROOMS.items() if now - r["act"] > ROOM_IDLE]:
+    for rid in [k for k, r in ROOMS.items() if now - r["act"] > ROOM_IDLE or (r.get("closeAt") and now > r["closeAt"])]:
         r = ROOMS.pop(rid)
+        r["events"].append({"k": "leave", "u": r["host"]})
         if r["status"] != "done":
             _refund(r)
+    for r in list(ROOMS.values()):                                    # in lobby chi sparisce per più di 60 s esce da solo (con la puntata restituita)
+        if r["status"] != "lobby" or r["game"] != "race":
+            continue
+        for p in list(r["players"]):
+            if p["uid"] != r["host"] and now - p["seen"] > 60:
+                if p.get("paid") and not r["sim"]:
+                    _hist(p["uid"], str(r["game"]) + " (rimborso)", p["paid"], p["paid"], "rimborso")
+                    _move(p["uid"], p["paid"]); p["paid"] = 0
+                r["players"] = [q for q in r["players"] if q["uid"] != p["uid"]]
+                r["events"].append({"k": "leave", "u": p["uid"]})
 
 
 def _hist(uid, game, bet, pay, outcome=""):
@@ -191,6 +204,8 @@ def install(wa):
         uid = str(user["id"])
         with _L:
             _gc()
+            for old in [k for k, r in ROOMS.items() if r["host"] == uid and r["status"] == "lobby" and r["game"] == game]:   # una sola lobby aperta per gioco: la vecchia si chiude
+                o = ROOMS.pop(old); _refund(o)
             if sum(1 for r in ROOMS.values() if r["host"] == uid and r["status"] != "done") >= 3:
                 return wa._err("Hai già troppe stanze aperte.")
         if stake and not sim:
@@ -241,7 +256,7 @@ def install(wa):
             if resp is not None:
                 return resp
         with _L:
-            r["players"].append(dict(_prof(uid), ready=True, seen=_now(), paid=stake if not r["sim"] else 0)); r["act"] = _now()
+            r["players"].append(dict(_prof(uid), ready=(r["game"] != "race"), seen=_now(), paid=stake if not r["sim"] else 0)); r["act"] = _now()
             r["events"].append({"k": "join", "u": uid})
             r["invited"] = [x for x in r["invited"] if x != uid]
         return jsonify({"success": True, "room": _view(r, uid)})
@@ -257,6 +272,9 @@ def install(wa):
         if e:
             return e
         with _L:
+            if r["status"] == "lobby" and r["host"] == uid and data.get("grace") and len(r["players"]) >= 1:   # uscita dell'host: 15 s per rientrare, poi si chiude
+                r["closeAt"] = _now() + 15; r["act"] = _now()
+                return jsonify({"success": True, "grace": 15})
             if r["status"] == "lobby" and r["host"] == uid:      # l'host chiude la sua lobby: si chiude per tutti e gli inviti spariscono
                 if not r["sim"]:
                     for p in r["players"]:
@@ -342,6 +360,87 @@ def install(wa):
             log_act(user["id"], a)
         return jsonify({"success": True})
 
+    @bp.route("/api/room/kick", methods=["POST", "OPTIONS"])
+    def room_kick():
+        """L'host toglie un giocatore dalla lobby."""
+        if request.method == "OPTIONS":
+            return "", 204
+        user, data, err = post()
+        if err:
+            return err
+        r, e = need(data.get("id"), user)
+        if e:
+            return e
+        uid = str(user["id"]); tg = str(data.get("uid", ""))
+        with _L:
+            if r["host"] != uid or r["status"] != "lobby" or tg == uid:
+                return wa._err("Non puoi farlo.", 403)
+            p = next((q for q in r["players"] if q["uid"] == tg), None)
+            if p:
+                if p.get("paid") and not r["sim"]:
+                    _hist(tg, str(r["game"]) + " (rimborso)", p["paid"], p["paid"], "rimborso")
+                    wa._avi_call(_co(_move, tg, p["paid"])); p["paid"] = 0
+                r["players"] = [q for q in r["players"] if q["uid"] != tg]
+            r["invited"] = [x for x in r["invited"] if x != tg]
+            r["events"].append({"k": "leave", "u": tg}); r["act"] = _now()
+        return jsonify({"success": True, "room": _view(r, uid)})
+
+    @bp.route("/api/room/ready", methods=["POST", "OPTIONS"])
+    def room_ready():
+        if request.method == "OPTIONS":
+            return "", 204
+        user, data, err = post()
+        if err:
+            return err
+        r, e = need(data.get("id"), user)
+        if e:
+            return e
+        with _L:
+            me = next((p for p in r["players"] if p["uid"] == str(user["id"])), None)
+            if not me or r["status"] != "lobby":
+                return wa._err("Non sei in lobby.")
+            me["ready"] = bool(data.get("ready")); me["seen"] = _now(); r["act"] = _now()
+        return jsonify({"success": True, "room": _view(r, str(user["id"]))})
+
+    @bp.route("/api/room/rejoin", methods=["POST", "OPTIONS"])
+    def room_rejoin():
+        """L'host rientra nella sua lobby entro i 15 s di tolleranza."""
+        if request.method == "OPTIONS":
+            return "", 204
+        user, data, err = post()
+        if err:
+            return err
+        r = ROOMS.get(str(data.get("id", "")))
+        if not r or r["host"] != str(user["id"]) or r["status"] != "lobby":
+            return wa._err("La lobby non c'è più.", 404)
+        with _L:
+            r.pop("closeAt", None); r["act"] = _now()
+            for p in r["players"]:
+                if p["uid"] == r["host"]:
+                    p["seen"] = _now()
+        return jsonify({"success": True, "room": _view(r, str(user["id"]))})
+
+    @bp.route("/api/room/open", methods=["GET", "OPTIONS"])
+    def room_open():
+        """Lobby pubbliche del Grand Prix: le vedono tutti i membri, si entra senza invito."""
+        if request.method == "OPTIONS":
+            return "", 204
+        user, err = wa.require_admin()
+        if err:
+            return err
+        uid = str(user["id"]); out = []; sim = bool(wa.is_web_sandbox())
+        with _L:
+            _gc()
+            for r in ROOMS.values():
+                if r["game"] != "race" or r["status"] != "lobby" or r["sim"] != sim or r.get("closeAt") or not (r["cfg"].get("x") or {}).get("vis", 1):
+                    continue
+                if any(p["uid"] == uid for p in r["players"]) or len(r["players"]) >= r["cfg"]["max"]:
+                    continue
+                h = next((p for p in r["players"] if p["uid"] == r["host"]), None)
+                if h and _now() - h["seen"] < 40:
+                    out.append(_view(r, uid))
+        return jsonify({"success": True, "rooms": out})
+
     @bp.route("/api/room/mine", methods=["GET", "OPTIONS"])
     def room_mine():
         if request.method == "OPTIONS":
@@ -360,7 +459,7 @@ def install(wa):
                     out.append(_view(r, uid))
                 elif uid in r["invited"]:                       # invito pendente: solo se l'host è ancora lì (non una lobby abbandonata)
                     h = next((p for p in r["players"] if p["uid"] == r["host"]), None)
-                    if h and _now() - h["seen"] < 60:
+                    if h and _now() - h["seen"] < 60 and not r.get("closeAt"):
                         out.append(_view(r, uid))
         return jsonify({"success": True, "rooms": out})
 
@@ -378,8 +477,14 @@ def install(wa):
             return wa._err("Solo chi ha creato la stanza può avviare.", 403)
         if len(r["players"]) < 2:
             return wa._err("Servono almeno 2 giocatori.")
+        if r["game"] == "race":
+            now0 = _now()
+            late = [p["name"] for p in r["players"] if p["uid"] != r["host"] and now0 - p["seen"] < 30 and not p.get("ready")]
+            if late:
+                return wa._err("Non tutti sono pronti: " + ", ".join(late[:3]))
         with _L:
-            r["status"] = "run"; r["act"] = _now(); r["events"].append({"k": "start", "seed": secrets.randbelow(2 ** 31), "order": [p["uid"] for p in r["players"]]})
+            r["go"] = {}; r["rdy"] = {}; r["q"] = {}; r["gridv"] = None; r.pop("closeAt", None)
+            r["status"] = "run"; r["act"] = _now(); r["events"].append({"k": "start", "t": round(_now(), 3), "seed": secrets.randbelow(2 ** 31), "order": [p["uid"] for p in r["players"]]})
         return jsonify({"success": True, "room": _view(r, str(user["id"]))})
 
     @bp.route("/api/room/send", methods=["POST", "OPTIONS"])
@@ -534,7 +639,10 @@ def install(wa):
         user, data, err = post()
         if err:
             return err
-        uid = str(user["id"]); r = ROOMS.get(str(data.get("id", "")))
+        uid = str(user["id"])
+        with _L:
+            _gc()
+        r = ROOMS.get(str(data.get("id", "")))
         if not r:
             return jsonify({"success": True, "gone": True, "events": [], "n": 0})
         if not any(p["uid"] == uid for p in r["players"]) and uid not in r["invited"]:
@@ -549,10 +657,35 @@ def install(wa):
                 if p["uid"] == uid:
                     p["seen"] = _now()
             if isinstance(ev, dict) and len(repr(ev)) <= EV_BYTES and any(p["uid"] == uid for p in r["players"]):
-                ev = dict(ev); ev["u"] = uid
-                if "to" in ev and not (isinstance(ev["to"], list) and all(isinstance(x, str) for x in ev["to"])):
+                ev = dict(ev); ev["u"] = uid; ev["t"] = round(_now(), 3)
+                k0 = ev.get("k"); ph0 = str(ev.get("ph", ""))[:6]
+                if k0 == "rdy":                               # pronto alla partenza (fine presentazione): lo stato sta nella stanza, non si perde
+                    lst = r.setdefault("rdy", {}).setdefault(ph0, [])
+                    if uid not in lst:
+                        lst.append(uid)
+                    ev = None
+                elif k0 == "q":                               # tempo di qualifica (il primo vale)
+                    try:
+                        qt = float(ev.get("qt"))
+                    except (TypeError, ValueError):
+                        qt = 9999.0
+                    r.setdefault("q", {}).setdefault(uid, round(qt, 3)); ev = None
+                elif k0 == "grid":                            # griglia decisa: la prima che arriva vale per tutti
+                    g = ev.get("g")
+                    if r.get("gridv") is None and isinstance(g, list) and all(isinstance(x, str) for x in g[:12]):
+                        r["gridv"] = g[:12]
+                    ev = None
+                elif ev.get("k") == "go":                       # via della partenza: il primo che lo manda decide l'istante (orologio del server) per tutti
+                    ph = str(ev.get("ph", ""))[:6]; gos = r.setdefault("go", {})
+                    if ph in gos:
+                        ev = None
+                    else:
+                        ev["G"] = round(_now() + 1.5, 3); gos[ph] = ev["G"]
+                if ev is not None and "to" in ev and not (isinstance(ev["to"], list) and all(isinstance(x, str) for x in ev["to"])):
                     ev.pop("to")
-                r["events"].append(ev); r["act"] = _now()
+                if ev is not None:
+                    r["events"].append(ev)
+                r["act"] = _now()
                 if len(r["events"]) > MAX_EV:
                     cut = len(r["events"]) - MAX_EV; r["events"] = r["events"][cut:]; r["base"] = r.get("base", 0) + cut
             base = r.get("base", 0)
