@@ -317,7 +317,11 @@ def _com_view():
         "🙉 <b>/troll</b> – attiva/disattiva l'Auto-Troll\n"
         "🔄 <b>/resetduello</b> – annulla tutte le partite e rimborsa\n"
         "📜 <b>/storico</b> <code>@utente</code> – spese, incassi e sezioni aperte da un giocatore\n"
-        "🏁 <b>/postgp</b> – pubblica nel gruppo l'immagine Grand Prix con il tasto «Corri adesso»\n"
+        "💸 <b>/fonti</b> <code>@utente</code> – da quali giochi arrivano i suoi soldi (caccia ai furbi)\n"
+        "🕵️ <b>/cheat</b> <code>@utente</code> – i suoi tempi record, saldo e premi di oggi, con i sospetti\n"
+        "🧹 <b>/purge</b> – riverifica i record di tutti · <code>/purge @utente [saldo N]</code> cancella i suoi tempi (e sistema il saldo)\n"
+        "🚫 <b>/blocca</b> <code>@utente [arcade]</code> · <b>/sblocca</b> <code>@utente</code> – accessi (o menu «Gestisci accessi» in /admin)\n"
+        "🏁 <b>/postgp</b> – pubblica nel gruppo il banner Multiplayer (tavoli, 1v1, Grand Prix) con il tasto «Gioca adesso»\n"
         "📣 <b>/annuncio</b> <code>testo</code> (o /dici) – scrive nel gruppo\n"
         "💰 <b>/ricarica</b> <code>[@utente] [quantità]</code> – regala $SDG\n"
         "🎯 <b>/sfida</b> <code>quota giorni</code> – sfida di gruppo con numeri liberi (es. 50000 7)\n"
@@ -338,6 +342,9 @@ def _com_view():
         [InlineKeyboardButton("📜 Storico", callback_data="adm_c_storico"),
          InlineKeyboardButton("📣 Annuncio", callback_data="adm_c_annuncio"),
          InlineKeyboardButton("💰 Ricarica", callback_data="adm_c_ricarica")],
+        [InlineKeyboardButton("💸 Fonti", callback_data="adm_c_fonti"),
+         InlineKeyboardButton("🕵️ Cheat", callback_data="adm_c_cheat"),
+         InlineKeyboardButton("🧹 Purge", callback_data="adm_c_purge")],
         [InlineKeyboardButton("🔄 Reset saldi", callback_data="aec_menu"),
          InlineKeyboardButton("💸 Ricarica TUTTI", callback_data="aec_rmenu")],
         [InlineKeyboardButton("🎯 Sfida libera", callback_data="aec_free")],
@@ -359,6 +366,9 @@ async def com_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 _COM_HELP = {
     "storico": "📜 Scrivi: <code>/storico @username</code> (oppure l'ID numerico).",
+    "fonti": "💸 Scrivi: <code>/fonti @username</code>: mostra da quali giochi arrivano i suoi soldi.",
+    "cheat": "🕵️ Scrivi: <code>/cheat @username</code>: tempi record, saldo e premi di oggi con i sospetti.",
+    "purge": "🧹 <code>/purge</code> riverifica tutti i record · <code>/purge @username</code> cancella i suoi tempi · <code>/purge @username saldo 500</code> li cancella e porta il saldo a 500.",
     "annuncio": "📣 Scrivi: <code>/annuncio il tuo testo</code> (o <code>/dici ...</code>): il bot lo pubblica nel gruppo.",
     "ricarica": "💰 Scrivi: <code>/ricarica 100</code> (a te) oppure <code>/ricarica @username 100</code>.",
 }
