@@ -201,7 +201,72 @@ async def postgp_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text(f"❌ Non sono riuscito a pubblicare: {e}")
 
 
+async def _adm_target(update):
+    """Solo admin, solo in privato. Ritorna (uid, resto_argomenti) oppure None dopo aver risposto."""
+    msg, user, chat = update.effective_message, update.effective_user, update.effective_chat
+    if not msg or not user or not is_admin(user.id):
+        return None
+    if chat.type != "private":
+        await msg.reply_text("🔒 Usa questo comando in chat privata con me.")
+        return None
+    parts = _strip_cmd(msg.text).split()
+    if not parts:
+        return "", []
+    uid = find_user_id(parts[0])
+    if not uid:
+        await msg.reply_text("❌ Giocatore non trovato (prova con l'ID numerico).")
+        return None
+    return uid, parts[1:]
+
+
+async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/cheat @utente: record, saldo e premi del giorno di un giocatore sospetto."""
+    t = await _adm_target(update)
+    if t is None:
+        return
+    uid, _ = t
+    msg = update.effective_message
+    if not uid:
+        await msg.reply_text("🕵️ Uso: <code>/cheat @utente</code>  ·  <code>/purge</code> (riverifica tutti i record)  ·  "
+                             "<code>/purge @utente</code> (cancella i suoi tempi)  ·  <code>/purge @utente saldo 500</code> (e porta il saldo a 500)", parse_mode="HTML")
+        return
+    import webrace
+    db = webrace._db(); d = USER_DATA.get(uid, {})
+    L = ["🕵️ <b>%s</b> (ID <code>%s</code>)" % (html.escape(d.get("name") or d.get("username") or uid), uid),
+         "💳 Saldo: <b>%s $SDG</b> · netto totale %s" % (fmt(d.get("coins", 0)), fmt(d.get("net_profit", 0))),
+         "🏁 Premi record oggi: %s/%d" % ((db["day"].get(uid) or {}).get("n", 0), webrace.MAX_REWARDS_DAY)]
+    for tid in webrace.TRACKS:
+        b = (db["best"].get(tid) or {}).get(uid)
+        if b is None:
+            continue
+        r = db["rec"].get(tid) or {}
+        why = webrace.check_run(tid, b, r.get("g")) if r.get("u") == uid else None
+        flag = " 🚩 RECORD" if r.get("u") == uid else ""
+        lim = " ⚠️ sotto il limite fisico (%s)" % webrace._fmt(webrace.floor_ms(tid)) if b < webrace.floor_ms(tid) else ""
+        L.append("• %s: %s%s%s%s" % (tid, webrace._fmt(b), flag, lim, (" ⚠️ " + why) if why else ""))
+    await msg.reply_text("\n".join(L), parse_mode="HTML")
+
+
+async def purge_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/purge: riverifica i record; /purge @utente: cancella i suoi tempi; opzionale 'saldo N' per sistemare il saldo."""
+    t = await _adm_target(update)
+    if t is None:
+        return
+    uid, rest = t
+    msg = update.effective_message
+    import webrace
+    out = webrace.purge(uid or None)
+    if uid and len(rest) >= 2 and rest[0].lower() == "saldo" and rest[1].lstrip("-").isdigit():
+        from storage import add_user_coins, get_user_coins
+        cur = int(get_user_coins(int(uid), int(uid))); new = max(0, int(rest[1]))
+        add_user_coins(int(uid), int(uid), new - cur)
+        out.append("saldo: %s → %s $SDG" % (fmt(cur), fmt(new)))
+    await msg.reply_text("🧹 <b>Fatto</b>\n" + ("\n".join(html.escape(x) for x in out[:60]) if out else "Nessun record sospetto."), parse_mode="HTML")
+
+
 def register(app):
     app.add_handler(CommandHandler("postgp", postgp_command))
     app.add_handler(CommandHandler(["annuncio", "dici"], annuncio_command))
     app.add_handler(CommandHandler("storico", storico_command))
+    app.add_handler(CommandHandler("cheat", cheat_command))
+    app.add_handler(CommandHandler("purge", purge_command))

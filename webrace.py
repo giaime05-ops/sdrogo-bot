@@ -60,6 +60,117 @@ def _view(uid):
             "rec": {tid: {"t": r["t"], "n": _name(r["u"]), "me": r["u"] == uid} for tid, r in db["rec"].items()}}
 
 
+# ---------------------------------------------------------------- anti-cheat
+_TRK = None
+VMAX_CHECK = 560.0                                # u/s: media massima su 3 giri (il picco col boost è 570, ma non si tiene a lungo)
+MAX_ITEMS_OFF = 0.03
+
+
+def _tracks():
+    global _TRK
+    if _TRK is None:
+        import json
+        import os
+        try:
+            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "race_tracks.json"), encoding="utf-8") as f:
+                _TRK = json.load(f)
+        except Exception as e:
+            logging.warning(f"race_tracks.json non letto: {e}")
+            _TRK = {}
+    return _TRK
+
+
+def floor_ms(tid):
+    t = _tracks().get(tid)
+    return int(3 * t["len"] / VMAX_CHECK * 1000) if t else MIN_MS
+
+
+def check_run(tid, ms, g):
+    """None se la corsa è fisicamente plausibile, altrimenti il motivo. Il server non rigioca la fisica: controlla che il
+    fantasma (posizione ogni 50 ms) sia coerente con il tempo dichiarato, non superi la velocità massima e faccia davvero 3 giri."""
+    import math
+    t = _tracks().get(tid)
+    if not t:
+        return None
+    if ms < floor_ms(tid):
+        return "tempo sotto il limite fisico della pista (%d ms)" % floor_ms(tid)
+    if not isinstance(g, list) or len(g) < 60 or len(g) % 3:
+        return "fantasma mancante"
+    if not all(isinstance(x, int) for x in g):
+        return "fantasma non valido"
+    n = len(g) // 3
+    dt = 50 if abs(ms - n * 50) <= 250 else (100 if abs(ms - n * 100) <= 400 else 0)
+    if not dt:
+        return "fantasma incoerente con il tempo (%d campioni, %d ms)" % (n, ms)
+    step_max = dt / 1000.0 * 640 + 8
+    path, big = 0.0, 0
+    for i in range(1, n):
+        d = math.hypot(g[i * 3] - g[i * 3 - 3], g[i * 3 + 1] - g[i * 3 - 2])
+        if d > step_max:                                   # i salti delle rampe valgono per pochi campioni
+            big += 1
+            if big > 9 or d > step_max * 4.5:
+                return "salto impossibile nel fantasma (%.0f unità)" % d
+        path += d
+    if path / (ms / 1000.0) > VMAX_CHECK * 1.02:
+        return "velocità media impossibile"
+    if path < 3 * t["len"] * 0.8:
+        return "percorso troppo corto per 3 giri"
+    w, hw = t["w"], t["hw"]
+    k = len(w)
+
+    def near(x, y):
+        return min(math.hypot(x - a, y - b) for a, b in w)
+    bad = 0
+    for i in range(0, n, 2):
+        if near(g[i * 3], g[i * 3 + 1]) > hw + 260:
+            bad += 1
+    if bad > MAX_ITEMS_OFF * (n / 2.0):
+        return "il fantasma esce dalla pista"
+    idx = min(range(k), key=lambda j: math.hypot(g[0] - w[j][0], g[1] - w[j][1]))
+    adv = 0
+    for i in range(n):
+        x, y = g[i * 3], g[i * 3 + 1]
+        for _ in range(4):
+            nx = (idx + 1) % k
+            if math.hypot(x - w[nx][0], y - w[nx][1]) < hw + 110:
+                idx = nx; adv += 1
+            else:
+                break
+    if adv < 3 * k - 4:
+        return "non completa 3 giri (%d/%d)" % (adv, 3 * k)
+    return None
+
+
+def purge(uid=None):
+    """Toglie i record non verificabili. uid: cancella tutti i tempi di quel giocatore; senza uid riverifica i record attuali.
+    Dopo, ogni record viene ricalcolato dal miglior tempo rimasto (senza fantasma, che non è conservato)."""
+    db = _db(); out = []
+    uid = str(uid) if uid is not None else None
+    for tid in TRACKS:
+        best = db["best"].setdefault(tid, {})
+        fl = floor_ms(tid)
+        for u in list(best):
+            if (uid and u == uid) or best[u] < fl:
+                out.append("%s: tolto %s di %s" % (tid, _fmt(best[u]), _name(u))); del best[u]
+        r = db["rec"].get(tid)
+        if r and (r["u"] not in best or r["t"] < fl or (not uid and not r.get("v") and check_run(tid, r["t"], r.get("g")))):
+            out.append("%s: record %s di %s annullato" % (tid, _fmt(r["t"]), _name(r["u"])))
+            best.pop(r["u"], None); del db["rec"][tid]
+            r = None
+        if tid not in db["rec"] and best:
+            u, t = min(best.items(), key=lambda kv: kv[1])
+            db["rec"][tid] = {"u": u, "t": t, "g": None, "v": 1}
+            out.append("%s: nuovo record %s di %s" % (tid, _fmt(t), _name(u)))
+    if uid:
+        db["day"].pop(uid, None)
+    _save()
+    return out
+
+
+def _fmt(ms):
+    return "%d:%02d.%02d" % (ms // 60000, (ms % 60000) // 1000, (ms % 1000) // 10)
+
+
 async def _co(fn, *a):
     return fn(*a)
 
@@ -164,6 +275,10 @@ def install(wa):
             return wa._err("Tempo non valido.")
         if g is not None and (not isinstance(g, list) or len(g) > MAX_GHOST or not all(isinstance(x, int) for x in g[:50])):
             g = None
+        why = check_run(tid, ms, g)
+        if why:
+            logging.warning("Record rifiutato (%s) uid=%s t=%s: %s", tid, user.get("id"), ms, why)
+            return wa._err("Tempo non convalidato dal server.")
         i = TRACKS.index(tid); uid = str(user["id"])
 
         def do():
