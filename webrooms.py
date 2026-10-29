@@ -23,6 +23,7 @@ GAMES = {"srf", "dadi", "hl", "tris", "rou", "rr", "ghig", "race", "poker", "bj"
 MAX_PLAYERS = {"srf": 2, "dadi": 2, "hl": 2, "tris": 2, "rou": 2, "rr": 2, "ghig": 2, "race": 8, "poker": 4, "bj": 4, "scopa": 4}
 MAX_STAKE = 5000
 MAX_EV, EV_BYTES = 600, 900
+ACT_OK = {"gp", "gp_single", "gp_quick", "gp_lobby", "gara", "multi", "tavoli", "sfide", "shop", "casino", "attivita", "classifica"}
 ROOM_IDLE = 900                      # secondi senza attività: la stanza si chiude (e le puntate tornano indietro)
 ROOMS = {}
 _L = threading.RLock()
@@ -82,12 +83,21 @@ def _gc():
             _refund(r)
 
 
+def _hist(uid, game, bet, pay, outcome=""):
+    try:
+        from storage import log_play
+        log_play(int(uid), "Online " + str(game), bet, pay, outcome)
+    except Exception as e:
+        logging.warning(f"Storico stanza non scritto: {e}")
+
+
 def _refund(r):
     if r["sim"] or r.get("refunded"):
         return
     r["refunded"] = True
     for p in r["players"]:
         if p.get("paid"):
+            _hist(p["uid"], str(r["game"]) + " (rimborso)", p["paid"], p["paid"], "rimborso")
             _move(p["uid"], p["paid"]); p["paid"] = 0
 
 
@@ -141,6 +151,8 @@ def _settle(r):
             if amt:
                 _move(u, amt)
         for p in r["players"]:
+            if p.get("paid") or pay.get(p["uid"]):
+                _hist(p["uid"], r["game"], p.get("paid", 0), pay.get(p["uid"], 0))
             p["paid"] = 0
     r["settled"] = {"order": order, "pay": pay, "sim": r["sim"]}
     r["status"] = "done"
@@ -249,6 +261,7 @@ def install(wa):
                 if not r["sim"]:
                     for p in r["players"]:
                         if p.get("paid"):
+                            _hist(p["uid"], str(r["game"]) + " (rimborso)", p["paid"], p["paid"], "rimborso")
                             wa._avi_call(_co(_move, p["uid"], p["paid"])); p["paid"] = 0
                     r["refunded"] = True
                 r["events"].append({"k": "leave", "u": uid}); r["status"] = "done"
@@ -257,6 +270,7 @@ def install(wa):
             r["invited"] = [x for x in r["invited"] if x != uid]   # chi esce non ha più un invito pendente
             me = next((p for p in r["players"] if p["uid"] == uid), None)
             if me and r["status"] == "lobby" and me.get("paid") and not r["sim"]:
+                _hist(uid, str(r["game"]) + " (rimborso)", me["paid"], me["paid"], "rimborso")
                 wa._avi_call(_co(_move, uid, me["paid"])); me["paid"] = 0
             r["players"] = [p for p in r["players"] if p["uid"] != uid]
             r["events"].append({"k": "leave", "u": uid}); r["act"] = _now()
@@ -313,6 +327,20 @@ def install(wa):
         with _L:
             r["invited"].append(to); r["act"] = _now()
         return jsonify({"success": True, "sent": True, "offline": offline, "dm": bool(ok)})
+
+    @bp.route("/api/act", methods=["POST", "OPTIONS"])
+    def act_log():
+        """Dove si trova l'utente (solo etichette ammesse): serve all'admin per capire cosa fanno le persone, senza registrare ogni tocco."""
+        if request.method == "OPTIONS":
+            return "", 204
+        user, data, err = post()
+        if err:
+            return err
+        a = str(data.get("a", ""))[:60]
+        if a.split(":")[0] in ACT_OK and all(ch.isalnum() or ch in " :_-.·" for ch in a):
+            from storage import log_act
+            log_act(user["id"], a)
+        return jsonify({"success": True})
 
     @bp.route("/api/room/mine", methods=["GET", "OPTIONS"])
     def room_mine():

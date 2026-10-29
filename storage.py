@@ -43,7 +43,7 @@ DB_PATH = os.environ.get("DB_PATH") or (
 )
 
 BANCO_INITIAL = 1000        # valore iniziale del Banco Centrale se è a zero o non inizializzato
-HISTORY_MAX = 20            # giocate ricordate per utente (cronologia circolare, comando /storico)
+HISTORY_MAX = 60            # giocate ricordate per utente (cronologia circolare, comando /storico)
 SANDBOX_COINS = 10000       # saldo di partenza del profilo di prova dell'admin
 HEIST_PASS = 150            # costo del pass Heist (per il rimborso in caso di riavvio)
 
@@ -826,6 +826,26 @@ def log_play(user_id, game: str, bet: int, payout: int, outcome: str = ""):
     if len(hist) > HISTORY_MAX:
         del hist[:-HISTORY_MAX]
     save_db()
+
+
+ACT_MAX = 40
+
+
+def log_act(user_id, label: str):
+    """Registra DOVE si trova l'utente (sezione/schermata aperta, gara avviata...): visibile in /storico accanto alle spese. Non salva subito su disco."""
+    key = ukey(user_id)
+    if key.startswith("sbx_"):
+        return
+    d = USER_DATA.get(key)
+    if d is None:
+        return
+    now = int(time.time()); acts = d.setdefault("acts", [])
+    if acts and acts[-1].get("a") == label and now - acts[-1].get("t", 0) < 20:
+        return
+    _touched_users.add(key)
+    acts.append({"t": now, "a": str(label)[:60]})
+    if len(acts) > ACT_MAX:
+        del acts[:-ACT_MAX]
 
 
 LAST_SEEN = {}            # user_id (str) -> istante dell'ultimo messaggio/tasto (solo memoria)

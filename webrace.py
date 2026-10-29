@@ -129,6 +129,11 @@ def install(wa):
             except Exception as e:
                 logging.warning(f"Banco non aggiornato per lo sblocco: {e}")
             save_db()
+            try:
+                from storage import log_play
+                log_play(uid, "Sblocco pista " + tid, PRICE[i], 0, "spesa")
+            except Exception as e:
+                logging.warning(f"Storico sblocco non scritto: {e}")
             return {"ok": True, "price": PRICE[i]}
         resp, out = wa._avi_call(_co(do))
         if resp is not None:
@@ -184,6 +189,12 @@ def install(wa):
                 if reward:
                     add_user_coins(int(uid), int(uid), reward)          # generati dal server: il Banco non si tocca
             save_db()
+            if new_rec:
+                try:
+                    from storage import log_play
+                    log_play(int(uid), "Record %s %d.%02d" % (tid, ms // 1000, (ms % 1000) // 10), 0, reward, "vinta" if reward else "record")
+                except Exception as e:
+                    logging.warning(f"Storico record non scritto: {e}")
             rows = sorted((db["best"].get(tid) or {}).items(), key=lambda kv: kv[1])
             pos = [u for u, _ in rows].index(uid) + 1 if uid in dict(rows) else 0
             return {"record": new_rec, "reward": reward, "pos": pos, "of": len(rows)}

@@ -132,20 +132,76 @@ async def storico_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"giocate single: {d.get('single_played', 0)} · duelli: {d.get('duels_played', 0)}\n"
         f"⏱️ Tempo d'uso: <b>{_hm(d.get('use_secs', 0))}</b> totali · questa settimana <b>{_hm((d.get('use_wk') or {}).get(_wk_now(), 0))}</b>\n"
     )
-    if not hist:
+    if not hist and not d.get("acts"):
         await msg.reply_text(head + "\nNessuna giocata registrata (la cronologia parte dall'aggiornamento).", parse_mode="HTML")
         return
-    icon = {"vinta": "✅", "persa": "❌", "pareggio": "⚖️"}
+    icon = {"vinta": "✅", "persa": "❌", "pareggio": "⚖️", "spesa": "🛒", "record": "🏆", "rimborso": "↩️"}
+    rows = [(h["t"], "p", h) for h in hist] + [(a["t"], "a", a) for a in d.get("acts", [])]
+    rows.sort(key=lambda x: x[0], reverse=True)                # dalla più recente: spese e movimenti insieme alle sezioni aperte
     lines = []
-    for h in reversed(hist):                                # dalla più recente
+    for t, kind, h in rows:
+        if kind == "a":
+            lines.append(f"👣 <code>{_rome_from_ts(h['t'])}</code> {html.escape(h['a'])}")
+            continue
         net = h["w"] - h["b"]
         lines.append(
             f"{icon.get(h['o'], '•')} <code>{_rome_from_ts(h['t'])}</code> <b>{html.escape(h['g'])}</b> · "
             f"puntata {fmt(h['b'])} · incasso {fmt(h['w'])} (<b>{'+' if net >= 0 else '-'}{fmt(abs(net))}</b>)")
-    text = head + f"\nUltime {len(hist)} giocate (dalla più recente):\n" + "\n".join(lines)
-    await msg.reply_text(text[:4096], parse_mode="HTML")
+    chunks, cur = [], head + f"\nUltimi {len(rows)} eventi (👣 = sezione aperta, dal più recente):\n"
+    for ln in lines:
+        if len(cur) + len(ln) + 1 > 3900:
+            chunks.append(cur); cur = ""
+        cur += ln + "\n"
+    chunks.append(cur)
+    for ch in chunks[:4]:
+        await msg.reply_text(ch, parse_mode="HTML")
+
+
+async def postgp_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/postgp: pubblica nel gruppo l'immagine del Grand Prix con il tasto "🏁 Corri adesso" (link diretto: apre l'Arcade sul Grand Prix, già col tuo account)."""
+    import os
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    msg = update.effective_message
+    user = update.effective_user
+    chat = update.effective_chat
+    if not msg or not user or not is_admin(user.id):
+        return
+    if chat.type != "private":
+        await msg.reply_text("🔒 Usa /postgp in chat privata con me: il messaggio verrà pubblicato nel gruppo.")
+        return
+    link = (os.environ.get("ARCADE_LINK") or "").strip()
+    if link and not link.lower().startswith(("http://", "https://", "tg://")):
+        link = "https://" + link.lstrip("/")
+    if "t.me/" not in link:
+        await msg.reply_text(
+            "⚠️ Serve il link diretto della mini app (quello di BotFather, tipo <code>https://t.me/NomeBot/nomeapp</code>) nella variabile "
+            "<b>ARCADE_LINK</b> su Northflank. Senza, nel gruppo il tasto non può aprire la mini app con il tuo account.", parse_mode="HTML")
+        return
+    url = link + ("&" if "?" in link else "?") + "startapp=grandprix"
+    gid = main_chat_id()
+    if not gid:
+        await msg.reply_text("⚠️ GROUP_CHAT_ID non impostato.")
+        return
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton("🏁 Corri adesso", url=url)]])
+    cap = "🏎️ <b>SDROGO GRAND PRIX</b>\nGiri a tempo, gare e lobby con gli amici. Batti il record della pista!"
+    img = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "gp_banner.jpg")
+    try:
+        if os.path.exists(img):
+            with open(img, "rb") as f:
+                sent = await context.bot.send_photo(gid, f, caption=cap, parse_mode="HTML", reply_markup=kb)
+        else:
+            sent = await context.bot.send_message(gid, cap, parse_mode="HTML", reply_markup=kb)
+        pinned = True
+        try:
+            await context.bot.pin_chat_message(gid, sent.message_id, disable_notification=True)
+        except (BadRequest, Forbidden):
+            pinned = False
+        await msg.reply_text("✅ Pubblicato nel gruppo" + (" e fissato in alto." if pinned else " (non l'ho fissato: mi serve il permesso di fissare messaggi)."))
+    except (BadRequest, Forbidden) as e:
+        await msg.reply_text(f"❌ Non sono riuscito a pubblicare: {e}")
 
 
 def register(app):
+    app.add_handler(CommandHandler("postgp", postgp_command))
     app.add_handler(CommandHandler(["annuncio", "dici"], annuncio_command))
     app.add_handler(CommandHandler("storico", storico_command))
