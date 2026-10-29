@@ -457,6 +457,13 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         SYSTEM_FLAGS["MULTI_PUBLIC"] = not SYSTEM_FLAGS.get("MULTI_PUBLIC", False)
         if SYSTEM_FLAGS["MULTI_PUBLIC"]:
             SYSTEM_FLAGS["ARCADE_PUBLIC"] = True       # senza mini app aperta il tasto "Apri Arcade" non avrebbe senso
+            try:                                    # e il pulsante blu "Apri Arcade" in chat privata diventa per tutti
+                from telegram import MenuButtonWebApp, WebAppInfo
+                import os as _os
+                await context.bot.set_chat_menu_button(menu_button=MenuButtonWebApp(
+                    text="🎮 Apri Arcade", web_app=WebAppInfo(url=_os.environ.get("ARCADE_URL", "https://giaime05-ops.github.io/sdrogobot-arcade/"))))
+            except Exception as e:
+                logging.warning(f"Pulsante Arcade per tutti non aggiornato: {e}")
         save_db()                                   # persistente: sopravvive ai riavvii
         await query.answer("🟢 MULTIPLAYER APERTO A TUTTI: la mini app mostra Multiplayer e /sdrogocomm diventa solo profilo + Apri Arcade (+ Quiz)."
                            if SYSTEM_FLAGS["MULTI_PUBLIC"] else "🔴 Multiplayer di nuovo solo nell'account di prova, /sdrogocomm com'era.", show_alert=True)
