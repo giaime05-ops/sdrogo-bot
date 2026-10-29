@@ -9,6 +9,7 @@ LB = {                                   # stessi campi e stesse categorie di /t
     "casino":  {"title": "Re del Casinò",  "icon": "🎰", "field": "casino_wins", "unit": "vittorie"},
     "quizzes": {"title": "Re dei Quiz",    "icon": "🧠", "field": "quizzes_won", "unit": "quiz vinti"},
     "duels":   {"title": "Re dei Duelli",  "icon": "⚔️", "field": "duels_wins",  "unit": "duelli vinti"},
+    "podi":    {"title": "Re delle Gare",  "icon": "🏆", "field": "mp_g1",       "unit": "primi posti"},   # gare online tra persone: ori, argenti, bronzi
 }
 TOP_N = 10
 
@@ -195,16 +196,21 @@ def leaderboard(uid: int, cat: str) -> dict:
         if str(k).startswith("sbx_"):                       # profili di prova dell'admin: mai in classifica
             continue
         v = int(d.get(field, 0) or 0)
+        if cat == "podi":
+            v = int(d.get("mp_g1", 0) or 0) * 1000000 + int(d.get("mp_g2", 0) or 0) * 1000 + int(d.get("mp_g3", 0) or 0)
         if v > 0:
             rows.append((str(k), v, d))
     rows.sort(key=lambda r: r[1], reverse=True)
     me = ukey(uid)
     top = [{"rank": i, "name": _name(k, d), "value": v, "me": k == str(uid), "badge": badge_of(d), "pid": _pid(k), "style": _style(d)}
            for i, (k, v, d) in enumerate(rows[:TOP_N], start=1)]
+    if cat == "podi":                                         # per le gare: medaglie di ognuno al posto del solo numero
+        for t, (k, v, d) in zip(top, rows[:TOP_N]):
+            t["value"] = int(d.get("mp_g1", 0) or 0); t["extra"] = "🥇%d  🥈%d  🥉%d" % (int(d.get("mp_g1", 0) or 0), int(d.get("mp_g2", 0) or 0), int(d.get("mp_g3", 0) or 0))
     mine = None
     for i, (k, v, d) in enumerate(rows, start=1):
         if k == str(uid):
-            mine = {"rank": i, "value": v}
+            mine = {"rank": i, "value": int(d.get("mp_g1", 0) or 0) if cat == "podi" else v}
             break
     if mine is None and not me.startswith("sbx_"):
         mine = {"rank": None, "value": int((USER_DATA.get(me) or {}).get(field, 0) or 0)}

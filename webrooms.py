@@ -39,7 +39,7 @@ def _view(r, uid):
                          "online": _now() - p["seen"] < 12} for p in r["players"]],
             "invited": r["invited"], "n": len(r["events"]), "me": uid, "result": r.get("settled"),
             "away": max(0, int(r["closeAt"] - _now())) if r.get("closeAt") else 0, "st": round(_now(), 3),
-            "sy": {"rdy": r.get("rdy", {}), "go": r.get("go", {}), "q": r.get("q", {}), "grid": r.get("gridv")}}
+            "round": r.get("round", 0), "sy": {"rdy": r.get("rdy", {}), "go": r.get("go", {}), "q": r.get("q", {}), "grid": r.get("gridv")}}
 
 
 def _prof(uid):
@@ -167,6 +167,15 @@ def _settle(r):
             if p.get("paid") or pay.get(p["uid"]):
                 _hist(p["uid"], r["game"], p.get("paid", 0), pay.get(p["uid"], 0))
             p["paid"] = 0
+    if r["game"] == "race" and not r["sim"] and len(r["players"]) >= 2:      # classifica dei podi: solo gare online vere, tra persone
+        try:
+            from storage import add_user_stat
+            for i, u in enumerate(order[:3]):
+                add_user_stat(int(u), int(u), "mp_g%d" % (i + 1), 1)
+            for u in order:
+                add_user_stat(int(u), int(u), "mp_played", 1)
+        except Exception as e:
+            logging.warning(f"Podi non salvati: {e}")
     r["settled"] = {"order": order, "pay": pay, "sim": r["sim"]}
     r["status"] = "done"
     return True
@@ -407,6 +416,50 @@ def install(wa):
             me["col"] = c; me["seen"] = _now(); r["act"] = _now()
         return jsonify({"success": True, "room": _view(r, str(user["id"]))})
 
+    @bp.route("/api/room/rematch", methods=["POST", "OPTIONS"])
+    def room_rematch():
+        """Finita la gara si resta nella stessa lobby: tutti tornano "non pronti" e l'host può riavviare."""
+        if request.method == "OPTIONS":
+            return "", 204
+        user, data, err = post()
+        if err:
+            return err
+        r, e = need(data.get("id"), user)
+        if e:
+            return e
+        uid = str(user["id"])
+        try:
+            rnd = int(data.get("round", -1))
+        except (TypeError, ValueError):
+            rnd = -1
+        if r["status"] == "run" and rnd == r.get("round", 0):
+            resp, ok = wa._avi_call(_co(lambda: _settle_locked(r)))      # prima si paga il premio (se la maggioranza ha votato)
+            if resp is not None:
+                return resp
+            if not ok and _now() - r.get("t0", _now()) < 150:
+                return jsonify({"success": True, "wait": True})
+            if not ok:
+                with _L:
+                    _refund(r)
+                    r["settled"] = {"order": [], "pay": {}, "sim": r["sim"], "refund": True}; r["status"] = "done"
+        with _L:
+            if r["status"] == "done" and rnd == r.get("round", 0):
+                now = _now()
+                r["status"] = "lobby"; r["go"] = {}; r["rdy"] = {}; r["q"] = {}; r["gridv"] = None; r["votes"] = {}; r.pop("settled", None); r.pop("closeAt", None)
+                r["players"] = [p for p in r["players"] if p["uid"] == r["host"] or now - p["seen"] < 45 or p["uid"] == uid]
+                for p in r["players"]:
+                    p["ready"] = False
+                    if p["uid"] == uid:
+                        p["seen"] = now
+                r["events"].append({"k": "rematch", "n": r.get("round", 0)}); r["act"] = now
+            elif r["status"] != "lobby" or not any(p["uid"] == uid for p in r["players"]):
+                return wa._err("La gara è già ripartita.", 409)
+            else:
+                for p in r["players"]:
+                    if p["uid"] == uid:
+                        p["seen"] = _now()
+        return jsonify({"success": True, "room": _view(r, uid)})
+
     @bp.route("/api/room/ready", methods=["POST", "OPTIONS"])
     def room_ready():
         if request.method == "OPTIONS":
@@ -505,7 +558,7 @@ def install(wa):
             if late:
                 return wa._err("Non tutti sono pronti: " + ", ".join(late[:3]))
         with _L:
-            r["go"] = {}; r["rdy"] = {}; r["q"] = {}; r["gridv"] = None; r.pop("closeAt", None)
+            r["go"] = {}; r["rdy"] = {}; r["q"] = {}; r["gridv"] = None; r.pop("closeAt", None); r["round"] = r.get("round", 0) + 1; r["t0"] = _now()
             r["status"] = "run"; r["act"] = _now(); r["events"].append({"k": "start", "t": round(_now(), 3), "seed": secrets.randbelow(2 ** 31), "order": [p["uid"] for p in r["players"]]})
         return jsonify({"success": True, "room": _view(r, str(user["id"]))})
 

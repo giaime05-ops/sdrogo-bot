@@ -201,7 +201,7 @@ GROUP_MAX_PER_MIN = int(os.environ.get("GROUP_MAX_PER_MIN", "20"))  # NUOVI mess
 _SEND_ENDPOINTS = {"sendMessage", "sendPhoto", "sendDocument", "sendAnimation", "sendSticker", "sendDice",
                    "sendVideo", "sendAudio", "sendVoice", "sendPoll", "sendMediaGroup"}
 _THROTTLED = _SEND_ENDPOINTS | {"editMessageText", "editMessageReplyMarkup", "editMessageCaption", "deleteMessage",
-                                "pinChatMessage", "unpinChatMessage", "editMessageMedia"}
+                                "pinChatMessage", "unpinChatMessage", "unpinAllChatMessages", "editMessageMedia"}
 
 
 class ChatRateLimiter(BaseRateLimiter):

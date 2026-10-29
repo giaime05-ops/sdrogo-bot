@@ -676,6 +676,10 @@ async def backup_now(bot):
                 chat_id=int(BACKUP_CHAT_ID), document=f, filename="sdrogo_backup.db",
                 caption=f"Backup DB SdrogoBot - {_rome_stamp()}")
         try:
+            try:                                                      # il nuovo backup sostituisce quello fissato prima: niente migliaia di messaggi fissati
+                await bot.unpin_all_chat_messages(chat_id=int(BACKUP_CHAT_ID))
+            except Exception as e:
+                logging.warning(f"Unpin backup precedente: {e}")
             await bot.pin_chat_message(chat_id=int(BACKUP_CHAT_ID), message_id=msg.message_id, disable_notification=True)
         except Exception as e:
             logging.error(f"Errore pin backup: {e}")

@@ -158,7 +158,7 @@ async def storico_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def postgp_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/postgp: pubblica nel gruppo l'immagine del Grand Prix con il tasto "🏁 Corri adesso" (link diretto: apre l'Arcade sul Grand Prix, già col tuo account)."""
+    """/postgp: pubblica nel gruppo l'immagine del Multiplayer (tavoli, 1 vs 1, Grand Prix) con il tasto "🎮 Gioca adesso" (link diretto: apre l'Arcade sul Multiplayer, già col tuo account)."""
     import os
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     msg = update.effective_message
@@ -177,14 +177,14 @@ async def postgp_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⚠️ Serve il link diretto della mini app (quello di BotFather, tipo <code>https://t.me/NomeBot/nomeapp</code>) nella variabile "
             "<b>ARCADE_LINK</b> su Northflank. Senza, nel gruppo il tasto non può aprire la mini app con il tuo account.", parse_mode="HTML")
         return
-    url = link + ("&" if "?" in link else "?") + "startapp=grandprix"
+    url = link + ("&" if "?" in link else "?") + "startapp=multiplayer"
     gid = main_chat_id()
     if not gid:
         await msg.reply_text("⚠️ GROUP_CHAT_ID non impostato.")
         return
-    kb = InlineKeyboardMarkup([[InlineKeyboardButton("🏁 Corri adesso", url=url)]])
-    cap = "🏎️ <b>SDROGO GRAND PRIX</b>\nGiri a tempo, gare e lobby con gli amici. Batti il record della pista!"
-    img = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "gp_banner.jpg")
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton("🎮 Gioca adesso", url=url)]])
+    cap = "🎮 <b>SDROGO MULTIPLAYER</b>\nTavoli, sfide 1 contro 1 e Grand Prix con gli amici. Entra e gioca!"
+    img = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "mp_banner.jpg")
     try:
         if os.path.exists(img):
             with open(img, "rb") as f:
