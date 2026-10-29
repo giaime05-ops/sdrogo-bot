@@ -35,7 +35,7 @@ def _now():
 
 def _view(r, uid):
     return {"id": r["id"], "game": r["game"], "host": r["host"], "status": r["status"], "cfg": r["cfg"], "sim": r["sim"],
-            "players": [{"uid": p["uid"], "pid": p["pid"], "name": p["name"], "style": p["style"], "ready": p["ready"],
+            "players": [{"uid": p["uid"], "pid": p["pid"], "name": p["name"], "style": p["style"], "ready": p["ready"], "col": p.get("col"),
                          "online": _now() - p["seen"] < 12} for p in r["players"]],
             "invited": r["invited"], "n": len(r["events"]), "me": uid, "result": r.get("settled"),
             "away": max(0, int(r["closeAt"] - _now())) if r.get("closeAt") else 0, "st": round(_now(), 3),
@@ -385,6 +385,28 @@ def install(wa):
             r["events"].append({"k": "leave", "u": tg}); r["act"] = _now()
         return jsonify({"success": True, "room": _view(r, uid)})
 
+    @bp.route("/api/room/color", methods=["POST", "OPTIONS"])
+    def room_color():
+        """Ognuno sceglie il colore della propria auto in lobby (0-7)."""
+        if request.method == "OPTIONS":
+            return "", 204
+        user, data, err = post()
+        if err:
+            return err
+        r, e = need(data.get("id"), user)
+        if e:
+            return e
+        try:
+            c = int(data.get("col"))
+        except (TypeError, ValueError):
+            return wa._err("Colore non valido.")
+        with _L:
+            me = next((p for p in r["players"] if p["uid"] == str(user["id"])), None)
+            if not me or r["status"] != "lobby" or not 0 <= c <= 7:
+                return wa._err("Non puoi cambiare colore.")
+            me["col"] = c; me["seen"] = _now(); r["act"] = _now()
+        return jsonify({"success": True, "room": _view(r, str(user["id"]))})
+
     @bp.route("/api/room/ready", methods=["POST", "OPTIONS"])
     def room_ready():
         if request.method == "OPTIONS":
@@ -691,4 +713,4 @@ def install(wa):
             base = r.get("base", 0)
             evs = [e for e in r["events"][max(0, since - base):] if "to" not in e or uid in e["to"]]
             v = _view(r, uid); n = base + len(r["events"])
-        return jsonify({"success": True, "room": v, "events": evs, "n": n})
+        return jsonify({"success": True, "room": v, "events": evs, "n": n, "from": max(since, base)})
