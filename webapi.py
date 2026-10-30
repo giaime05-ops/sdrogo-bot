@@ -108,6 +108,7 @@ GROUP_CHAT_ID = os.environ.get("GROUP_CHAT_ID") or getattr(config, "GROUP_CHAT_I
 EXTRA_IDS = {x.strip() for x in (os.environ.get("ARCADE_EXTRA_IDS") or "").split(",") if x.strip()}
 MEMBER_TTL_OK, MEMBER_TTL_NO = 600, 60              # secondi: quanto si ricorda "è nel gruppo" / "non è nel gruppo"
 _MEMBER_CACHE = {}
+_FAIL_LOG = {}
 
 
 def _is_admin_id(uid) -> bool:
@@ -132,8 +133,14 @@ def _is_member(uid) -> bool:
     try:
         ok = bool(_run(_member_check(uid), timeout=6.0))
     except Exception as e:
-        logging.warning(f"Controllo membro gruppo fallito per {uid}: {e}")
-        return False
+        # Telegram non risponde: non si riprova a ogni richiesta (intaserebbe la coda e bloccherebbe i comandi).
+        # Chi era già stato riconosciuto resta ammesso per un po'; gli altri vengono negati, ma solo per pochi secondi.
+        stale = hit[0] if hit else False
+        _MEMBER_CACHE[str(uid)] = (stale, now + 20)
+        if _FAIL_LOG.get(str(uid), 0) < now:
+            _FAIL_LOG[str(uid)] = now + 60
+            logging.warning(f"Controllo membro gruppo fallito per {uid}: {e or type(e).__name__}")
+        return stale
     _MEMBER_CACHE[str(uid)] = (ok, now + (MEMBER_TTL_OK if ok else MEMBER_TTL_NO))
     return ok
 
