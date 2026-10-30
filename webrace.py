@@ -167,6 +167,33 @@ def purge(uid=None):
     return out
 
 
+TRACK_NAMES = {"neon": "Neon Circuit", "serp": "Serpentina", "tornanti": "Tornanti", "salto": "Valle Verde", "zigzag": "Zig Zag",
+               "gp": "Sdrogo Ring", "canyon": "Canyon Rush", "costa": "Costa Blu", "downtown": "Downtown Night", "skyline": "Skyline Neon"}
+ANNOUNCE_MIN_GAIN_MS = 500                       # se il record è già tuo, si annuncia solo se lo migliori almeno di mezzo secondo (niente spam)
+
+
+def announce_record(uid, tid, ms, prev):
+    """Messaggio nel gruppo quando qualcuno fa il record assoluto di una pista (3 giri, Singolo)."""
+    import asyncio
+    import html as _h
+    try:
+        import economy
+        bot, target = economy._BOT, economy.main_chat_id()
+        if bot is None or not target:
+            return
+        text = ("🏁 <b>NUOVO RECORD!</b>\n\n<b>%s</b> ha fatto il record della pista <b>%s</b> in <b>%s</b>! 🏆"
+                % (_h.escape(_name(uid)), _h.escape(TRACK_NAMES.get(tid, tid)), _fmt(ms)))
+        if prev and prev["u"] != str(uid):
+            text += "\nPrima: %s con %s" % (_h.escape(_name(prev["u"])), _fmt(prev["t"]))
+        coro = bot.send_message(chat_id=target, text=text, parse_mode="HTML")
+        try:
+            asyncio.get_running_loop().create_task(coro)
+        except RuntimeError:
+            coro.close()
+    except Exception as e:
+        logging.warning(f"Annuncio record non inviato: {e}")
+
+
 def _fmt(ms):
     return "%d:%02d.%02d" % (ms // 60000, (ms % 60000) // 1000, (ms % 1000) // 10)
 
@@ -301,6 +328,8 @@ def install(wa):
                 if gain_ok and dd["n"] < MAX_REWARDS_DAY:
                     reward = REWARD[i]; dd["n"] += 1
                 db["rec"][tid] = {"u": uid, "t": ms, "g": g}
+                if cur is None or cur["u"] != uid or cur["t"] - ms >= ANNOUNCE_MIN_GAIN_MS:
+                    announce_record(uid, tid, ms, cur)
                 if reward:
                     add_user_coins(int(uid), int(uid), reward)          # generati dal server: il Banco non si tocca
             save_db()
