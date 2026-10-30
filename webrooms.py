@@ -12,7 +12,9 @@ Come funziona (semplice e robusto, nessun pacchetto in più):
   * inviti: messaggio privato del bot con il pulsante "Apri Arcade"; se l'amico è offline viene anche taggato nel gruppo.
 Tutto passa da require_admin() di webapi: stessi permessi, stesso interruttore "Multiplayer per tutti".
 """
+import html as _html
 import logging
+import os
 import secrets
 import threading
 import time
@@ -66,6 +68,85 @@ def _uid_of_pid(pid):
     return None
 
 
+def _deeplink(rid):
+    """Link t.me che apre la mini app DIRETTAMENTE in quella lobby, già col proprio account (un link github.io normale si aprirebbe nel browser, senza account)."""
+    link = (os.environ.get("ARCADE_LINK") or "").strip().rstrip("/")
+    return f"{link}?startapp=room_{rid}" if link else ""
+
+
+_ANN_LAST = {}                       # host -> ultimo annuncio nel gruppo (al massimo uno ogni 10 minuti per persona)
+ANN_DELAY = 40                       # secondi di attesa: l'host fa in tempo a scegliere pista e regole prima che il messaggio parta
+
+
+def _announce_later(rid):
+    t = threading.Timer(ANN_DELAY, _announce, (rid,)); t.daemon = True; t.start()
+
+
+def _announce(rid):
+    """Lobby pubblica del Grand Prix → messaggio nel gruppo con il pulsante che porta dentro la stanza."""
+    try:
+        import webapi as wa
+        from state import SYSTEM_FLAGS
+        link = _deeplink(rid)
+        if not link or not wa.GROUP_CHAT_ID or not SYSTEM_FLAGS.get("ROOM_ANNOUNCE", True):
+            return
+        with _L:
+            r = ROOMS.get(rid)
+            if not r or r["game"] != "race" or r["sim"] or r["status"] != "lobby" or r.get("closeAt") or r.get("gmsg"):
+                return
+            x = r["cfg"].get("x") or {}
+            h = next((p for p in r["players"] if p["uid"] == r["host"]), None)
+            if not x.get("vis", 1) or not h or _now() - h["seen"] > 40 or len(r["players"]) >= r["cfg"]["max"]:
+                return
+            if _now() - _ANN_LAST.get(r["host"], 0) < 600:
+                return
+            _ANN_LAST[r["host"]] = _now()
+            try:
+                from webrace import TRACK_NAMES
+            except Exception:
+                TRACK_NAMES = {}
+            c = r["cfg"]
+            txt = (f"🏁 <b>{_html.escape(h['name'])}</b> ha aperto una lobby pubblica di Grand Prix\n"
+                   f"📍 {_html.escape(TRACK_NAMES.get(c['track'], c['track'] or 'pista'))} · {c['laps']} giri"
+                   + (" · qualifica" if x.get("qual") else "") + (" · " + ["", "🌦 pioggia leggera", "🌧 pioggia forte"][min(2, int(x.get("rain", 0) or 0))] if x.get("rain") else "")
+                   + (f" · 🏆 premio {c['prize']} $SDG" if c.get("prize") else "")
+                   + f"\n👥 {len(r['players'])}/{c['max']} piloti\n\nEntra con un tocco 👇")
+            host = r["host"]
+        async def send():
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            m = await wa._bot().send_message(int(wa.GROUP_CHAT_ID), txt, parse_mode="HTML",
+                                             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏁 Entra nella lobby", url=link)]]))
+            return m.message_id
+        mid = wa._run(send())
+        with _L:
+            r2 = ROOMS.get(rid)
+            if r2 is not None:
+                r2["gmsg"] = (int(wa.GROUP_CHAT_ID), mid, txt)
+            else:
+                _ann_close_msg((int(wa.GROUP_CHAT_ID), mid, txt), "lobby chiusa")
+    except Exception as e:
+        logging.info(f"Annuncio lobby nel gruppo non riuscito: {e}")
+
+
+def _ann_close_msg(g, why):
+    def go():
+        try:
+            import webapi as wa
+            async def ed():
+                head = g[2].split("\n")[0]
+                await wa._bot().edit_message_text(f"{head}\n— {why}", chat_id=g[0], message_id=g[1], parse_mode="HTML", reply_markup=None)
+            wa._run(ed())
+        except Exception as e:
+            logging.info(f"Messaggio della lobby non aggiornato: {e}")
+    threading.Thread(target=go, daemon=True).start()
+
+
+def _ann_close(r, why):
+    g = r.pop("gmsg", None)
+    if g:
+        _ann_close_msg(g, why)
+
+
 def _x(d):
     out = {}
     if isinstance(d, dict):
@@ -90,13 +171,14 @@ def _gc():
     for rid in [k for k, r in ROOMS.items() if now - r["act"] > ROOM_IDLE or (r.get("closeAt") and now > r["closeAt"])]:
         r = ROOMS.pop(rid)
         r["events"].append({"k": "leave", "u": r["host"]})
+        _ann_close(r, "lobby chiusa")
         if r["status"] != "done":
             _refund(r)
     for r in list(ROOMS.values()):                                    # in lobby chi sparisce per più di 60 s esce da solo (con la puntata restituita)
         if r["status"] != "lobby" or r["game"] != "race":
             continue
         for p in list(r["players"]):
-            if p["uid"] != r["host"] and now - p["seen"] > 60:
+            if p["uid"] != r["host"] and now - p["seen"] > 60 and now > p.get("rm", 0):          # "rm": dopo la gara chi è ancora sulla schermata dei risultati ha qualche minuto per tornare
                 if p.get("paid") and not r["sim"]:
                     _hist(p["uid"], str(r["game"]) + " (rimborso)", p["paid"], p["paid"], "rimborso")
                     _move(p["uid"], p["paid"]); p["paid"] = 0
@@ -321,6 +403,8 @@ def install(wa):
              "players": [p], "invited": [], "events": [], "votes": {}}
         with _L:
             ROOMS[r["id"]] = r
+        if game == "race" and not sim:
+            _announce_later(r["id"])
         return jsonify({"success": True, "room": _view(r, uid)})
 
     @bp.route("/api/room/join", methods=["POST", "OPTIONS"])
@@ -380,6 +464,7 @@ def install(wa):
                             wa._avi_call(_co(_move, p["uid"], p["paid"])); p["paid"] = 0
                     r["refunded"] = True
                 r["events"].append({"k": "leave", "u": uid}); r["status"] = "done"
+                _ann_close(r, "lobby chiusa")
                 ROOMS.pop(r["id"], None)
                 return jsonify({"success": True, "closed": True})
             r["invited"] = [x for x in r["invited"] if x != uid]   # chi esce non ha più un invito pendente
@@ -420,19 +505,21 @@ def install(wa):
         label = {"race": "Grand Prix", "poker": "Poker", "bj": "Blackjack", "scopa": "Scopa", "dadi": "Dadi", "tris": "Tris", "srf": "Sasso-Carta-Forbici",
                  "hl": "Alto/Basso", "rou": "Roulette", "rr": "Roulette russa", "ghig": "Ghigliottina"}.get(r["game"], r["game"])
         stake = r["cfg"]["stake"]
-        txt = f"🎮 {me['name']} ti invita a una partita di {label}" + (f" (puntata {stake} $SDG)" if stake and not r["sim"] else "") + ".\nApri Sdrogo Arcade → Multiplayer → Inviti."
+        txt = f"🎮 {me['name']} ti invita a una partita di {label}" + (f" (puntata {stake} $SDG)" if stake and not r["sim"] else "") + ".\n" + ("Tocca il pulsante per entrare." if _deeplink(r["id"]) else "Apri Sdrogo Arcade → Multiplayer → Inviti.")
 
         async def send():
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             bot = wa._bot(); ok = False
-            kb = InlineKeyboardMarkup([[InlineKeyboardButton("🎮 Apri Arcade", url=wa.ARCADE_ORIGIN + "/sdrogobot-arcade/")]])
+            dl = _deeplink(r["id"])
+            kb = InlineKeyboardMarkup([[InlineKeyboardButton("🏁 Entra nella lobby" if dl else "🎮 Apri Arcade", url=dl or (wa.ARCADE_ORIGIN + "/sdrogobot-arcade/"))]])
             try:
                 await bot.send_message(int(to), txt, reply_markup=kb); ok = True
             except Exception as ex:
                 logging.info(f"Invito in privato non consegnato a {to}: {ex}")
             if (offline or not ok) and wa.GROUP_CHAT_ID:
                 try:
-                    await bot.send_message(int(wa.GROUP_CHAT_ID), f"🎮 <a href=\"tg://user?id={int(to)}\">{_prof(to)['name']}</a>, {me['name']} ti aspetta in una lobby di {label}!", parse_mode="HTML")
+                    await bot.send_message(int(wa.GROUP_CHAT_ID), f"🎮 <a href=\"tg://user?id={int(to)}\">{_prof(to)['name']}</a>, {me['name']} ti aspetta in una lobby di {label}!", parse_mode="HTML",
+                                           reply_markup=(InlineKeyboardMarkup([[InlineKeyboardButton("🏁 Entra nella lobby", url=dl)]]) if dl else None))
                 except Exception as ex:
                     logging.info(f"Tag nel gruppo non riuscito: {ex}")
             return ok
@@ -534,18 +621,20 @@ def install(wa):
             if r["status"] == "done" and rnd == r.get("round", 0):
                 now = _now()
                 r["status"] = "lobby"; r["go"] = {}; r["rdy"] = {}; r["q"] = {}; r["gridv"] = None; r["votes"] = {}; r.pop("settled", None); r.pop("closeAt", None)
-                r["players"] = [p for p in r["players"] if p["uid"] == r["host"] or now - p["seen"] < 45 or p["uid"] == uid]
+                r["players"] = [p for p in r["players"] if p["uid"] == r["host"] or now - p["seen"] < 600 or p["uid"] == uid]
                 for p in r["players"]:
                     p["ready"] = False
                     if p["uid"] == uid:
-                        p["seen"] = now
+                        p["seen"] = now; p.pop("rm", None)
+                    elif p["uid"] != r["host"]:
+                        p["rm"] = now + 300                  # sta ancora guardando i risultati: 5 minuti per tornare, poi vale la regola normale
                 r["events"].append({"k": "rematch", "n": r.get("round", 0)}); r["act"] = now
             elif r["status"] != "lobby" or not any(p["uid"] == uid for p in r["players"]):
                 return wa._err("La gara è già ripartita.", 409)
             else:
                 for p in r["players"]:
                     if p["uid"] == uid:
-                        p["seen"] = _now()
+                        p["seen"] = _now(); p.pop("rm", None)
         return jsonify({"success": True, "room": _view(r, uid)})
 
     @bp.route("/api/room/ready", methods=["POST", "OPTIONS"])
@@ -642,11 +731,21 @@ def install(wa):
             return wa._err("Servono almeno 2 giocatori.")
         if r["game"] == "race":
             now0 = _now()
+            with _L:                                          # chi è sparito (non torna dai risultati) non entra in griglia e riceve la puntata indietro
+                for p in [p for p in r["players"] if p["uid"] != r["host"] and now0 - p["seen"] > 60]:
+                    if p.get("paid") and not r["sim"]:
+                        _hist(p["uid"], "race (rimborso)", p["paid"], p["paid"], "rimborso")
+                        _move(p["uid"], p["paid"]); p["paid"] = 0
+                    r["players"] = [q for q in r["players"] if q["uid"] != p["uid"]]
+                    r["events"].append({"k": "leave", "u": p["uid"]})
+            if len(r["players"]) < 2:
+                return wa._err("Servono almeno 2 giocatori.")
             late = [p["name"] for p in r["players"] if p["uid"] != r["host"] and now0 - p["seen"] < 30 and not p.get("ready")]
             if late:
                 return wa._err("Non tutti sono pronti: " + ", ".join(late[:3]))
         with _L:
             r["go"] = {}; r["rdy"] = {}; r["q"] = {}; r["gridv"] = None; r.pop("closeAt", None); r["round"] = r.get("round", 0) + 1; r["t0"] = _now()
+            _ann_close(r, "gara partita 🏎️")
             r["status"] = "run"; r["act"] = _now(); r["events"].append({"k": "start", "t": round(_now(), 3), "seed": secrets.randbelow(2 ** 31), "order": [p["uid"] for p in r["players"]]})
         return jsonify({"success": True, "room": _view(r, str(user["id"]))})
 
