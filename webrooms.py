@@ -74,44 +74,49 @@ def _deeplink(rid):
     return f"{link}?startapp=room_{rid}" if link else ""
 
 
-_ANN_LAST = {}                       # host -> ultimo annuncio nel gruppo (al massimo uno ogni 10 minuti per persona)
-ANN_DELAY = 40                       # secondi di attesa: l'host fa in tempo a scegliere pista e regole prima che il messaggio parta
+_ANN_LAST = {}                       # host -> ultimo annuncio nel gruppo (almeno 30 secondi tra uno e l'altro: niente spam)
+ANN_GAP = 30
 
 
-def _announce_later(rid):
-    t = threading.Timer(ANN_DELAY, _announce, (rid,)); t.daemon = True; t.start()
-
-
-def _announce(rid):
-    """Lobby pubblica del Grand Prix → messaggio nel gruppo con il pulsante che porta dentro la stanza."""
+def _announce(rid, uid):
+    """Annuncio nel gruppo, SOLO quando l'host preme "Annuncia nel gruppo". Restituisce (ok, messaggio di errore)."""
     try:
         import webapi as wa
         from state import SYSTEM_FLAGS
         link = _deeplink(rid)
         if not link or not wa.GROUP_CHAT_ID or not SYSTEM_FLAGS.get("ROOM_ANNOUNCE", True):
-            return
+            return False, "Annunci nel gruppo non disponibili (manca ARCADE_LINK)."
         with _L:
             r = ROOMS.get(rid)
-            if not r or r["game"] != "race" or r["sim"] or r["status"] != "lobby" or r.get("closeAt") or r.get("gmsg"):
-                return
+            if not r or r["game"] != "race" or r["status"] != "lobby" or r.get("closeAt"):
+                return False, "La lobby non è più aperta."
+            if r["host"] != uid:
+                return False, "Solo l'host può annunciare la lobby."
+            if r["sim"]:
+                return False, "Le lobby dell'account di prova non si annunciano."
+            if len(r["players"]) >= r["cfg"]["max"]:
+                return False, "La lobby è piena."
+            wait = ANN_GAP - (_now() - _ANN_LAST.get(uid, 0))
+            if wait > 0:
+                return False, "Hai appena annunciato: riprova tra %d s." % (int(wait) + 1)
+            _ANN_LAST[uid] = _now()
+            h = next((p for p in r["players"] if p["uid"] == r["host"]), None) or {"name": "Un pilota"}
             x = r["cfg"].get("x") or {}
-            h = next((p for p in r["players"] if p["uid"] == r["host"]), None)
-            if not x.get("vis", 1) or not h or _now() - h["seen"] > 40 or len(r["players"]) >= r["cfg"]["max"]:
-                return
-            if _now() - _ANN_LAST.get(r["host"], 0) < 600:
-                return
-            _ANN_LAST[r["host"]] = _now()
             try:
                 from webrace import TRACK_NAMES
             except Exception:
                 TRACK_NAMES = {}
             c = r["cfg"]
-            txt = (f"🏁 <b>{_html.escape(h['name'])}</b> ha aperto una lobby pubblica di Grand Prix\n"
+            txt = (f"🏁 <b>{_html.escape(h['name'])}</b> ti aspetta in una lobby di Grand Prix\n"
                    f"📍 {_html.escape(TRACK_NAMES.get(c['track'], c['track'] or 'pista'))} · {c['laps']} giri"
+                   + (" · gara lunga" if x.get("lng") else "")
                    + (" · qualifica" if x.get("qual") else "") + (" · " + ["", "🌦 pioggia leggera", "🌧 pioggia forte"][min(2, int(x.get("rain", 0) or 0))] if x.get("rain") else "")
                    + (f" · 🏆 premio {c['prize']} $SDG" if c.get("prize") else "")
+                   + (f" · 💰 puntata {c['stake']} $SDG" if c.get("stake") else "")
                    + f"\n👥 {len(r['players'])}/{c['max']} piloti\n\nEntra con un tocco 👇")
-            host = r["host"]
+            old = r.pop("gmsg", None)
+        if old:
+            _ann_close_msg(old, "annuncio rinnovato più in basso")
         async def send():
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             m = await wa._bot().send_message(int(wa.GROUP_CHAT_ID), txt, parse_mode="HTML",
@@ -124,8 +129,10 @@ def _announce(rid):
                 r2["gmsg"] = (int(wa.GROUP_CHAT_ID), mid, txt)
             else:
                 _ann_close_msg((int(wa.GROUP_CHAT_ID), mid, txt), "lobby chiusa")
+        return True, ""
     except Exception as e:
         logging.info(f"Annuncio lobby nel gruppo non riuscito: {e}")
+        return False, "Messaggio non inviato: riprova tra poco."
 
 
 def _ann_close_msg(g, why):
@@ -154,6 +161,18 @@ def _x(d):
             if isinstance(k, str) and len(k) <= 8 and isinstance(v, (int, bool, float)):
                 out[k] = v
     return out
+
+
+def _x_for(user, d):
+    """Regole extra della stanza; la "gara lunga" (x.lng) per ora la può impostare solo l'admin."""
+    x = _x(d)
+    try:
+        import webapi as wa
+        if x.get("lng") and not wa._is_admin_id(user["id"]):
+            x.pop("lng", None)
+    except Exception:
+        x.pop("lng", None)
+    return x
 
 
 def _wallet_ok(uid, amount):
@@ -399,12 +418,10 @@ def install(wa):
         p = dict(_prof(uid), ready=True, seen=_now(), paid=stake if not sim else 0)
         r = {"id": secrets.token_urlsafe(6), "game": game, "host": uid, "status": "lobby", "sim": sim, "act": _now(),
              "cfg": {"stake": stake, "prize": prize if len([1]) else 0, "laps": int(cfg.get("laps", 3) or 3), "track": str(cfg.get("track", ""))[:16],
-                     "hands": int(cfg.get("hands", 0) or 0), "x": _x(cfg.get("x")), "max": min(MAX_PLAYERS[game], int(cfg.get("max", MAX_PLAYERS[game]) or 2))},
+                     "hands": int(cfg.get("hands", 0) or 0), "x": _x_for(user, cfg.get("x")), "max": min(MAX_PLAYERS[game], int(cfg.get("max", MAX_PLAYERS[game]) or 2))},
              "players": [p], "invited": [], "events": [], "votes": {}}
         with _L:
             ROOMS[r["id"]] = r
-        if game == "race" and not sim:
-            _announce_later(r["id"])
         return jsonify({"success": True, "room": _view(r, uid)})
 
     @bp.route("/api/room/join", methods=["POST", "OPTIONS"])
@@ -481,6 +498,17 @@ def install(wa):
             if r["status"] == "run" and len(r["players"]) < 2:
                 r["status"] = "lobby" if False else "run"
         return jsonify({"success": True})
+
+    @bp.route("/api/room/announce", methods=["POST", "OPTIONS"])
+    def room_announce():
+        """L'host manda nel gruppo il messaggio con il pulsante per entrare nella sua lobby."""
+        if request.method == "OPTIONS":
+            return "", 204
+        user, data, err = post()
+        if err:
+            return err
+        ok, why = _announce(str(data.get("id", "")), str(user["id"]))
+        return jsonify({"success": True}) if ok else wa._err(why)
 
     @bp.route("/api/room/invite", methods=["POST", "OPTIONS"])
     def room_invite():
@@ -889,7 +917,7 @@ def install(wa):
                 if k in c:
                     r["cfg"][k] = max(0, min(5000, int(c[k] or 0)))
             if "x" in c:
-                r["cfg"]["x"] = _x(c["x"])
+                r["cfg"]["x"] = _x_for(user, c["x"])
             r["act"] = _now()
         return jsonify({"success": True})
 

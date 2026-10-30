@@ -26,7 +26,7 @@ MAX_GHOST = 9000                                  # numeri (x, y, angolo): ~20 H
 def _db():
     from state import SYSTEM_FLAGS
     d = SYSTEM_FLAGS.setdefault("RACE_DB", {})
-    d.setdefault("rec", {}); d.setdefault("best", {}); d.setdefault("day", {})
+    d.setdefault("rec", {}); d.setdefault("best", {}); d.setdefault("day", {}); d.setdefault("fl", {})
     return d
 
 
@@ -57,7 +57,8 @@ def _view(uid):
             mine[tid] = b[uid]
     un = _unlocked(uid)
     return {"unlocked": [t for i, t in enumerate(TRACKS) if PRICE[i] == 0 or t in un], "top": top, "mine": mine,
-            "rec": {tid: {"t": r["t"], "n": _name(r["u"]), "me": r["u"] == uid} for tid, r in db["rec"].items()}}
+            "rec": {tid: {"t": r["t"], "n": _name(r["u"]), "me": r["u"] == uid} for tid, r in db["rec"].items()},
+            "fl": {tid: {"t": r["t"], "n": _name(r["u"]), "me": r["u"] == uid} for tid, r in db["fl"].items()}}
 
 
 # ---------------------------------------------------------------- anti-cheat
@@ -141,6 +142,46 @@ def check_run(tid, ms, g):
     return None
 
 
+def _ghost_laps(tid, ms, g):
+    """Durate approssimate dei 3 giri ricavate dal fantasma (quando passa per i punti della pista). None se non si riesce."""
+    import math
+    t = _tracks().get(tid)
+    if not t or not isinstance(g, list) or len(g) < 60 or len(g) % 3:
+        return None
+    n = len(g) // 3
+    dt = 50 if abs(ms - n * 50) <= 250 else (100 if abs(ms - n * 100) <= 400 else 0)
+    if not dt:
+        return None
+    w, hw = t["w"], t["hw"]; k = len(w)
+    idx = min(range(k), key=lambda j: math.hypot(g[0] - w[j][0], g[1] - w[j][1]))
+    adv, cross = 0, []
+    for i in range(n):
+        x, y = g[i * 3], g[i * 3 + 1]
+        for _ in range(4):
+            nx = (idx + 1) % k
+            if math.hypot(x - w[nx][0], y - w[nx][1]) < hw + 110:
+                idx = nx; adv += 1
+                if adv % k == 0 and len(cross) < 3:
+                    cross.append(i * dt)
+            else:
+                break
+    if len(cross) < 3:
+        return None
+    return [cross[0], cross[1] - cross[0], cross[2] - cross[1]]
+
+
+def check_laps(tid, ms, lt, g):
+    """Giri dichiarati dal client: validi solo se coerenti col tempo totale, col limite fisico e con quelli ricavati dal fantasma."""
+    if not isinstance(lt, list) or len(lt) != 3 or not all(isinstance(x, int) and not isinstance(x, bool) for x in lt):
+        return None
+    if abs(sum(lt) - ms) > 150 or min(lt) < int(floor_ms(tid) / 3 * 0.9):
+        return None
+    gl = _ghost_laps(tid, ms, g)
+    if not gl or any(abs(a - b) > (1100 if i == 0 else 700) for i, (a, b) in enumerate(zip(lt, gl))):
+        return None
+    return lt
+
+
 def purge(uid=None):
     """Toglie i record non verificabili. uid: cancella tutti i tempi di quel giocatore; senza uid riverifica i record attuali.
     Dopo, ogni record viene ricalcolato dal miglior tempo rimasto (senza fantasma, che non è conservato)."""
@@ -161,6 +202,10 @@ def purge(uid=None):
             u, t = min(best.items(), key=lambda kv: kv[1])
             db["rec"][tid] = {"u": u, "t": t, "g": None, "v": 1}
             out.append("%s: nuovo record %s di %s" % (tid, _fmt(t), _name(u)))
+    for tid in TRACKS:                                                 # giri più veloci: via quelli di chi è stato ripulito (o non più plausibili)
+        f = db["fl"].get(tid)
+        if f and ((uid and f["u"] == uid) or f["t"] < int(floor_ms(tid) / 3 * 0.9)):
+            out.append("%s: giro veloce %s di %s tolto" % (tid, _fmt(f["t"]), _name(f["u"]))); del db["fl"][tid]
     if uid:
         db["day"].pop(uid, None)
     _save()
@@ -302,6 +347,7 @@ def install(wa):
             return wa._err("Tempo non valido.")
         if g is not None and (not isinstance(g, list) or len(g) > MAX_GHOST or not all(isinstance(x, int) for x in g[:50])):
             g = None
+        lt = check_laps(tid, ms, data.get("lt"), g) if g is not None and check_run(tid, ms, g) is None else None
         why = check_run(tid, ms, g)
         if why:
             logging.warning("Record rifiutato (%s) uid=%s t=%s: %s", tid, user.get("id"), ms, why)
@@ -315,6 +361,10 @@ def install(wa):
             db = _db(); best = db["best"].setdefault(tid, {}); prev_me = best.get(uid)
             if prev_me is None or ms < prev_me:
                 best[uid] = ms
+            if lt:                                                         # giro più veloce della pista (di chiunque, anche in una corsa non da record)
+                fb = min(lt); cf = db["fl"].get(tid)
+                if cf is None or fb < cf["t"]:
+                    db["fl"][tid] = {"u": uid, "t": fb}
             cur = db["rec"].get(tid)
             new_rec = cur is None or ms < cur["t"]
             reward = 0
