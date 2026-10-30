@@ -338,6 +338,11 @@ async def main_async():
         except Exception as e:                     # un problema della mini app non deve mai fermare il bot
             print(f"⚠️ API della mini app non attivata: {e}", flush=True)
         start_flask()
+        try:
+            import wsrooms, webapi as _wapi
+            wsrooms.start(_wapi)                   # WebSocket delle corse (riserva: HTTP resta); un guasto qui non ferma nulla
+        except Exception as e:
+            print(f"⚠️ WebSocket non attivato: {e}", flush=True)
     else:
         print("ℹ️ WEBHOOK_URL impostato: le API della mini app sono attive solo in polling (senza WEBHOOK_URL).", flush=True)
 

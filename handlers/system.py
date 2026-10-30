@@ -277,6 +277,23 @@ def _block_view(page: int = 0):
     return text, InlineKeyboardMarkup(kb)
 
 
+async def ws_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/ws on | off | stat — interruttore del WebSocket delle corse (spento = tutto torna al sistema HTTP di sempre)."""
+    user, msg = update.effective_user, update.effective_message
+    if not user or not msg or not is_admin(user.id):
+        return
+    import wsrooms
+    arg = (context.args[0].lower() if context.args else "stat")
+    if arg == "on":
+        if not wsrooms.url():
+            await msg.reply_text("⚠️ Manca la variabile WS_URL su Northflank: senza indirizzo i giocatori non possono collegarsi. Vedi le istruzioni che ti ho dato.")
+            return
+        wsrooms.set_enabled(True)
+    elif arg == "off":
+        wsrooms.set_enabled(False)
+    await msg.reply_text(wsrooms.stat_text() + "\n\n<code>/ws on</code> · <code>/ws off</code> · <code>/ws stat</code>", parse_mode="HTML")
+
+
 async def block_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user, msg = update.effective_user, update.effective_message
     if not user or not msg or not is_admin(user.id):
@@ -345,6 +362,7 @@ def _com_view():
         [InlineKeyboardButton("💸 Fonti", callback_data="adm_c_fonti"),
          InlineKeyboardButton("🕵️ Cheat", callback_data="adm_c_cheat"),
          InlineKeyboardButton("🧹 Purge", callback_data="adm_c_purge")],
+        [InlineKeyboardButton("🔌 WebSocket", callback_data="adm_c_ws")],
         [InlineKeyboardButton("🔄 Reset saldi", callback_data="aec_menu"),
          InlineKeyboardButton("💸 Ricarica TUTTI", callback_data="aec_rmenu")],
         [InlineKeyboardButton("🎯 Sfida libera", callback_data="aec_free")],
@@ -366,6 +384,7 @@ async def com_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 _COM_HELP = {
     "storico": "📜 Scrivi: <code>/storico @username</code> (oppure l'ID numerico).",
+    "ws": "🔌 <code>/ws stat</code> stato · <code>/ws on</code> accende il WebSocket delle corse · <code>/ws off</code> lo spegne (le corse tornano subito a HTTP).",
     "fonti": "💸 Scrivi: <code>/fonti @username</code>: mostra da quali giochi arrivano i suoi soldi.",
     "cheat": "🕵️ Scrivi: <code>/cheat @username</code>: tempi record, saldo e premi di oggi con i sospetti.",
     "purge": "🧹 <code>/purge</code> riverifica tutti i record · <code>/purge @username</code> cancella i suoi tempi · <code>/purge @username saldo 500</code> li cancella e porta il saldo a 500.",
@@ -1218,6 +1237,7 @@ def register(app):
     app.add_error_handler(error_handler)
     app.add_handler(TypeHandler(Update, maintenance_gate), group=-2)
     app.add_handler(TypeHandler(Update, block_gate), group=-2)
+    app.add_handler(CommandHandler("ws", ws_command))
     app.add_handler(CommandHandler("blocca", block_command))
     app.add_handler(CommandHandler("sblocca", block_command))
     app.add_handler(CallbackQueryHandler(catch_all_callbacks), group=-1)

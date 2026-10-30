@@ -33,13 +33,21 @@ def _now():
     return time.time()
 
 
+def _ws_url():
+    try:
+        import wsrooms
+        return wsrooms.url() if wsrooms.enabled() else ""
+    except Exception:
+        return ""
+
+
 def _view(r, uid):
     return {"id": r["id"], "game": r["game"], "host": r["host"], "status": r["status"], "cfg": r["cfg"], "sim": r["sim"],
             "players": [{"uid": p["uid"], "pid": p["pid"], "name": p["name"], "style": p["style"], "ready": p["ready"], "col": p.get("col"),
                          "online": _now() - p["seen"] < 12} for p in r["players"]],
             "invited": r["invited"], "n": len(r["events"]), "me": uid, "result": r.get("settled"),
             "away": max(0, int(r["closeAt"] - _now())) if r.get("closeAt") else 0, "st": round(_now(), 3),
-            "round": r.get("round", 0), "sy": {"rdy": r.get("rdy", {}), "go": r.get("go", {}), "q": r.get("q", {}), "grid": r.get("gridv")}}
+            "ws": _ws_url(), "round": r.get("round", 0), "sy": {"rdy": r.get("rdy", {}), "go": r.get("go", {}), "q": r.get("q", {}), "grid": r.get("gridv")}}
 
 
 def _prof(uid):
@@ -179,6 +187,86 @@ def _settle(r):
     r["settled"] = {"order": order, "pay": pay, "sim": r["sim"]}
     r["status"] = "done"
     return True
+
+
+def sync_core(uid, data, view=True, since_default=0):
+    """Cuore della sincronizzazione (usato sia da HTTP /api/room/sync sia dal WebSocket): registra l'evento (se c'è) e restituisce
+    (codice, risposta, push). push = cosa spedire subito agli altri collegati col WebSocket (None se non c'è nulla)."""
+    with _L:
+        _gc()
+    r = ROOMS.get(str(data.get("id", "")))
+    if not r:
+        return 200, {"success": True, "gone": True, "events": [], "n": 0}, None
+    if not any(p["uid"] == uid for p in r["players"]) and uid not in r["invited"]:
+        return 403, "Non sei in questa stanza.", None
+    ev = data.get("ev")
+    raw_since = data.get("since", since_default)
+    try:
+        since = None if raw_since is None else int(raw_since)
+    except (TypeError, ValueError):
+        since = 0
+    appended, special = None, False
+    with _L:
+        for p in r["players"]:
+            if p["uid"] == uid:
+                p["seen"] = _now()
+        if isinstance(ev, dict) and len(repr(ev)) <= EV_BYTES and any(p["uid"] == uid for p in r["players"]):
+            ev = dict(ev); ev["u"] = uid; ev["t"] = round(_now(), 3)
+            k0 = ev.get("k"); ph0 = str(ev.get("ph", ""))[:6]
+            if k0 in ("rdy", "q", "grid", "go"):
+                special = True
+            if k0 == "rdy":                               # pronto alla partenza (fine presentazione): lo stato sta nella stanza, non si perde
+                lst = r.setdefault("rdy", {}).setdefault(ph0, [])
+                if uid not in lst:
+                    lst.append(uid)
+                ev = None
+            elif k0 == "q":                               # tempo di qualifica (il primo vale)
+                try:
+                    qt = float(ev.get("qt"))
+                except (TypeError, ValueError):
+                    qt = 9999.0
+                r.setdefault("q", {}).setdefault(uid, round(qt, 3)); ev = None
+            elif k0 == "grid":                            # griglia decisa: la prima che arriva vale per tutti
+                g = ev.get("g")
+                if r.get("gridv") is None and isinstance(g, list) and all(isinstance(x, str) for x in g[:12]):
+                    r["gridv"] = g[:12]
+                ev = None
+            elif ev.get("k") == "go":                       # via della partenza: il primo che lo manda decide l'istante (orologio del server) per tutti
+                ph = str(ev.get("ph", ""))[:6]; gos = r.setdefault("go", {})
+                if ph in gos:
+                    ev = None
+                else:
+                    ev["G"] = round(_now() + 1.5, 3); gos[ph] = ev["G"]
+            if ev is not None and "to" in ev and not (isinstance(ev["to"], list) and all(isinstance(x, str) for x in ev["to"])):
+                ev.pop("to")
+            if ev is not None:
+                r["events"].append(ev); appended = ev
+            r["act"] = _now()
+            if len(r["events"]) > MAX_EV:
+                cut = len(r["events"]) - MAX_EV; r["events"] = r["events"][cut:]; r["base"] = r.get("base", 0) + cut
+        base = r.get("base", 0)
+        n = base + len(r["events"])
+        out = {"success": True, "n": n, "st": round(_now(), 3)}
+        if since is not None:
+            out["events"] = [e for e in r["events"][max(0, since - base):] if "to" not in e or uid in e["to"]]
+            out["from"] = max(since, base)
+        if view:
+            out["room"] = _view(r, uid)
+    push = None
+    if appended is not None or special:
+        push = {"evs": [appended] if appended is not None else [], "n": n, "from": n - 1 if appended is not None else n, "special": special}
+    return 200, out, push
+
+
+def view_for(rid, uid):
+    with _L:
+        r = ROOMS.get(str(rid))
+        return _view(r, uid) if r else None
+
+
+def is_member(rid, uid):
+    r = ROOMS.get(str(rid))
+    return bool(r) and (any(p["uid"] == uid for p in r["players"]) or uid in r["invited"])
 
 
 def install(wa):
@@ -715,55 +803,13 @@ def install(wa):
         if err:
             return err
         uid = str(user["id"])
-        with _L:
-            _gc()
-        r = ROOMS.get(str(data.get("id", "")))
-        if not r:
-            return jsonify({"success": True, "gone": True, "events": [], "n": 0})
-        if not any(p["uid"] == uid for p in r["players"]) and uid not in r["invited"]:
-            return wa._err("Non sei in questa stanza.", 403)
-        ev = data.get("ev")
-        try:
-            since = int(data.get("since", 0))
-        except (TypeError, ValueError):
-            since = 0
-        with _L:
-            for p in r["players"]:
-                if p["uid"] == uid:
-                    p["seen"] = _now()
-            if isinstance(ev, dict) and len(repr(ev)) <= EV_BYTES and any(p["uid"] == uid for p in r["players"]):
-                ev = dict(ev); ev["u"] = uid; ev["t"] = round(_now(), 3)
-                k0 = ev.get("k"); ph0 = str(ev.get("ph", ""))[:6]
-                if k0 == "rdy":                               # pronto alla partenza (fine presentazione): lo stato sta nella stanza, non si perde
-                    lst = r.setdefault("rdy", {}).setdefault(ph0, [])
-                    if uid not in lst:
-                        lst.append(uid)
-                    ev = None
-                elif k0 == "q":                               # tempo di qualifica (il primo vale)
-                    try:
-                        qt = float(ev.get("qt"))
-                    except (TypeError, ValueError):
-                        qt = 9999.0
-                    r.setdefault("q", {}).setdefault(uid, round(qt, 3)); ev = None
-                elif k0 == "grid":                            # griglia decisa: la prima che arriva vale per tutti
-                    g = ev.get("g")
-                    if r.get("gridv") is None and isinstance(g, list) and all(isinstance(x, str) for x in g[:12]):
-                        r["gridv"] = g[:12]
-                    ev = None
-                elif ev.get("k") == "go":                       # via della partenza: il primo che lo manda decide l'istante (orologio del server) per tutti
-                    ph = str(ev.get("ph", ""))[:6]; gos = r.setdefault("go", {})
-                    if ph in gos:
-                        ev = None
-                    else:
-                        ev["G"] = round(_now() + 1.5, 3); gos[ph] = ev["G"]
-                if ev is not None and "to" in ev and not (isinstance(ev["to"], list) and all(isinstance(x, str) for x in ev["to"])):
-                    ev.pop("to")
-                if ev is not None:
-                    r["events"].append(ev)
-                r["act"] = _now()
-                if len(r["events"]) > MAX_EV:
-                    cut = len(r["events"]) - MAX_EV; r["events"] = r["events"][cut:]; r["base"] = r.get("base", 0) + cut
-            base = r.get("base", 0)
-            evs = [e for e in r["events"][max(0, since - base):] if "to" not in e or uid in e["to"]]
-            v = _view(r, uid); n = base + len(r["events"])
-        return jsonify({"success": True, "room": v, "events": evs, "n": n, "from": max(since, base)})
+        code, out, push = sync_core(uid, data)
+        if code != 200:
+            return wa._err(out, code)
+        if push:
+            try:
+                import wsrooms
+                wsrooms.notify(str(data.get("id", "")), uid, push)          # chi è collegato col WebSocket riceve subito la novità
+            except Exception as e:
+                logging.warning(f"Notifica WebSocket non inviata: {e}")
+        return jsonify(out)
