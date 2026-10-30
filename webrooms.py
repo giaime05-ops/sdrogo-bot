@@ -164,11 +164,11 @@ def _x(d):
 
 
 def _x_for(user, d):
-    """Regole extra della stanza; la "gara lunga" (x.lng) per ora la può impostare solo l'admin."""
+    """Regole extra della stanza; la "gara lunga" (x.lng) per ora solo nell'account admin di prova (sandbox), non nell'account pubblico dell'admin."""
     x = _x(d)
     try:
         import webapi as wa
-        if x.get("lng") and not wa._is_admin_id(user["id"]):
+        if x.get("lng") and not (wa._is_admin_id(user["id"]) and wa.is_web_sandbox()):
             x.pop("lng", None)
     except Exception:
         x.pop("lng", None)
