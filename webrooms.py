@@ -24,6 +24,7 @@ from flask import jsonify, request
 GAMES = {"srf", "dadi", "hl", "tris", "rou", "rr", "ghig", "race", "poker", "bj", "scopa"}
 MAX_PLAYERS = {"srf": 2, "dadi": 2, "hl": 2, "tris": 2, "rou": 2, "rr": 2, "ghig": 2, "race": 8, "poker": 4, "bj": 4, "scopa": 4}
 MAX_STAKE = 5000
+TABLES = ("poker", "bj", "scopa")      # tavoli: la puntata NON si trattiene in lobby (si può cambiare), ma al via per tutti insieme
 MAX_EV, EV_BYTES = 600, 900
 ACT_OK = {"gp", "gp_single", "gp_quick", "gp_lobby", "gara", "multi", "tavoli", "sfide", "shop", "casino", "attivita", "classifica"}
 ROOM_IDLE = 900                      # secondi senza attività: la stanza si chiude (e le puntate tornano indietro)
@@ -194,7 +195,7 @@ def _gc():
         if r["status"] != "done":
             _refund(r)
     for r in list(ROOMS.values()):                                    # in lobby chi sparisce per più di 60 s esce da solo (con la puntata restituita)
-        if r["status"] != "lobby" or r["game"] != "race":
+        if r["status"] != "lobby" or (r["game"] != "race" and r["game"] not in TABLES):
             continue
         for p in list(r["players"]):
             if p["uid"] != r["host"] and now - p["seen"] > 60 and now > p.get("rm", 0):          # "rm": dopo la gara chi è ancora sulla schermata dei risultati ha qualche minuto per tornare
@@ -406,7 +407,7 @@ def install(wa):
                 o = ROOMS.pop(old); _refund(o)
             if sum(1 for r in ROOMS.values() if r["host"] == uid and r["status"] != "done") >= 3:
                 return wa._err("Hai già troppe stanze aperte.")
-        if stake and not sim:
+        if stake and not sim and game not in TABLES:
             resp, ok = wa._avi_call(_co(_wallet_ok, uid, stake))
             if resp is not None:
                 return resp
@@ -415,7 +416,7 @@ def install(wa):
             resp, _ = wa._avi_call(_co(_move, uid, -stake))
             if resp is not None:
                 return resp
-        p = dict(_prof(uid), ready=True, seen=_now(), paid=stake if not sim else 0)
+        p = dict(_prof(uid), ready=True, seen=_now(), paid=stake if (not sim and game not in TABLES) else 0)
         r = {"id": secrets.token_urlsafe(6), "game": game, "host": uid, "status": "lobby", "sim": sim, "act": _now(),
              "cfg": {"stake": stake, "prize": prize if len([1]) else 0, "laps": int(cfg.get("laps", 3) or 3), "track": str(cfg.get("track", ""))[:16],
                      "hands": int(cfg.get("hands", 0) or 0), "x": _x_for(user, cfg.get("x")), "max": min(MAX_PLAYERS[game], int(cfg.get("max", MAX_PLAYERS[game]) or 2))},
@@ -444,7 +445,7 @@ def install(wa):
         if r["sim"] != bool(wa.is_web_sandbox()):
             return wa._err("Questa stanza è di prova (soldi finti): non puoi entrare con l'account vero.")
         stake = r["cfg"]["stake"]
-        if stake and not r["sim"]:
+        if stake and not r["sim"] and r["game"] not in TABLES:
             resp, ok = wa._avi_call(_co(_wallet_ok, uid, stake))
             if resp is not None:
                 return resp
@@ -454,7 +455,7 @@ def install(wa):
             if resp is not None:
                 return resp
         with _L:
-            r["players"].append(dict(_prof(uid), ready=(r["game"] != "race"), seen=_now(), paid=stake if not r["sim"] else 0)); r["act"] = _now()
+            r["players"].append(dict(_prof(uid), ready=(r["game"] != "race"), seen=_now(), paid=stake if (not r["sim"] and r["game"] not in TABLES) else 0)); r["act"] = _now()
             r["events"].append({"k": "join", "u": uid})
             r["invited"] = [x for x in r["invited"] if x != uid]
         return jsonify({"success": True, "room": _view(r, uid)})
@@ -771,6 +772,26 @@ def install(wa):
             late = [p["name"] for p in r["players"] if p["uid"] != r["host"] and now0 - p["seen"] < 30 and not p.get("ready")]
             if late:
                 return wa._err("Non tutti sono pronti: " + ", ".join(late[:3]))
+        if r["game"] in TABLES and not r["sim"] and r["cfg"].get("stake"):
+            stake = int(r["cfg"]["stake"])
+            now0 = _now()
+            with _L:                                          # chi è sparito dalla lobby non siede al tavolo
+                for p in [p for p in r["players"] if p["uid"] != r["host"] and now0 - p["seen"] > 60]:
+                    r["players"] = [q for q in r["players"] if q["uid"] != p["uid"]]
+                    r["events"].append({"k": "leave", "u": p["uid"]})
+            if len(r["players"]) < 2:
+                return wa._err("Servono almeno 2 giocatori.")
+            for p in r["players"]:
+                resp, ok = wa._avi_call(_co(_wallet_ok, p["uid"], stake))
+                if resp is not None:
+                    return resp
+                if not ok:
+                    return wa._err(("Non hai" if p["uid"] == str(user["id"]) else p["name"] + " non ha") + " abbastanza $SDG per la puntata di %d." % stake)
+            for p in r["players"]:
+                resp, _ = wa._avi_call(_co(_move, p["uid"], -stake))
+                if resp is not None:
+                    return resp
+                p["paid"] = stake
         with _L:
             r["go"] = {}; r["rdy"] = {}; r["q"] = {}; r["gridv"] = None; r.pop("closeAt", None); r["round"] = r.get("round", 0) + 1; r["t0"] = _now()
             _ann_close(r, "gara partita 🏎️")
@@ -913,6 +934,8 @@ def install(wa):
         with _L:
             if "track" in c:
                 r["cfg"]["track"] = str(c["track"])[:16]
+            if "stake" in c and r["game"] in TABLES:
+                r["cfg"]["stake"] = max(0, min(MAX_STAKE, int(c["stake"] or 0)))
             for k in ("laps", "prize", "hands"):
                 if k in c:
                     r["cfg"][k] = max(0, min(5000, int(c[k] or 0)))
